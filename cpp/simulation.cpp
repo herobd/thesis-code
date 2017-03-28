@@ -172,14 +172,14 @@ int main(int argc, char** argv)
     string pageImageDir = "/home/brian/intel_index/data/bentham/BenthamDatasetR0-Images/Images/Pages";
     string segmentationFile = "/home/brian/intel_index/data/bentham/ben_cattss_c_corpus.gtp";
     string charSegFile = "/home/brian/intel_index/data/bentham/manual_segmentations.csv";
-    string spottingModelPrefix = "model/CATTSS_BENTHAM";
-    string savePrefix = "save/sim_BENTHAM";
+    string spottingModelPrefix = "/home/brian/intel_index/data/bentham/network/phocnet_msf";//"model/CATTSS_BENTHAM";
+    string savePrefix = "save/sim_net_BENTHAM";
     if (argc>1)
         savePrefix=argv[1];
     if (argc>2)
         GlobalK::knowledge()->setSimSave(argv[2]);
     else
-        GlobalK::knowledge()->setSimSave("save/simulationTracking.csv");
+        GlobalK::knowledge()->setSimSave("save/simulationTracking_net_BENTHAM.csv");
     if (argc>3)
         numSimThreads=atoi(argv[3]);
 
@@ -189,12 +189,13 @@ int main(int argc, char** argv)
 //    Simulator sim("test",charSegFile);
 //#endif
     int avgCharWidth=-1;
-    if (dataname.compare("BENTHAN")==0)
+    if (dataname.compare("BENTHAM")==0)
         avgCharWidth=37;
     else if (dataname.compare("NAMES")==0)
         avgCharWidth=20;
     else if (dataname.compare("GW")==0)
         avgCharWidth=38;
+    assert(avgCharWidth>0);
 
     int numSpottingThreads = 5;
     int numTaskThreads = 3;

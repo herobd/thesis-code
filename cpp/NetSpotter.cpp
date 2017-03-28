@@ -1,18 +1,20 @@
 #include "NetSpotter.h"
 
-NetSpotter::NetSpotter(const Dataset* corpus, string modelPrefix) 
+NetSpotter::NetSpotter(const Dataset* corpus, string modelPrefix, int charWidth) 
 {
     //spotter = new EmbAttSpotter(modelPrefix+"_emb",true);
-    spooter = new CNNSPPSpotter(modelPrefix+"_featurizer.prototxt", modelPrefix+"_embedder.prototxt", modelPrefix+"_wieghts.caffemodel", true, 0.25, windowWidth, 4, modelPrefix+"_cnnsppspotter");
+    spotter = new CNNSPPSpotter(modelPrefix+"_featurizer.prototxt", modelPrefix+"_embedder.prototxt", modelPrefix+".caffemodel", true, 0.25, charWidth, 4, modelPrefix+"_cnnsppspotter");
     
-    //dataset = new AlmazanDataset(corpus);
-    spotter->setCorpus_dataset(corpus);
+    spotter->setCorpus_dataset(corpus,false);
 }
 
 vector<SpottingResult> NetSpotter::runQuery(SpottingQuery* query) const
 {
     vector< SubwordSpottingResult > res;
     float refinePortion=0.20;
+#ifdef NO_NAN
+    float ap, accumAP;
+#endif
     if (query->getImg().cols==0)
     {
         refinePortion=0.25;
@@ -25,13 +27,10 @@ vector<SpottingResult> NetSpotter::runQuery(SpottingQuery* query) const
     }
     else
     {
-#ifdef NO_NAN
-        float ap, accumAP;
-#endif
         if (query->getImg().channels()==1)
         {
 #ifdef NO_NAN
-           res = spotter->subwordSpot_eval(query->getImg(), refinePortion, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP);
+           res = spotter->subwordSpot_eval(query->getImg(), query->getNgram(), refinePortion, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP);
            
 #else
            res = spotter->subwordSpot(query->getImg(), refinePortion);
@@ -42,7 +41,7 @@ vector<SpottingResult> NetSpotter::runQuery(SpottingQuery* query) const
             cv::Mat gray;
             cv::cvtColor(query->getImg(),gray,CV_RGB2GRAY);
 #ifdef NO_NAN
-            res = spotter->subwordSpot_eval(gray, refinePortion, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP);
+            res = spotter->subwordSpot_eval(gray, query->getNgram(), refinePortion, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP);
             
 #else
             res = spotter->subwordSpot(gray, refinePortion);

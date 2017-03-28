@@ -8,14 +8,16 @@ Knowledge::Corpus::Corpus(int contextPad, int averageCharWidth)
 {
     pthread_rwlock_init(&pagesLock,NULL);
     pthread_rwlock_init(&spottingsMapLock,NULL);
-    averageCharWidth=averageCharWidth;
+    this->averageCharWidth=averageCharWidth;
     countCharWidth=0;
     threshScoring= 1.0;
     manQueue.setContextPad(contextPad);
 }
 void Knowledge::Corpus::loadSpotter(string modelPrefix)
 {
-    spotter = new AlmazanSpotter(this,modelPrefix);
+    //spotter = new AlmazanSpotter(this,modelPrefix);
+    assert(averageCharWidth>0);    
+    spotter = new NetSpotter(this,modelPrefix,averageCharWidth);
 
     //This is bad, it shouldn't be coming from here, but it prevents code dup.
     //averageCharWidth = spotter->getAverageCharWidth();

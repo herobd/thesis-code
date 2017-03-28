@@ -25,7 +25,8 @@
 #include "TranscribeBatchQueue.h"
 #include "dataset.h"
 #include "Spotter.h"
-#include "AlmazanSpotter.h"
+//#include "AlmazanSpotter.h"
+#include "NetSpotter.h"
 #include "CorpusRef.h"
 #include "PageRef.h"
 
@@ -534,6 +535,7 @@ public:
 
     static void mouseCallBackFunc(int event, int x, int y, int flags, void* page_p);
     void showInteractive(int pageId);
+    string getName() const {return "CORPUS";}
 };
 
 }

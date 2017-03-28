@@ -53,7 +53,14 @@ var avgCharWidths=[ 38,
                     37,
                     20
                   ];
-
+//var spottingModelPrefixes=[ "model/CATTSS_GW",
+//                            "model/CATTSS_BENTHAM",
+//                            "model/CATTSS_NAMES"
+//                          ];
+var spottingModelPrefixes=[ "/home/brian/intel_index/data/gw_20p_wannot/network/phocnet_msf",
+                            "/home/brian/intel_index/data/bentham/network/phocnet_msf",
+                            "??"
+                          ];
 
 var datasetNum=1;
 var lexiconFile=lexiconFiles[datasetNum];
@@ -62,8 +69,8 @@ var segmentationFile=segmentationFiles[datasetNum];
 var datasetName=datasetNames[datasetNum];
 var contextPad=contextPads[datasetNum];
 var avgCharWidth=avgCharWidths[datasetNum];
-var spottingModelPrefix="model/CATTSS_";//+'GW' ;//datasetName;
-var savePrefix="save/2_";
+var spottingModelPrefix=spottingModelPrefixes[datasetNum];
+var savePrefix="save/net_";
 var numThreadsSpotting=5;
 var numThreadsUpdating=3;
 var showWidth=2500;
@@ -945,7 +952,7 @@ var ControllerApp = function(port) {
             spottingaddon.start(lexiconFile,
                                 pageImageDir,
                                 segmentationFile,
-                                spottingModelPrefix+datasetName,
+                                spottingModelPrefix,
                                 savePrefix,
                                 avgCharWidth,
                                 numThreadsSpotting,
