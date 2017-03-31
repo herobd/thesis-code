@@ -2434,8 +2434,9 @@ const cv::Mat* Knowledge::Corpus::imgForPageId(int pageId) const
 TranscribeBatch* Knowledge::Corpus::makeManualBatch(int maxWidth, bool noSpottings)
 {
     TranscribeBatch* ret=NULL;
-    for (Word* word : _words)
+    for (auto p : _words)
     {
+        Word* word = p.second;
         int tlx,tly,brx,bry;
         bool done;
         bool sent;
@@ -2490,15 +2491,16 @@ int Knowledge::Corpus::size() const
 }
 const Mat Knowledge::Corpus::image(unsigned int i) const
 {
-    return _wordImgs[i];
+    return _wordImgs.at(i);
 }
 unsigned int Knowledge::Corpus::wordId(unsigned int i) const
 {
-    return _words[i]->getId();
+    //return _words.at(i)->getId();
+    return i;
 }
 Knowledge::Word* Knowledge::Corpus::getWord(unsigned int i) const
 {
-    return _words[i];
+    return _words.at(i);
 }
 
 void Knowledge::Corpus::recreateDatasetVectors(bool lockPages)
@@ -2518,19 +2520,27 @@ void Knowledge::Corpus::recreateDatasetVectors(bool lockPages)
             vector<Word*> wordsInLine = line->wordsAndBounds(&line_ty,&line_by);
             for (Word* word : wordsInLine)
             {
-                word->setSpottingIndex(_words.size());
-                _words.push_back(word);
-                _wordImgs.push_back(word->getImg());
-                _gt.push_back(word->getGT());
+                //word->setSpottingIndex(_words.size());
+                //_words.push_back(word);
+                //_wordImgs.push_back(word->getImg());
+                //_gt.push_back(word->getGT());
+                _words[word->getId()]=word;
+                _wordImgs[word->getId()]=word->getImg();
+                //_gt[word->getId()]=word->getGT();
+
             }
 
             //We assume no more words are added at the moment
         }
     }
     assert(_words.size()==numWordsReadIn);
+    for (auto p : _words)
+    {
+        assert(p.second->getId() == _gt.size());
+        _gt.push_back(p.second->getGT());
+    }
     if (lockPages)
         pthread_rwlock_unlock(&pagesLock);
-    
 }
 
 vector<Spotting>* Knowledge::Corpus::runQuery(SpottingQuery* query)// const
@@ -2957,8 +2967,9 @@ vector<TranscribeBatch*> Knowledge::Corpus::resetAllWords_()
 {
     vector<TranscribeBatch*> ret;
     vector<Spotting*> newExemplars;
-    for (Word* w : _words)
+    for (auto p : _words)
     {
+        Word* w = p.second;
         TranscribeBatch* b = w->reset_(&newExemplars);
         if (b!=NULL)
             ret.push_back(b);
@@ -2988,8 +2999,9 @@ void Knowledge::Corpus::getStats(float* accTrans, float* pWordsTrans, float* pWo
     *misTrans_IV="";
     
     int numIV=0;
-    for (Word* w : _words)
+    for (auto p : _words)
     {
+        Word* w = p.second;
         bool done;
         string gt, query;
         w->getDoneAndGTAndQuery(&done,&gt,&query);

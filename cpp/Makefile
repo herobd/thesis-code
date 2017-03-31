@@ -50,15 +50,18 @@ OBJECTS2 = obj/TranscribeBatchQueue2.o \
           obj/graph2.o \
           obj/SpottingQueue2.o \
           obj/batches2.o \
-          obj/AlmazanSpotter2.o \
-          obj/AlmazanDataset2.o \
           obj/tester2.o \
           obj/CATTSS2.o \
           obj/BatchWraperNewExemplars2.o \
           obj/BatchWraperSpottings2.o \
           obj/BatchWraperTranscription2.o \
-          obj/Simulator2.o  \
+          obj/Simulator2.o \
           obj/NetSpotter2.o
+          #obj/AlmazanSpotter2.o \
+          #obj/AlmazanDataset2.o \
+#          obj/test2.o 
+          #obj/FacadeSpotter2.o \
+          #obj/TestQueue2.o 
 PREPROCESSEDS = pp/TranscribeBatchQueue.cpp \
           pp/NewExemplarsBatchQueue.cpp \
           pp/Global.cpp \
@@ -100,6 +103,7 @@ removeinc:
 	- perl -pi -e 's/^(#include.*vl_?feat.*)$$/\/\/AUTO!\1/' noinc/* 
 	- perl -pi -e 's/^(#include.*semaphore.*)$$/\/\/AUTO!\1/' noinc/* 
 	- perl -pi -e 's/^(#include.*embattspotter.*)$$/\/\/AUTO!\1/' noinc/* 
+	- perl -pi -e 's/^(#include.*cnnspp_spotter.*)$$/\/\/AUTO!\1/' noinc/* 
 	- perl -pi -e 's/^(#include.*dataset.*)$$/\/\/AUTO!\1/' noinc/* 
 
 clean:

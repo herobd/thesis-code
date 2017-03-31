@@ -478,8 +478,8 @@ private:
     void addSpottingToPage(Spotting& s, Page* page, vector<TranscribeBatch*>& ret,vector<Spotting*>* newExemplars);
 
     vector<string> _gt;
-    vector<Word*> _words;
-    vector<Mat> _wordImgs;
+    map<int,Word*> _words;
+    map<int,Mat> _wordImgs;
     bool changed;
     void recreateDatasetVectors(bool lockPages);
 

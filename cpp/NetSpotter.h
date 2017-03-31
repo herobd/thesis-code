@@ -12,6 +12,7 @@ class NetSpotter : public Spotter
 {
     private:
     CNNSPPSpotter* spotter;
+    mutex resLock;
     //AlmazanDataset* dataset;
 
     public:
@@ -21,7 +22,7 @@ class NetSpotter : public Spotter
         delete spotter;
         //delete dataset;
     }
-    vector<SpottingResult> runQuery(SpottingQuery* query) const;
+    vector<SpottingResult> runQuery(SpottingQuery* query);
     float score(string text, const cv::Mat& image) const;
     float score(string text, int wordIndex) const;
     //double getAverageCharWidth() const { return spotter->getAverageCharWidth(); }
