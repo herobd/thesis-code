@@ -217,9 +217,9 @@ int main(int argc, char** argv)
                         );
     atomic_bool cont(true);
     vector<thread*> taskThreads(numSimThreads);
-    string line;
-    cout<<"WAITING FOR ENTRY BEFORE BEGINNING SIM"<<endl;
-    getline(cin, line);
+    //string line;
+    //cout<<"WAITING FOR ENTRY BEFORE BEGINNING SIM"<<endl;
+    //getline(cin, line);
     cout<<"SIMULATION STARTED"<<endl;
     for (int i=0; i<numSimThreads; i++)
     {

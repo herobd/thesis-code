@@ -520,7 +520,7 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
         while (updateMap.find(id)!=updateMap.end())
         {
             //unsigned long oldId=id;
-            id=updateMap[id];
+            id=updateMap.at(id);
             //instancesById.erase(oldId);
         }
 
@@ -1173,12 +1173,12 @@ void SpottingResults::updateSpottingTrueNoScore(const SpottingExemplar& spotting
     if (best!=NULL)
     {
 
-        bool updateWhenInBatch = (best)->type!=SPOTTING_TYPE_THRESHED && instancesByScore.find(best->id)==instancesByScore.end();
-        if (updateWhenInBatch)
+        //bool updateWhenInBatch = (best)->type!=SPOTTING_TYPE_THRESHED && instancesByScore.find(best->id)==instancesByScore.end();
+        //if (updateWhenInBatch)
             updateMap[best->id]=spotting.id;
 #ifdef TEST_MODE
-        else
-            testUpdateMap[best->id]=spotting.id;
+        //else
+        //    testUpdateMap[best->id]=spotting.id;
 #endif
         //Add this spotting
         assert(spotting.pageId>=0);
@@ -1279,12 +1279,12 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                 {
                     ///debugState();
                     spotting.score = combScore;
-                    bool updateWhenInBatch = (best)->type!=SPOTTING_TYPE_THRESHED && instancesByScore.find(best->id)==instancesByScore.end();
-                    if (updateWhenInBatch)
+                    //bool updateWhenInBatch = (best)->type!=SPOTTING_TYPE_THRESHED && instancesByScore.find(best->id)==instancesByScore.end();
+                    //if (updateWhenInBatch)
                         updateMap[best->id]=spotting.id;
 #ifdef TEST_MODE
-                    else
-                        testUpdateMap[best->id]=spotting.id;
+                    //else
+                    //    testUpdateMap[best->id]=spotting.id;
 #endif
                     //Add this spotting
                     assert(spotting.pageId>=0);

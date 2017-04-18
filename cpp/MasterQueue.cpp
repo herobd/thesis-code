@@ -226,10 +226,13 @@ bool MasterQueue::test_autoBatch()
 
 BatchWraper* MasterQueue::getBatch(unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram)
 {
+
     int ngramQueueCount;
     pthread_rwlock_rdlock(&semResultsQueue);
     ngramQueueCount=resultsQueue.size();
     pthread_rwlock_unlock(&semResultsQueue);
+    if (ngramQueueCount==0)
+        return NULL;
 
     //for setting up, just do some spottings
     if (prevNgram.compare("~")==0)
@@ -349,7 +352,7 @@ SpottingsBatch* MasterQueue::getSpottingsBatch(unsigned int numberOfInstances, b
         int test_loc=0;
         pthread_rwlock_rdlock(&semRotate);
         for (; iter!=resultsQueue.end(); iter++,indexHolder++)
-            if (test_loc++>=test_rotate/2) //TODO add var to control
+            if (test_loc++>=test_rotate/2 - 1) //TODO add var to control
                 break;
         assert(iter!=resultsQueue.end());
         pthread_rwlock_unlock(&semRotate);

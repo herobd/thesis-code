@@ -31,26 +31,26 @@ enum SpottingType {SPOTTING_TYPE_NONE=0, SPOTTING_TYPE_APPROVED=1, SPOTTING_TYPE
 class Spotting {
 public:
     Spotting() :
-        tlx(-1), tly(-1), brx(-1), bry(-1), pageId(-1), pagePnt(NULL), ngram(""), score(nan("")), id(-1), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(UNKNOWN_GT) {}
+        tlx(-1), tly(-1), brx(-1), bry(-1), pageId(-1), pagePnt(NULL), ngram(""), score(nan("")), id(-1), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(UNKNOWN_GT), wordId(-1), wordX0(-1) {}
     Spotting(int pageId, int tlx, int tly, int brx, int bry) :
-        tlx(tlx), tly(tly), brx(brx), bry(bry), pageId(pageId), pagePnt(NULL), ngram(""), score(nan("")), id(-1), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(UNKNOWN_GT) {}
+        tlx(tlx), tly(tly), brx(brx), bry(bry), pageId(pageId), pagePnt(NULL), ngram(""), score(nan("")), id(-1), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(UNKNOWN_GT), wordId(-1), wordX0(-1) {}
     Spotting(int pageId, int tlx, int tly) :
-        tlx(tlx), tly(tly), brx(-1), bry(-1), pageId(pageId), pagePnt(NULL), ngram(""), score(nan("")), id(-1), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(UNKNOWN_GT) {}
+        tlx(tlx), tly(tly), brx(-1), bry(-1), pageId(pageId), pagePnt(NULL), ngram(""), score(nan("")), id(-1), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(UNKNOWN_GT), wordId(-1), wordX0(-1) {}
     
-    Spotting(int tlx, int tly, int brx, int bry, int pageId, const cv::Mat* pagePnt, string ngram, float score) : 
-        tlx(tlx), tly(tly), brx(brx), bry(bry), pageId(pageId), pagePnt(pagePnt), ngram(ngram), score(score), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(UNKNOWN_GT)
-    {
-        id = ++_id;
-    }
+    //Spotting(int tlx, int tly, int brx, int bry, int pageId, const cv::Mat* pagePnt, string ngram, float score) : 
+    //    tlx(tlx), tly(tly), brx(brx), bry(bry), pageId(pageId), pagePnt(pagePnt), ngram(ngram), score(score), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(UNKNOWN_GT), wordId(-1), wordX0(-1)
+    //{
+    //    id = ++_id;
+    //}
 
-    Spotting(int tlx, int tly, int brx, int bry, int pageId, const cv::Mat* pagePnt, string ngram, float score, int gt) : 
-        tlx(tlx), tly(tly), brx(brx), bry(bry), pageId(pageId), pagePnt(pagePnt), ngram(ngram), score(score), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(gt)
+    Spotting(int tlx, int tly, int brx, int bry, int pageId, const cv::Mat* pagePnt, string ngram, float score, int gt=UNKNOWN_GT, int wordId=-1, int wordX0=-1) : 
+        tlx(tlx), tly(tly), brx(brx), bry(bry), pageId(pageId), pagePnt(pagePnt), ngram(ngram), score(score), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(gt), wordId(wordId), wordX0(wordX0)
     {
         id = ++_id;
     }
     
     Spotting(const Spotting& s) : 
-        tlx(s.tlx), tly(s.tly), brx(s.brx), bry(s.bry), pageId(s.pageId), pagePnt(s.pagePnt), ngram(s.ngram), score(s.score), type(s.type), ngramRank(s.ngramRank), gt(s.gt)
+        tlx(s.tlx), tly(s.tly), brx(s.brx), bry(s.bry), pageId(s.pageId), pagePnt(s.pagePnt), ngram(s.ngram), score(s.score), type(s.type), ngramRank(s.ngramRank), gt(s.gt), wordId(s.wordId), wordX0(s.wordX0)
     {
         id = s.id;
     }
@@ -85,6 +85,10 @@ public:
         ngramRank = stoi(line);
         getline(in,line);
         _id.store( stoul(line));
+        getline(in,line);
+        wordId = stoi(line);
+        getline(in,line);
+        wordX0 = stoi(line);
     }
     //Note the reversal in paramter order, this prevents ambigous overload when passing nullptr
     Spotting(const cv::Mat* pagePnt, ifstream& in) : Spotting(in,NULL)
@@ -103,6 +107,8 @@ public:
         out<<type<<"\n";
         out<<ngramRank<<"\n";
         out<<_id.load()<<"\n";
+        out<<wordId<<endl;
+        out<<wordX0<<endl;
     }
     Spotting& operator=(const Spotting& other)
     {
@@ -119,6 +125,8 @@ public:
         ngramRank = other.ngramRank;
         gt = other.gt;
         id=other.id;
+        wordId=other.wordId;
+        wordX0=other.wordX0;
 
         return *this;
     }
@@ -142,6 +150,8 @@ public:
         return (*pagePnt)(cv::Rect(tlx,tly,1+brx-tlx,1+bry-tly));
     }
     int ngramRank;
+
+    int wordId, wordX0;
 
 protected:
     static atomic_ulong _id;

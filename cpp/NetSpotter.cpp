@@ -14,42 +14,57 @@ vector<SpottingResult> NetSpotter::runQuery(SpottingQuery* query)
     float refinePortion=0.20;
 #ifdef NO_NAN
     float ap, accumAP;
+    int initAccumResSize = GlobalK::knowledge()->accumResFor(query->getNgram())->size();
 #endif
     if (query->getImg().cols==0)
     {
         refinePortion=0.25;
-#ifdef NO_NAN
-           res = spotter->subwordSpot_eval(query->getNgram(),refinePortion, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP, &resLock);
-           
-#else
+//#ifdef NO_NAN
+//           res = spotter->subwordSpot_eval(query->getNgram(),refinePortion, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP, &resLock);
+//#else
            res = spotter->subwordSpot(query->getNgram(), refinePortion);
-#endif
+//#endif
     }
     else
     {
-        if (query->getImg().channels()==1)
+        if (query->getWordId()>=0)
         {
+            //this assumes this was spotted from a word, so we give the spotter a reference to it so we don't need to embed it again
 #ifdef NO_NAN
-           res = spotter->subwordSpot_eval(query->getImg(), query->getNgram(), refinePortion, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP, &resLock);
+           res = spotter->subwordSpot_eval(query->getWordId(), query->getX0(), query->getX1(), query->getNgram(), refinePortion, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP, &resLock);
            
 #else
-           res = spotter->subwordSpot(query->getImg(), refinePortion);
+           res = spotter->subwordSpot(query->getWordId, query->getX0(), query->getX1(), refinePortion);
 #endif
+            
         }
         else
         {
-            cv::Mat gray;
-            cv::cvtColor(query->getImg(),gray,CV_RGB2GRAY);
+            if (query->getImg().channels()==1)
+            {
 #ifdef NO_NAN
-            res = spotter->subwordSpot_eval(gray, query->getNgram(), refinePortion, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP, &resLock);
-            
+               res = spotter->subwordSpot_eval(query->getImg(), query->getNgram(), refinePortion, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP, &resLock);
+               
 #else
-            res = spotter->subwordSpot(gray, refinePortion);
+               res = spotter->subwordSpot(query->getImg(), refinePortion);
 #endif
+            }
+            else
+            {
+                cv::Mat gray;
+                cv::cvtColor(query->getImg(),gray,CV_RGB2GRAY);
+#ifdef NO_NAN
+                res = spotter->subwordSpot_eval(gray, query->getNgram(), refinePortion, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP, &resLock);
+                
+#else
+                res = spotter->subwordSpot(gray, refinePortion);
+#endif
+            }
         }
     }
 #ifdef NO_NAN
-    GlobalK::knowledge()->storeSpottingAccum(query->getNgram(),accumAP);
+    int accumDif = GlobalK::knowledge()->accumResFor(query->getNgram())->size() - initAccumResSize;
+    GlobalK::knowledge()->storeSpottingAccum(query->getNgram(),accumAP,accumDif);
     if (query->getType()==SPOTTING_TYPE_EXEMPLAR)
         GlobalK::knowledge()->storeSpottingExemplar(query->getNgram(),ap);
     else if (query->getType()==SPOTTING_TYPE_APPROVED)

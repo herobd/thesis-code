@@ -70,7 +70,20 @@ void GlobalK::setSimSave(string file)
             stringstream ss(scores);
             while (getline(ss,line,','))
             {
-                spottingAccums[ngram].push_back(stof(line));
+                int bp = line.find('[');
+                int bp2 = line.find(']');
+                int avb = line.find('(');
+                int avb2 = line.find(')');
+                int stb = line.find('{');
+                int stb2 = line.find('}');
+                string map = line.substr(0,bp);
+                string dif = line.substr(bp+1,bp2-bp -1);
+                string avg = line.substr(avb+1,avb2-avb -1);
+                string std = line.substr(stb+1,stb2-stb -1);
+                spottingAccumDifs[ngram].push_back(stoi(dif));
+                spottingAccumAvgs[ngram].push_back(stoi(avg));
+                spottingAccumStds[ngram].push_back(stoi(std));
+                spottingAccums[ngram].push_back(stof(map));
             }
         }
 
@@ -296,8 +309,14 @@ void GlobalK::writeTrack()
     for (auto aps : spottingAccums)
     {
         out<<aps.first<<" : ";
-        for (float ap : aps.second)
-            out<<ap<<",";
+        for (int i =0; i<aps.second.size(); i++)
+        {
+            float ap = aps.second[i];
+            int dif = spottingAccumDifs[aps.first][i];
+            float avg = spottingAccumAvgs[aps.first][i];
+            float std = spottingAccumStds[aps.first][i];
+            out<<ap<<"["<<dif<<"]("<<avg<<"){"<<std<<"},";
+        }
         out<<endl;
     }
     out<<"[exemplars]\n"<<spottingExemplars.size()<<endl;
@@ -328,11 +347,40 @@ void GlobalK::writeTrack()
     out.close();
 }
 
-void GlobalK::storeSpottingAccum(string ngram, float ap)
+void GlobalK::storeSpottingAccum(string ngram, float ap, int dif)
 {
+    accumResMut.lock();
+
+    if (accumRes.find(ngram) == accumRes.end())
+        accumRes[ngram] = new vector<SubwordSpottingResult>();
+    vector<SubwordSpottingResult>* ar= accumRes.at(ngram);
+
+    float avg=0;
+    for (const SubwordSpottingResult& s : *ar)
+    {
+        avg+=s.score;
+    }
+    if (ar->size()>0)
+        avg/=ar->size();
+    float std=0;
+    for (const SubwordSpottingResult& s : *ar)
+    {
+        std += pow(s.score-avg,2);
+    }
+    if (ar->size()>0)
+        std = sqrt(std/ar->size());
+
+    accumResMut.unlock();
+
+
     spotMut.lock();
     spottingAccums[ngram].push_back(ap);
+    spottingAccumDifs[ngram].push_back(dif);
+    spottingAccumAvgs[ngram].push_back(avg);
+    spottingAccumStds[ngram].push_back(std);
     spotMut.unlock();
+
+
 }
 void GlobalK::storeSpottingExemplar(string ngram, float ap)
 {
@@ -378,13 +426,13 @@ bool GlobalK::ngramAt(string ngram, int pageId, int tlx, int tly, int brx, int b
     auto iterL = wordBounds[pageId].lower_bound(searchL);
     auto iterU = wordBounds[pageId].upper_bound(searchU);
 
-    int bestOverlap =-1;
-    const WordBound* best;
+    int bestOverlap = 0;
+    const WordBound* best=NULL;
     while (iterL != iterU)
     {
         int overlap = ( min(iterL->brx, brx)-max(iterL->tlx,tlx) ) *
             ( min(iterL->bry, bry)-max(iterL->tly,tly) );
-        assert(overlap != bestOverlap);
+        assert(overlap != bestOverlap || bestOverlap==0);
         if (overlap > bestOverlap)
         {
             bestOverlap = overlap;
@@ -392,6 +440,7 @@ bool GlobalK::ngramAt(string ngram, int pageId, int tlx, int tly, int brx, int b
         }
         iterL++;
     }
+    assert(best!=NULL);
     int loc = best->text.find(ngram);
     if (loc == string::npos)
         return false;

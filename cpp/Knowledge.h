@@ -243,19 +243,20 @@ public:
         sentBatchId=id;
         pthread_rwlock_unlock(&lock);
     }
-    void setSpottingIndex(int index)
-    {
-        pthread_rwlock_wrlock(&lock);
-        spottingIndex=index;
-        pthread_rwlock_unlock(&lock);
-    }
+    //void setSpottingIndex(int index)
+    //{
+    //    pthread_rwlock_wrlock(&lock);
+    //    spottingIndex=index;
+    //    pthread_rwlock_unlock(&lock);
+    //}
     int getSpottingIndex()
     {
-        int ret;
-        pthread_rwlock_rdlock(&lock);
-        ret=spottingIndex;
-        pthread_rwlock_unlock(&lock);
-        return ret;
+        //int ret;
+        //pthread_rwlock_rdlock(&lock);
+        //ret=spottingIndex;
+        //pthread_rwlock_unlock(&lock);
+        //return ret;
+        return id;
     }
     const multimap<int,Spotting>* getSpottingsPointer() {return & spottings;}
     vector<string> getRestrictedLexicon(int max);

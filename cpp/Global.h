@@ -92,6 +92,9 @@ class GlobalK
         mutex accumResMut;
         string spottingFile;
         map<string, vector<float> > spottingAccums;
+        map<string, vector<int> > spottingAccumDifs;
+        map<string, vector<float> > spottingAccumAvgs;
+        map<string, vector<float> > spottingAccumStds;
         map<string, vector<float> > spottingExemplars;
         map<string, vector<float> > spottingNormals;
         map<string, vector<float> > spottingOthers;
@@ -145,7 +148,7 @@ class GlobalK
         }
         const vector< vector<int> >* getCorpusXLetterStartBounds() {xLock.lock(); xLock.unlock(); return corpusXLetterStartBounds;}
         const vector< vector<int> >* getCorpusXLetterEndBounds() {xLock.lock(); xLock.unlock(); return corpusXLetterEndBounds;}
-        void storeSpottingAccum(string ngram, float ap);
+        void storeSpottingAccum(string ngram, float ap, int dif);
         void storeSpottingExemplar(string ngram, float ap);
         void storeSpottingNormal(string ngram, float ap);
         void storeSpottingOther(string ngram, float ap);

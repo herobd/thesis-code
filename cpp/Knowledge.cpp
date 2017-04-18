@@ -585,7 +585,8 @@ multimap<float,string> Knowledge::Word::scoreAndThresh(vector<string> match) con
     {
         const Mat im=getWordImg();
         assert(*spotter != NULL);
-        float score = (*spotter)->score(word,spottingIndex);
+        float score = (*spotter)->score(word,id);
+        //float score = (*spotter)->score(word,spottingIndex);
         //float score = (*spotter)->score(word,im);
         scores.insert(make_pair(score,word));
         if (score<min)
@@ -2570,7 +2571,7 @@ vector<Spotting>* Knowledge::Corpus::runQuery(SpottingQuery* query)// const
             }
         }
 
-        ret->at(i) = Spotting(res[i].startX+tlx, tly, res[i].endX+tlx, bry, w->getPageId(), w->getPage(), query->getNgram(), res[i].score, gt);
+        ret->at(i) = Spotting(res[i].startX+tlx, tly, res[i].endX+tlx, bry, w->getPageId(), w->getPage(), query->getNgram(), res[i].score, gt, res[i].imIdx, res[i].startX);
         assert(i==0 || ret->at(i).id != ret->at(i-1).id);
         if (done)
             w->preapproveSpotting(&ret->at(i));
@@ -2739,7 +2740,7 @@ Knowledge::Corpus::Corpus(ifstream& in)
         {
             getline(in,line);
             int spottingIndex=stoi(line);
-            spottingsToWords[sid].push_back(_words[spottingIndex]);
+            spottingsToWords[sid].push_back(_words.at(spottingIndex));
         }
     }
     CorpusRef* cr = getCorpusRef();
@@ -2955,10 +2956,6 @@ Knowledge::Word::Word(ifstream& in, const cv::Mat* pagePnt, const Spotter* const
     }
 #ifdef NO_NAN
     assert(gt.compare(GlobalK::knowledge()->getSegWord(id))==0);
-    if (id == 3715)
-    {
-        cout <<id<<": "<<gt<<" ?= "<<GlobalK::knowledge()->getSegWord(id)<<endl;
-    }
 #endif
 }
 
