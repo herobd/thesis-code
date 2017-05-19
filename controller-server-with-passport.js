@@ -21,8 +21,8 @@ var Database = require('./database')();
 var passport = require('passport')
   , LocalStrategy = require('passport-local').Strategy;
 
-//var spottingaddon = require("./cpp/build/Debug/spottingaddon");
-var spottingaddon = require("./cpp/build/Release/spottingaddon")
+var spottingaddon = require("./cpp/build/Debug/spottingaddon");
+//var spottingaddon = require("./cpp/build/Release/spottingaddon")
 
 numberOfTests=2;
 
@@ -76,6 +76,9 @@ var numThreadsUpdating=3;
 var showWidth=2500;
 var showHeight=1000;
 var showMilli=4000;
+
+var startN=2;//ngrams to spot
+var endN=2;
 
 var saveMode=false;
 var timingTestMode=false;
@@ -954,6 +957,8 @@ var ControllerApp = function(port) {
                                 segmentationFile,
                                 spottingModelPrefix,
                                 savePrefix,
+                                startN,
+                                endN,
                                 avgCharWidth,
                                 numThreadsSpotting,
                                 numThreadsUpdating,

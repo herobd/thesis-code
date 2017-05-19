@@ -246,10 +246,10 @@ int Simulator::getSpottingLabel(string ngram, Location loc, bool strict)
         //cout<<corpusWord[w]<<" : "<<ngram<<endl;
         //int l1 = corpusWord[w].find(ngram[0]);
         //int l2 = corpusWord[w].find(ngram[1]);
-        for (int l2=1; l2<corpusWord[w].length(); l2++)
+        for (int l2=ngram.length()-1; l2<corpusWord[w].length(); l2++)
         {
-            int l1=l2-1;
-            if (ngram[0]!=corpusWord[w][l1] || ngram[1]!=corpusWord[w][l2])
+            int l1=l2-(ngram.length()-1);
+            if (ngram.compare(corpusWord[w].substr(l1,ngram.length()))!=0)
                 continue;
             //if (RAND_PROB<isInSkipProb)
             //    ret.push_back( -1 );
@@ -364,7 +364,7 @@ string Simulator::transcription(int wordIndex, vector<SpottingPoint> spottings, 
         if (ret.length()==0)
         {
             if (RAND_PROB < transErrorProbNotAvail)
-                ret="$REMOVE:"+spottings.front().getId()+"$";//If an error is made, I'm just removing a spottings. Not sure what actually should happen
+                ret="$REMOVE:"+spottings.front().getId()+"$";//If a user-error is made, I'm just removing a spottings. Not sure what actually should happen
             else
                 ret="$ERROR$";
         }

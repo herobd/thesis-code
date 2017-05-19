@@ -6,11 +6,14 @@
 
 void Tester::testSave()
 {
+    set<int> ns;
+    ns.insert(2);
     CATTSS* cattss = new CATTSS( "/home/brian/intel_index/data/wordsEnWithNames.txt",
                                 "/home/brian/intel_index/data/bentham/BenthamDatasetR0-Images/Images/Pages",
                                 "/home/brian/intel_index/data/bentham/ben_cattss_c_corpus.gtp",
                                 "model/CATTSS_BENTHAM",
                                 "save/0_BENTHAM",
+                                ns,
                                 30,
                                 0,
                                 0,

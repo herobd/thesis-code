@@ -202,11 +202,13 @@ int main(int argc, char** argv)
     int height = 1000;
     int width = 2500;
     int milli = 7000;
+    set<int> nsOfInterest={2};
     CATTSS* cattss = new CATTSS(lexiconFile,
                         pageImageDir,
                         segmentationFile,
                         spottingModelPrefix,
                         savePrefix,
+                        nsOfInterest,
                         avgCharWidth,
                         numSpottingThreads,
                         numTaskThreads,

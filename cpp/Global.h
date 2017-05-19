@@ -14,23 +14,26 @@
 #include <time.h>
 #include <sys/stat.h>
 #include <sstream>
+#include <limits>
 
 #ifdef NO_NAN
 #include "SubwordSpottingResult.h"
 #endif
 
-#ifdef TEST_MODE
+#if defined(TEST_MODE) || defined(NO_NAN)
 #define OVERLAP_INSIDE_THRESH 0.65
 #define OVERLAP_CONSUME_THRESH 1.8
 #define OVERLAP_SIDE_THRESH 0.55
 #define SIDE_NOT_INCLUDED_THRESH 0.80
 #endif
 
-#define TRANS_DONT_WAIT 1
+#define TRANS_DONT_WAIT 0
 
 using namespace std;
 
-#ifdef TEST_MODE
+#define MAX_FLOAT numeric_limits<float>::max()
+
+#if defined(TEST_MODE) || defined(NO_NAN)
 class WordBound
 {
 public:
@@ -119,6 +122,17 @@ class GlobalK
         static void loadImage(cv::Mat& im, ifstream& in);
         static string currentDateTime();
 
+        static int numCombThresh(string ngram)
+        {
+            int l = ngram.length();
+            if (l==1)
+                return 30;
+            else if (l==2)
+                return 15;
+            else
+                return 15;
+        }
+
 #ifdef NO_NAN
         void setSimSave(string file);
         void sentSpottings();
@@ -154,7 +168,7 @@ class GlobalK
         void storeSpottingOther(string ngram, float ap);
         vector<SubwordSpottingResult>* accumResFor(string ngram);
 #endif
-#ifdef TEST_MODE
+#if defined(TEST_MODE) || defined(NO_NAN)
         bool ngramAt(string ngram, int pageId, int tlx, int tly, int brx, int bry);
         map<int, multiset<WordBound,tlyComp> > wordBounds;//pageId -> set of words
         void addWordBound(string word, int pageId, int tlx, int tly, int brx, int bry, vector<int> startBounds, vector<int> endBounds);

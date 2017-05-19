@@ -30,15 +30,19 @@ using namespace std;
 class scoreCompById
 {
   const map<unsigned long,Spotting>* instancesById;
+  bool useQbE;
 public:
-  scoreCompById(const map<unsigned long,Spotting>* instancesById) : instancesById(instancesById)
+  scoreCompById(const map<unsigned long,Spotting>* instancesById=NULL, bool useQbE=false) : instancesById(instancesById), useQbE(useQbE)
     {}
   bool operator() (unsigned long lhs, unsigned long rhs) const
   {
-    return (instancesById->at(lhs).score<instancesById->at(rhs).score);
+      if (useQbE)
+        return (instancesById->at(lhs).scoreQbE<instancesById->at(rhs).scoreQbE);
+      else
+        return (instancesById->at(lhs).scoreQbS<instancesById->at(rhs).scoreQbS);
   }
 };
-class scoreComp
+/*class scoreComp
 {
   bool reverse;
 public:
@@ -49,7 +53,7 @@ public:
     if (reverse) return (lhs->score>rhs->score);
     else return (lhs->score<rhs->score);
   }
-};
+};*/
 class tlComp
 {
   bool reverse;
@@ -136,6 +140,7 @@ public:
 #ifdef TEST_MODE
     void setDebugInfo(SpottingsBatch* b);
 #endif
+    void debugState() const;
     
 private:
     static atomic_ulong _id;
@@ -146,6 +151,8 @@ private:
     //int numBatches;
     bool allBatchesSent;
     bool done;
+    bool useQbE; //This indicates whether enough exemplars have been combined to make QbE reliable
+    int numComb;
     
     float trueMean;
     float trueVariance;
@@ -159,14 +166,30 @@ private:
     
     float pullFromScore; //The choosen score from which batches are pulled (around the score, alternatively grt than and less than).
     
-    float maxScore;
-    float minScore;
+    float maxScoreQbE, maxScoreQbS;
+    float minScoreQbE, minScoreQbS;
+    float& maxScore()
+    {
+        if (useQbE)
+            return maxScoreQbE;
+        else
+            return maxScoreQbS;
+    }
+    float& minScore()
+    {
+        if (useQbE)
+            return minScoreQbE;
+        else
+            return minScoreQbS;
+    }
 
     int numLeftInRange; //This actually has the count from the round previous, for efficency
 
+
     //This multiset orders the spotting results to ease the extraction of batches
     //multiset<Spotting*,scoreComp> instancesByScore; //This holds Spottings yet to be classified
-    multiset<unsigned long,scoreCompById> instancesByScore; //This holds Spottings yet to be classified
+    //multiset<unsigned long,scoreCompById> instancesByScore; //This holds Spottings yet to be classified
+    multimap<float,unsigned long> instancesByScore; //This holds Spottings yet to be classified
     multiset<Spotting*,tlComp> instancesByLocation; //This is a convienince holder of all Spottings
     map<unsigned long,Spotting> instancesById; //This is all the Spottings
     map<unsigned long,bool> classById; //This is the classifications of Spottings
@@ -181,7 +204,8 @@ private:
 #endif
 
     //This acts as a pointer to where we last extracted a batch to speed up searching for the correct score area to extract a batch from
-    multiset<unsigned long,scoreCompById>::iterator tracer;
+    //multiset<unsigned long,scoreCompById>::iterator tracer;
+    multimap<float,unsigned long>::iterator tracer;
     default_random_engine generator;
     
     //SpottingImage getNextSpottingImage(bool* done, int maxWidth,int color,string prevNgram);
@@ -206,7 +230,6 @@ private:
     cv::Mat fullGraph;
     multiset<Spotting*,scoreComp> fullInstancesByScore;
 #endif
-    void debugState() const;
     
 };
 

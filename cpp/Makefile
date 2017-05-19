@@ -1,6 +1,6 @@
 CXX = g++-4.9 
 LINK = g++-4.9
-CXX_FLAGS_NO_G =  -std=c++11 -pthread -DOPENCV2 -DNO_NAN -DNO_EXEMPLARS -DTEST_MODE #-DGRAPH_SPOTTING_RESULTS #-DDEBUG_AUTO#-ansi -fexceptions -fPIC -fno-omit-frame-pointer -pthread
+CXX_FLAGS_NO_G =  -std=c++11 -pthread -DOPENCV2 -DNO_NAN -DNO_EXEMPLARS #-DTEST_MODE #-DGRAPH_SPOTTING_RESULTS #-DDEBUG_AUTO#-ansi -fexceptions -fPIC -fno-omit-frame-pointer -pthread
 CXX_FLAGS =  $(CXX_FLAGS_NO_G) -g#-O3 #-g
 
 LIBS += -lpthread
@@ -16,10 +16,11 @@ LIBS += -L/home/brian/Projects/brian_caffe/build/lib -lcaffe -l boost_system
 INCLUDE +=-I /home/brian/Projects/brian_caffe/include
 PROGRAM_NAME = test
 
-OBJECTS = obj/TranscribeBatchQueue.o \
-          obj/NewExemplarsBatchQueue.o \
-          obj/Global.o \
+OBJECTS = obj/Global.o \
+          obj/CATTSS.o \
           obj/MasterQueue.o \
+          obj/TranscribeBatchQueue.o \
+          obj/NewExemplarsBatchQueue.o \
           obj/SpottingResults.o \
           obj/Knowledge.o \
           obj/Lexicon.o \
@@ -28,7 +29,6 @@ OBJECTS = obj/TranscribeBatchQueue.o \
           obj/SpottingQueue.o \
           obj/batches.o \
           obj/tester.o \
-          obj/CATTSS.o \
           obj/BatchWraperNewExemplars.o \
           obj/BatchWraperSpottings.o \
           obj/BatchWraperTranscription.o \
@@ -136,6 +136,12 @@ makeData: $(OBJECTS)
 obj/tester.o: tester.cpp tester.h CATTSS.h Simulator.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/tester.o tester.cpp $(LIBS)
 
+obj/Global.o: Global.h Global.cpp
+	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/Global.o Global.cpp $(LIBS)
+
+obj/CATTSS.o: CATTSS.h CATTSS.cpp MasterQueue.h Lexicon.h SpottingQueue.h Knowledge.h spotting.h BatchWraper.h
+	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/CATTSS.o CATTSS.cpp $(LIBS)
+
 obj/test.o: test.cpp MasterQueue.h TestQueue.h MasterQueue.h Knowledge.h Spotter.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/test.o test.cpp $(LIBS)
 
@@ -154,7 +160,7 @@ obj/NewExemplarsBatchQueue.o: NewExemplarsBatchQueue.h NewExemplarsBatchQueue.cp
 #obj/AlmazanDataset.o: AlmazanDataset.h AlmazanDataset.cpp
 #	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/AlmazanDataset.o AlmazanDataset.cpp $(LIBS)
 
-obj/NetSpotter.o: NetSpotter.h NetSpotter.cpp 
+obj/NetSpotter.o: NetSpotter.h NetSpotter.cpp Spotter.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/NetSpotter.o NetSpotter.cpp $(LIBS)
 
 obj/SpottingQueue.o: SpottingQueue.h SpottingQueue.cpp Knowledge.h
@@ -166,11 +172,6 @@ obj/batches.o: batches.h batches.cpp WordBackPointer.h
 #obj/SpottingQuery.o: SpottingQuery.h SpottingQuery.cpp
 #	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/SpottingQuery.o SpottingQuery.cpp $(LIBS)
 
-obj/Global.o: Global.h Global.cpp
-	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/Global.o Global.cpp $(LIBS)
-
-obj/CATTSS.o: CATTSS.h CATTSS.cpp MasterQueue.h Lexicon.h SpottingQueue.h Knowledge.h spotting.h BatchWraper.h
-	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/CATTSS.o CATTSS.cpp $(LIBS)
 
 obj/MasterQueue.o: MasterQueue.h MasterQueue.cpp SpottingResults.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/MasterQueue.o MasterQueue.cpp $(LIBS)

@@ -174,7 +174,9 @@ void TranscribeBatch::setWidth(unsigned int width, int contextPad)
 void TranscribeBatch::save(ofstream& out)
 {
     out<<"TRANSCRIBEBATCH"<<endl;
+#if TRANS_DONT_WAIT     
     out<<lowPriority<<"\n";
+#endif
     out<<origin->getSpottingIndex()<<"\n";
     out<<possibilities.size()<<"\n";
     for (string p : possibilities)

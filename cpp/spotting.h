@@ -31,26 +31,26 @@ enum SpottingType {SPOTTING_TYPE_NONE=0, SPOTTING_TYPE_APPROVED=1, SPOTTING_TYPE
 class Spotting {
 public:
     Spotting() :
-        tlx(-1), tly(-1), brx(-1), bry(-1), pageId(-1), pagePnt(NULL), ngram(""), score(nan("")), id(-1), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(UNKNOWN_GT), wordId(-1), wordX0(-1) {}
+        tlx(-1), tly(-1), brx(-1), bry(-1), pageId(-1), pagePnt(NULL), ngram(""), scoreQbE(nan("")), scoreQbS(nan("")), id(-1), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(UNKNOWN_GT), wordId(-1), wordX0(-1) {}
     Spotting(int pageId, int tlx, int tly, int brx, int bry) :
-        tlx(tlx), tly(tly), brx(brx), bry(bry), pageId(pageId), pagePnt(NULL), ngram(""), score(nan("")), id(-1), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(UNKNOWN_GT), wordId(-1), wordX0(-1) {}
+        tlx(tlx), tly(tly), brx(brx), bry(bry), pageId(pageId), pagePnt(NULL), ngram(""), scoreQbE(nan("")), scoreQbS(nan("")), id(-1), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(UNKNOWN_GT), wordId(-1), wordX0(-1) {}
     Spotting(int pageId, int tlx, int tly) :
-        tlx(tlx), tly(tly), brx(-1), bry(-1), pageId(pageId), pagePnt(NULL), ngram(""), score(nan("")), id(-1), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(UNKNOWN_GT), wordId(-1), wordX0(-1) {}
+        tlx(tlx), tly(tly), brx(-1), bry(-1), pageId(pageId), pagePnt(NULL), ngram(""), scoreQbE(nan("")), scoreQbS(nan("")), id(-1), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(UNKNOWN_GT), wordId(-1), wordX0(-1) {}
     
-    //Spotting(int tlx, int tly, int brx, int bry, int pageId, const cv::Mat* pagePnt, string ngram, float score) : 
-    //    tlx(tlx), tly(tly), brx(brx), bry(bry), pageId(pageId), pagePnt(pagePnt), ngram(ngram), score(score), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(UNKNOWN_GT), wordId(-1), wordX0(-1)
+    //Spotting(int tlx, int tly, int brx, int bry, int pageId, const cv::Mat* pagePnt, string ngram, float scoreQbE) : 
+    //    tlx(tlx), tly(tly), brx(brx), bry(bry), pageId(pageId), pagePnt(pagePnt), ngram(ngram), scoreQbE(scoreQbE), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(UNKNOWN_GT), wordId(-1), wordX0(-1)
     //{
     //    id = ++_id;
     //}
 
-    Spotting(int tlx, int tly, int brx, int bry, int pageId, const cv::Mat* pagePnt, string ngram, float score, int gt=UNKNOWN_GT, int wordId=-1, int wordX0=-1) : 
-        tlx(tlx), tly(tly), brx(brx), bry(bry), pageId(pageId), pagePnt(pagePnt), ngram(ngram), score(score), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(gt), wordId(wordId), wordX0(wordX0)
+    Spotting(int tlx, int tly, int brx, int bry, int pageId, const cv::Mat* pagePnt, string ngram, int gt=UNKNOWN_GT, int wordId=-1, int wordX0=-1) : 
+        tlx(tlx), tly(tly), brx(brx), bry(bry), pageId(pageId), pagePnt(pagePnt), ngram(ngram), scoreQbE(MAX_FLOAT), scoreQbS(nan("")), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(gt), wordId(wordId), wordX0(wordX0)
     {
         id = ++_id;
     }
     
     Spotting(const Spotting& s) : 
-        tlx(s.tlx), tly(s.tly), brx(s.brx), bry(s.bry), pageId(s.pageId), pagePnt(s.pagePnt), ngram(s.ngram), score(s.score), type(s.type), ngramRank(s.ngramRank), gt(s.gt), wordId(s.wordId), wordX0(s.wordX0)
+        tlx(s.tlx), tly(s.tly), brx(s.brx), bry(s.bry), pageId(s.pageId), pagePnt(s.pagePnt), ngram(s.ngram), scoreQbE(s.scoreQbE), scoreQbS(s.scoreQbS), type(s.type), ngramRank(s.ngramRank), gt(s.gt), wordId(s.wordId), wordX0(s.wordX0)
     {
         id = s.id;
     }
@@ -74,7 +74,9 @@ public:
             pagePnt = pageRef->getPageImg(pageId);
         getline(in,ngram);
         getline(in,line);
-        score = stof(line);
+        scoreQbE = stof(line);
+        getline(in,line);
+        scoreQbS = stof(line);
         getline(in,line);
         id = stoul(line);
         getline(in,line);
@@ -101,7 +103,8 @@ public:
         out<<tlx<<"\n"<<tly<<"\n"<<brx<<"\n"<<bry<<"\n";
         out<<pageId<<"\n";
         out<<ngram<<"\n";
-        out<<score<<"\n";
+        out<<scoreQbE<<"\n";
+        out<<scoreQbS<<endl;
         out<<id<<"\n";
         out<<gt<<"\n";
         out<<type<<"\n";
@@ -120,7 +123,8 @@ public:
         pageId = other.pageId;
         pagePnt = other.pagePnt;
         ngram = other.ngram;
-        score = other.score;
+        scoreQbE = other.scoreQbE;
+        scoreQbS = other.scoreQbS;
         type = other.type;
         ngramRank = other.ngramRank;
         gt = other.gt;
@@ -135,7 +139,13 @@ public:
     int tlx, tly, brx, bry, pageId;
     const cv::Mat* pagePnt;
     string ngram;
-    float score;
+    float scoreQbE,scoreQbS;
+    float score(bool useQbE)
+    {
+        if (useQbE)
+            return scoreQbE;
+        return scoreQbS;
+    }
     unsigned long id;
     int gt;
     SpottingType type;
@@ -297,7 +307,7 @@ private:
 class SpottingExemplar : public Spotting
 {
 public:
-    SpottingExemplar(int tlx, int tly, int brx, int bry, int pageId, const cv::Mat* pagePnt, string ngram, float score, cv::Mat ngramImage) : Spotting(tlx,tly,brx,bry,pageId,pagePnt,ngram,score) , ngramImage(ngramImage)
+    SpottingExemplar(int tlx, int tly, int brx, int bry, int pageId, const cv::Mat* pagePnt, string ngram, cv::Mat ngramImage) : Spotting(tlx,tly,brx,bry,pageId,pagePnt,ngram) , ngramImage(ngramImage)
     {
         id = _id++;
         type=SPOTTING_TYPE_EXEMPLAR;

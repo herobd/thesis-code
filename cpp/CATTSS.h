@@ -101,12 +101,15 @@ class CATTSS
     void run(int numThreads);
     void stop();
 
+    set<int> nsOfInterest;
+
     public:
     CATTSS( string lexiconFile,
             string pageImageDir, 
             string segmentationFile, 
             string spottingModelPrefix,
             string savePrefix,
+            set<int> nsOfInterest, //ngrams we will be spotting
             int avgCharWidth,
             int numSpottingThreads,
             int numTaskThreads,

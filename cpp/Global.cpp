@@ -14,6 +14,11 @@ GlobalK::GlobalK()
         }
         in.close();
     }
+    if (MIN_N==1)
+    {
+            vector<string> orderedAlpha={"e","t","a","o","i","n","s","h","r","d","l","c","u","m","w","f","g","y","p","b","v","k","j","x","q","z"};
+            ngramRanks[1]=orderedAlpha;
+    }
 #ifdef NO_NAN
     xLock.lock();
 #endif
@@ -412,7 +417,7 @@ vector<SubwordSpottingResult>* GlobalK::accumResFor(string ngram)
 }
 #endif
 
-#ifdef TEST_MODE
+#if defined(TEST_MODE) || defined(NO_NAN)
 bool GlobalK::ngramAt(string ngram, int pageId, int tlx, int tly, int brx, int bry)
 {
     float overlap_insides_thresh = OVERLAP_INSIDE_THRESH;

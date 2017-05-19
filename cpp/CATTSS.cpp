@@ -1,5 +1,9 @@
 #include "CATTSS.h"
 //
+#if TEST_MODE
+//remoce
+fdjkgdfjkgha
+#endif
 
 void checkIncompleteSleeper(CATTSS* cattss, MasterQueue* q, Knowledge::Corpus* c)
 {
@@ -66,13 +70,14 @@ CATTSS::CATTSS( string lexiconFile,
                 string segmentationFile, 
                 string spottingModelPrefix,
                 string savePrefix,
+                set<int> nsOfInterest,
                 int avgCharWidth,
                 int numSpottingThreads,
                 int numTaskThreads,
                 int showHeight,
                 int showWidth,
                 int showMilli,
-                int contextPad ) : savePrefix(savePrefix)
+                int contextPad ) : savePrefix(savePrefix), nsOfInterest(nsOfInterest)
 {
     cont.store(1);
     sem_init(&semLock, 0, 0);
@@ -83,7 +88,7 @@ CATTSS::CATTSS( string lexiconFile,
         cout<<"Load file found."<<endl;
         Lexicon::instance()->load(in);
         corpus = new Knowledge::Corpus(in);
-        corpus->loadSpotter(spottingModelPrefix);
+        corpus->loadSpotter(spottingModelPrefix, nsOfInterest);
         CorpusRef* corpusRef = corpus->getCorpusRef();
         PageRef* pageRef = corpus->getPageRef();
         masterQueue = new MasterQueue(in,corpusRef,pageRef);
@@ -118,7 +123,7 @@ CATTSS::CATTSS( string lexiconFile,
         Lexicon::instance()->readIn(lexiconFile);
         corpus = new Knowledge::Corpus(contextPad, avgCharWidth);
         corpus->addWordSegmentaionAndGT(pageImageDir, segmentationFile);
-        corpus->loadSpotter(spottingModelPrefix);
+        corpus->loadSpotter(spottingModelPrefix,nsOfInterest);
         spottingQueue = new SpottingQueue(masterQueue,corpus);
 
 #ifdef TEST_MODE_LONG
@@ -165,8 +170,21 @@ CATTSS::CATTSS( string lexiconFile,
         spottingQueue->addQueries(init_first);
         vector<Spotting* > init = {th1,he1,in1,er1,an1,re1,on1,at1,en1,nd1,ti1,es1,or1,te1,of1,ed1,is1,it1,al1,ar1,st1,to1,nt1,ng1,se1,ha1,as1};
         spottingQueue->addQueries(init);*/
-        vector<string> top100Bigrams={"th","he","in","er","an","re","on","at","en","nd","ti","es","or","te","of","ed","is","it","al","ar","st","to","nt","ng","se","ha","as","ou","io","le","ve","co","me","de","hi","ri","ro","ic","ne","ea","ra","ce","li","ch","ll","be","ma","si","om","ur","ca","el","ta","la","ns","di","fo","ho","pe","ec","pr","no","ct","us","ac","ot","il","tr","ly","nc","et","ut","ss","so","rs","un","lo","wa","ge","ie","wh","ee","wi","em","ad","ol","rt","po","we","na","ul","ni","ts","mo","ow","pa","im","mi","ai","sh"};
-        spottingQueue->addQueries(top100Bigrams);
+        if (nsOfInterest.find(1)!=nsOfInterest.end())
+        {
+            vector<string> orderedAlpha={"e","t","a","o","i","n","s","h","r","d","l","c","u","m","w","f","g","y","p","b","v","k","j","x","q","z"};
+            spottingQueue->addQueries(orderedAlpha);
+        }
+        if (nsOfInterest.find(2)!=nsOfInterest.end())
+        {
+            vector<string> top100Bigrams={"th","he","in","er","an","re","on","at","en","nd","ti","es","or","te","of","ed","is","it","al","ar","st","to","nt","ng","se","ha","as","ou","io","le","ve","co","me","de","hi","ri","ro","ic","ne","ea","ra","ce","li","ch","ll","be","ma","si","om","ur","ca","el","ta","la","ns","di","fo","ho","pe","ec","pr","no","ct","us","ac","ot","il","tr","ly","nc","et","ut","ss","so","rs","un","lo","wa","ge","ie","wh","ee","wi","em","ad","ol","rt","po","we","na","ul","ni","ts","mo","ow","pa","im","mi","ai","sh"};
+            spottingQueue->addQueries(top100Bigrams);
+        }
+        if (nsOfInterest.find(3)!=nsOfInterest.end())
+        {
+            vector<string> top100Trigrams={"the","and","ing","ion","tio","ent","ati","for","her","ter","hat","tha","ere","ate","his","con","res","ver","all","ons","nce","men","ith","ted","ers","pro","thi","wit","are","ess","not","ive","was","ect","rea","com","eve","per","int","est","sta","cti","ica","ist","ear","ain","one","our","iti","rat","nte","tin","ine","der","ome","man","pre","rom","tra","whi","ave","str","act","ill","ure","ide","ove","cal","ble","out","sti","tic","oun","enc","ore","ant","ity","fro","art","tur","par","red","oth","eri","hic","ies","ste","ght","ich","igh","und","you","ort","era","wer","nti","oul","nde","ind","tho"};
+            spottingQueue->addQueries(top100Trigrams);
+        }
 
     //#endif
 #endif

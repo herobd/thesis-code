@@ -13,11 +13,11 @@ Knowledge::Corpus::Corpus(int contextPad, int averageCharWidth)
     threshScoring= 1.0;
     manQueue.setContextPad(contextPad);
 }
-void Knowledge::Corpus::loadSpotter(string modelPrefix)
+void Knowledge::Corpus::loadSpotter(string modelPrefix, set<int> nsOfInterest)
 {
     //spotter = new AlmazanSpotter(this,modelPrefix);
     assert(averageCharWidth>0);    
-    spotter = new NetSpotter(this,modelPrefix,averageCharWidth);
+    spotter = new NetSpotter(this,modelPrefix,averageCharWidth,nsOfInterest);
 
     //This is bad, it shouldn't be coming from here, but it prevents code dup.
     //averageCharWidth = spotter->getAverageCharWidth();
@@ -257,7 +257,9 @@ vector<Spotting*> Knowledge::Word::result(string selected, unsigned long batchId
         done=true;
         transcription=selected;
         ret = harvest();
+#if TRANS_DONT_WAIT
         sentPoss.clear();
+#endif
     }
     else
     {
@@ -487,8 +489,11 @@ bool Knowledge::Word::removeWorstSpotting(unsigned long batchId)
     if (spottings.size()==0)
         return false;
     //curretly removes auto-accepted spottings, and then the highest scored spotting
-    float maxScore=-9999;
-    auto maxIter = spottings.begin();
+    //float maxScoreQbE=-9999;
+    //auto maxIterQbE = spottings.begin();
+    //float maxScoreQbS=-9999;
+    //auto maxIterQbS = spottings.begin();
+    multimap<float,unsigned long> scoresQbE, scoresQbS;
     auto iter = spottings.begin();
     while (iter!=spottings.end())
     {
@@ -501,17 +506,58 @@ bool Knowledge::Word::removeWorstSpotting(unsigned long batchId)
         }
         else
         {
-            if (iter->second.score>maxScore)
+            /*if (iter->second.scoreQbE>maxScoreQbE)
             {
-                maxScore = iter->second.score;
-                maxIter=iter;
+                maxScoreQbE = iter->second.scoreQbE;
+                maxIterQbE=iter;
             }
+            if (iter->second.scoreQbE>maxScoreQbE)
+            {
+                maxScoreQbE = iter->second.scoreQbE;
+                maxIterQbE=iter;
+            }*/
+            if (iter->second.scoreQbE==iter->second.scoreQbE)
+                scoresQbE.emplace(iter->second.scoreQbE,iter->second.id);
+            else
+                scoresQbE.emplace(MAX_FLOAT,iter->second.id);
+            if (iter->second.scoreQbS==iter->second.scoreQbS)
+                scoresQbS.emplace(iter->second.scoreQbS,iter->second.id);
+            else
+                scoresQbS.emplace(MAX_FLOAT,iter->second.id);
             iter++;
         }
     }
+    map<unsigned long, int> ranks;
+    auto iterScores=scoresQbE.begin();
+    for (int i=0; i<scoresQbE.size(); i++, iterScores++)
+    {
+        ranks[iterScores->second]+=i;
+    }
+    iterScores=scoresQbS.begin();
+    for (int i=0; i<scoresQbS.size(); i++, iterScores++)
+    {
+        ranks[iterScores->second]+=i;
+    }
+    float maxRank=-99999;
+    unsigned long maxId;
+    for (auto r : ranks)
+    {
+        if (r.second>maxRank)
+        {
+            maxRank=r.second;
+            maxId=r.first;
+        }
+    }
+    multimap<int,Spotting>::iterator iterMax=spottings.begin();
+    while (iterMax->second.id != maxId)
+        iterMax++;
+
+
     if (batchId!=0)
-        removedSpottings[batchId].push_back(maxIter->second);
-    spottings.erase(maxIter);
+        removedSpottings[batchId].push_back(iterMax->second);
+        //removedSpottings[batchId].push_back(maxIter->second);
+    spottings.erase(iterMax);
+    //spottings.erase(maxIter);
 
     //can we fix spotting boundaries? loose should do this to some degree...
     return true;
@@ -681,12 +727,27 @@ string Knowledge::Word::generateQuery()
         else
         {
             //There may be doubles or overlap
-            if (spot->second.ngram.length()>1 && ret[ret.length()-2] == spot->second.ngram[0] && ret[ret.length()-1] == spot->second.ngram[1])
+            //we allow both
+
+            //check for overlap starting at full overlap
+            for (int overlap=spot->second.ngram.length(); overlap>0; overlap--)
             {
-                ret = ret.substr(0,ret.length()-2) + "(" + ret.substr(ret.length()-2,2) + ")?";
+                bool isOverlap=true;
+                for (int placeO=0; placeO<overlap; placeO++)
+                {
+                    if (ret[ret.length()-(overlap-placeO)] != spot->second.ngram[placeO])
+                    {
+                        isOverlap=false;
+                        break;
+                    }
+                }
+                if (isOverlap)
+                {
+                    //set a ? around the overlapping region to allow for double or overlap
+                    ret = ret.substr(0,ret.length()-overlap) + "(" + ret.substr(ret.length()-overlap,overlap) + ")?";
+                    break;
+                }
             }
-            else if (ret[ret.length()-1] == spot->second.ngram[0])
-                ret+="?";
 
             //Because spottings often are large, we allow a character to occur between overlaping ones
             if (-1*numChars<THRESH_UNKNOWN_EST/2.0 || loose)
@@ -769,6 +830,7 @@ vector<Spotting*> Knowledge::Word::harvest()
 #ifdef NO_EXEMPLARS
     return vector<Spotting*>();
 #endif
+    assert(false && "harvest() not implemented for variable ngrams");
 
 #ifdef TEST_MODE
     //cout<<"harvesting: "<<transcription<<endl;
@@ -1338,7 +1400,7 @@ SpottingExemplar* Knowledge::Word::extractExemplar(int leftLeftBound, int rightL
 #else
     cv::Mat exe = wordImg(cv::Rect(etlx,etly,1+ebrx-etlx,1+ebry-etly));
 #endif
-    SpottingExemplar* ret = new SpottingExemplar(tlx+etlx,tly+etly,tlx+ebrx,tly+ebry,pageId,pagePnt,newNgram,NAN,exe);
+    SpottingExemplar* ret = new SpottingExemplar(tlx+etlx,tly+etly,tlx+ebrx,tly+ebry,pageId,pagePnt,newNgram,exe);
 #ifdef TEST_MODE
 #if SHOW
     cv::Mat show;
@@ -2571,7 +2633,11 @@ vector<Spotting>* Knowledge::Corpus::runQuery(SpottingQuery* query)// const
             }
         }
 
-        ret->at(i) = Spotting(res[i].startX+tlx, tly, res[i].endX+tlx, bry, w->getPageId(), w->getPage(), query->getNgram(), res[i].score, gt, res[i].imIdx, res[i].startX);
+        ret->at(i) = Spotting(res[i].startX+tlx, tly, res[i].endX+tlx, bry, w->getPageId(), w->getPage(), query->getNgram(), gt, res[i].imIdx, res[i].startX);
+        if (query->getImg().cols==0)//QbS
+            ret->at(i).scoreQbS=res[i].score;
+        else
+            ret->at(i).scoreQbE=res[i].score;
         assert(i==0 || ret->at(i).id != ret->at(i-1).id);
         if (done)
             w->preapproveSpotting(&ret->at(i));

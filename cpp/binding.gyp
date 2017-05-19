@@ -28,8 +28,8 @@
                     "WordBackPointer.h",
                     "SpottingQuery.h"
                     "SpottingQueue.h", "SpottingQueue.cpp",
-                    "Spotter.h", "AlmazanSpotter.h", "AlmazanSpotter.cpp",
-                    "AlmazanDataset.h", "AlmazanDataset.cpp",
+                    "Spotter.h",
+                    "NetSpotter.h", "NetSpotter.cpp",
 
                     "SpecialInstances.h",
                     "TestingInstances.h", "TestingInstances.cpp",
@@ -38,11 +38,21 @@
                     "TrainingBatchWraperTranscription.h", "TrainingBatchWraperTranscription.cpp",
                     "SpecialBatchRetrieveWorker.cpp"
                 ],
-      "cflags": ["-Wall", "-std=c++11", "-fexceptions" ],
-      'cflags!': [ '-fno-exceptions' ],
-      'cflags_cc!': [ '-fno-exceptions' ],
-      "include_dirs" : ["<!(node -e \"require('nan')\")", "/home/brian/intel_index/EmbAttSpotter"],
+      "old_sources": [ "AlmazanSpotter.h", "AlmazanSpotter.cpp", "AlmazanDataset.h", "AlmazanDataset.cpp" ],
+      "cflags": ["-Wall", "-std=c++11", "-fexceptions", "-DOPENCV2", "-DNOEXEMPLARS"],
+      'cflags!': [ '-fno-exceptions' ,'-fno-rtti'],
+      'cflags_cc!': [ '-fno-exceptions', '-fno-rtti' ],
+      "include_dirs" : ["<!(node -e \"require('nan')\")", 
+            "/home/brian/Projects/brian_caffe/scripts/cnnspp_spotter", 
+            "/home/brian/Projects/brian_caffe/include"
+          ],
       "libraries": [
+            "-lopencv_highgui", "-lb64", "-pthread", "-lopencv_imgproc", "-fopenmp", 
+            "-L/home/brian/Projects/brian_caffe/scripts/cnnspp_spotter", "-lcnnspp_spotter",
+            "-L/home/brian/Projects/brian_caffe/build/lib", "-lcaffe", "-lboost_system"
+          ],
+      "old_include_dirs" : ["<!(node -e \"require('nan')\")", "/home/brian/intel_index/EmbAttSpotter"],
+      "old_libraries": [
             "-lopencv_highgui", "-lb64", "-pthread", "-lopencv_imgproc", "-fopenmp", 
             "-L/home/brian/intel_index/EmbAttSpotter", "-lembattspotter",
             "-L/home/brian/intel_index/EmbAttSpotter/vlfeat-0.9.20/bin/glnxa64/", "-l:libvl.so"

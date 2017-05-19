@@ -720,6 +720,7 @@ unsigned long MasterQueue::updateSpottingResults(vector<Spotting>* spottings, un
         n->add(s);
         //cout <<"added spotting : "<<s.id<<endl;
     }
+    n->debugState();
     sem_post(sem);
     delete spottings;
     pthread_rwlock_wrlock(&semResultsQueue);

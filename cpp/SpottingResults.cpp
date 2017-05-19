@@ -7,7 +7,7 @@ atomic_ulong Spotting::_id;
 atomic_ulong SpottingResults::_id;
 
 SpottingResults::SpottingResults(string ngram, int contextPad) : 
-    instancesByScore(scoreCompById(&(this->instancesById))),
+    //instancesByScore(scoreCompById(&(this->instancesById),false)),
     ngram(ngram), contextPad(contextPad)
 {
     id = ++_id;
@@ -19,13 +19,13 @@ SpottingResults::SpottingResults(string ngram, int contextPad) :
     numberClassifiedFalse=0;
     numberAccepted=0;
     numberRejected=0;
-    maxScore=-999999;
-    minScore=999999;
+    maxScore()=-999999;
+    minScore()=999999;
     
     
-    trueMean=minScore;//How to initailize?
+    trueMean=minScore();//How to initailize?
     trueVariance=1.0;
-    falseMean=maxScore;
+    falseMean=maxScore();
     falseVariance=1.0;
     
     acceptThreshold=-1;
@@ -33,6 +33,9 @@ SpottingResults::SpottingResults(string ngram, int contextPad) :
     numLeftInRange=-1;
     
     done=false;
+
+    useQbE=false;
+    numComb=0;
 
     //pullFromScore=splitThreshold;
     momentum=1.2;
@@ -46,13 +49,13 @@ SpottingResults::SpottingResults(string ngram, int contextPad) :
 }
 
 void SpottingResults::add(Spotting spotting) {
-    ///debugState();
     assert(spotting.tlx!=-1);
+    assert(!useQbE);
     //sem_wait(&mutexSem);
     allBatchesSent=false;
     instancesById[spotting.id]=spotting;
     assert(spotting.ngram.compare(ngram)==0);
-    assert(spotting.score==spotting.score && spotting.pageId<100000);//currption checking
+    assert(spotting.score(useQbE)==spotting.score(useQbE) && spotting.pageId<100000);//currption checking
     if (spotting.type==SPOTTING_TYPE_TRANS_TRUE)
     {
         classById[spotting.id]=true;
@@ -71,37 +74,33 @@ void SpottingResults::add(Spotting spotting) {
     }
     else
     {
-        instancesByScore.insert((spotting.id));
+        instancesByScore.emplace(spotting.scoreQbS,spotting.id);
     }
     instancesByLocation.insert(&instancesById.at(spotting.id));
     tracer = instancesByScore.begin();
-    if (spotting.score>maxScore)
+    if (spotting.scoreQbS>maxScore())
     {
-        if (falseMean==maxScore && falseVariance==1.0)
-            falseMean=spotting.score;
-        maxScore=spotting.score;
+        if (falseMean==maxScore() && falseVariance==1.0)
+            falseMean=spotting.scoreQbS;
+        maxScore()=spotting.scoreQbS;
     }
-    if (spotting.score<minScore)
+    if (spotting.scoreQbS<minScore())
     {
-        if (trueMean==minScore && trueVariance==1.0)
-            trueMean=spotting.score;
-        minScore=spotting.score;
+        if (trueMean==minScore() && trueVariance==1.0)
+            trueMean=spotting.scoreQbS;
+        minScore()=spotting.scoreQbS;
     }
     //sem_post(&mutexSem);
     batchesSinceChange=0;
-    ///debugState();
 }
 void SpottingResults::addTrueNoScore(const SpottingExemplar& spotting) {
-    ///debugState();
     assert(spotting.tlx!=-1);
     //sem_wait(&mutexSem);
-    assert(spotting.score != spotting.score);
     instancesById[spotting.id]=spotting;
     instancesById.at(spotting.id).type=SPOTTING_TYPE_APPROVED;
     instancesByLocation.insert(&instancesById.at(spotting.id));
     classById[spotting.id]=true;
     //sem_post(&mutexSem);
-    ///debugState();
 }
 /*SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, unsigned int maxWidth) {
     cout <<"getBatch, from:"<<pullFromScore<<endl;
@@ -133,13 +132,23 @@ void SpottingResults::addTrueNoScore(const SpottingExemplar& spotting) {
 
 void SpottingResults::debugState() const
 {
+    if (ngram.compare("th")==0)
+        cout<<"[th] byId: "<<instancesById.size()<<"  byScore: "<<instancesByScore.size()<<" numLeftInRange: "<<numLeftInRange<<endl;
+
     for (auto iter=instancesByLocation.begin(); iter!=instancesByLocation.end(); iter++)
     {
         assert(instancesById.find((**iter).id) != instancesById.end());
     }
     for (auto iter=instancesByScore.begin(); iter!=instancesByScore.end(); iter++)
     {
-        assert(instancesById.find(*iter) != instancesById.end());
+        assert(instancesById.find(iter->second) != instancesById.end());
+    }
+
+    for (auto p : instancesById)
+    {
+        if (classById.find(p.first) == classById.end())
+            assert(instancesByScoreContains(p.first) ||
+                   starts.find(p.first) != starts.end());
     }
 }
 
@@ -182,8 +191,9 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
     }
     for (auto iter=instancesByScore.begin(); iter!=instancesByScore.end(); iter++)
     {
-        assert(instancesById.find(*iter) != instancesById.end());
+        assert(instancesById.find(iter->second) != instancesById.end());
         Spotting& spotting = instancesById.at(*iter);
+        float score=spotting.score(useQbE);
         bool t=false;
         if (spotting.gt==1)
             t=true;
@@ -193,7 +203,7 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
             spotting.gt=t;
         }
 
-        if (spotting.score >=pullFromScore && atPull)
+        if (score >=pullFromScore && atPull)
         {
             atPull=false;
 #ifdef GRAPH_SPOTTING_RESULTS
@@ -201,7 +211,7 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
             newUndoneLine.at<cv::Vec3b>(0,inUndone++) = cv::Vec3b(255,200,200);
 #endif
         }
-        if (spotting.score >=acceptThreshold && acceptT)
+        if (score >=acceptThreshold && acceptT)
         {
             acceptT=false;
             betweenT=true;
@@ -214,7 +224,7 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
                 newUndoneLine.at<cv::Vec3b>(0,inUndone++) = cv::Vec3b(255,0,200);
 #endif
         }
-        if (spotting.score >rejectThreshold && betweenT)
+        if (score >rejectThreshold && betweenT)
         {
             rejectT=true;
             betweenT=false;
@@ -304,6 +314,7 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
     int inFull=0;
     for (auto iter=fullInstancesByScore.begin(); iter!=fullInstancesByScore.end(); iter++)
     {
+        float score = (*iter)->score(useQbE);
         bool t=false;
         if ((*iter)->gt==1)
             t=true;
@@ -317,12 +328,12 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
         if (instancesByScore.find((*iter)->id) == instancesByScore.end())
             color = 100;
 
-        if ((*iter)->score >=pullFromScore && atPull)
+        if (score >=pullFromScore && atPull)
         {
             atPull=false;
             newFullLine.at<cv::Vec3b>(0,inFull++) = cv::Vec3b(255,200,190);
         }
-        if ((*iter)->score >=acceptThreshold && acceptT)
+        if (score >=acceptThreshold && acceptT)
         {
             acceptT=false;
             betweenT=true;
@@ -333,7 +344,7 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
             else if (atn==2)
                 newFullLine.at<cv::Vec3b>(0,inFull++) = cv::Vec3b(255,0,200);
         }
-        if ((*iter)->score >rejectThreshold && betweenT)
+        if (score >rejectThreshold && betweenT)
         {
             rejectT=true;
             betweenT=false;
@@ -367,7 +378,7 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
 #endif
 
 SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need) {
-    ///debugState();
+    debugState();
 
     if (!need && (numLeftInRange<12 && numLeftInRange>=0) && starts.size()>1)
 #ifndef NO_NAN
@@ -412,17 +423,17 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
     {
         iterR--;
         assert(instancesById.find(*iterR) != instancesById.end());
-    } while(iterR!=instancesByScore.begin() && instancesById.at(*iterR).score >rejectThreshold);
+    } while(iterR!=instancesByScore.begin() && instancesById.at(*iterR).score(useQbE) >rejectThreshold);
     for (float drawScore : scoresToDraw)
     {
         auto iter=iterR;
         assert(instancesById.find(*iter) != instancesById.end());
-        while (instancesById.at(*iter).score >drawScore && iter!=instancesByScore.begin())
+        while (instancesById.at(*iter).score(useQbE) >drawScore && iter!=instancesByScore.begin())
         {
             iter--;
         }
         assert(instancesById.find(*iter) != instancesById.end());
-        if (instancesById.at(*iter).score<acceptThreshold && iter!=instancesByScore.end())
+        if (instancesById.at(*iter).score(useQbE)<acceptThreshold && iter!=instancesByScore.end())
         {
             iter++;
             if (iter==instancesByScore.end())
@@ -455,7 +466,7 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
     //check if done
     if (instancesByScore.size()<=1)
         *done=true;
-    else if (instancesById.at(*iterR).score > rejectThreshold)
+    else if (instancesById.at(*iterR).score(useQbE) > rejectThreshold)
     {
         if (iterR==instancesByScore.begin())
             *done=true;
@@ -463,11 +474,11 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
         {
             iterR--;
             assert(instancesById.find(*iterR) != instancesById.end());
-            if (instancesById.at(*iterR).score < acceptThreshold)
+            if (instancesById.at(*iterR).score(useQbE) < acceptThreshold)
                 *done=true;
         }
     }
-    else if (instancesById.at(*iterR).score < acceptThreshold)
+    else if (instancesById.at(*iterR).score(useQbE) < acceptThreshold)
         *done=true;
 
     
@@ -494,13 +505,13 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
     //sem_post(&mutexSem);
     //numBatches++;
     
-    ///debugState();
+    debugState();
     return ret;
 }
 
 vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long,string> >* retRemove)
 {
-    ///debugState();
+    debugState();
     /*cout << "fed: ";
     for (int i=0; i<ids.size(); i++)
     {   
@@ -610,7 +621,7 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
 #endif
         tracer = instancesByScore.begin();
         assert(instancesById.find(*tracer) != instancesById.end());
-        while (tracer!=instancesByScore.end() && instancesById.at(*tracer).score <= acceptThreshold)
+        while (tracer!=instancesByScore.end() && instancesById.at(*tracer).score(useQbE) <= acceptThreshold)
         {
             assert(instancesById.find(*tracer) != instancesById.end());
 
@@ -626,7 +637,7 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
             trueAutoAccepted += GlobalK::knowledge()->ngramAt(ngram, instancesById.at(*tracer).pageId, instancesById.at(*tracer).tlx, instancesById.at(*tracer).tly, instancesById.at(*tracer).brx, instancesById.at(*tracer).bry)?1:0;
 #endif
 #ifdef TEST_MODE_LONG
-            cout <<" "<<instancesById.at(*tracer).id<<"[tlx:"<<instancesById.at(*tracer).tlx<<", score:"<<instancesById.at(*tracer).score<<"]: true"<<endl;
+            cout <<" "<<instancesById.at(*tracer).id<<"[tlx:"<<instancesById.at(*tracer).tlx<<", score:"<<instancesById.at(*tracer).score(useQbE)<<"]: true"<<endl;
 #endif
             tracer++;
         }
@@ -644,7 +655,7 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
             trueAutoRejected += GlobalK::knowledge()->ngramAt(ngram, instancesById.at(*tracer).pageId, instancesById.at(*tracer).tlx, instancesById.at(*tracer).tly, instancesById.at(*tracer).brx, instancesById.at(*tracer).bry)?1:0;
 #endif
 #ifdef TEST_MODE_LONG
-            cout <<" "<<instancesById.at(*tracer).id<<"[tlx:"<<instancesById.at(*tracer).tlx<<", score:"<<instancesById.at(*tracer).score<<"]: false"<<endl;
+            cout <<" "<<instancesById.at(*tracer).id<<"[tlx:"<<instancesById.at(*tracer).tlx<<", score:"<<instancesById.at(*tracer).score(useQbE)<<"]: false"<<endl;
 #endif
             tracer++;
         }
@@ -663,7 +674,7 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
         cout<<"SpottingResults ["<<id<<"]:"<<ngram<<" has more batches and will be re-enqueued"<<endl;
 #endif
     }
-    ///debugState();
+    debugState();
     return ret;
 }
     
@@ -672,9 +683,10 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
 
 bool SpottingResults::EMThresholds(int swing)
 {
-    ///debugState();
+    
+    debugState();
     assert(instancesById.size()>1);
-    assert(maxScore!=-999999);
+    assert(maxScore()!=-999999);
     bool init = acceptThreshold==-1 && rejectThreshold==-1;
     float oldMidScore = acceptThreshold + (rejectThreshold-acceptThreshold)/2.0;
     /*This will likely predict very narrow and distinct distributions
@@ -700,12 +712,12 @@ bool SpottingResults::EMThresholds(int swing)
         //int total = 0;//instancesById.size();
         for (auto p : instancesById)
         {
-            if (p.second.score==p.second.score)
+            if (p.second.score(useQbE)==p.second.score(useQbE))
             {
                 //total++;
                 unsigned long id = p.first;
                 
-                int bin = 255*(instancesById.at(id).score-minScore)/(maxScore-minScore);
+                int bin = 255*(instancesById.at(id).score(useQbE)-minScore())/(maxScore()-minScore());
                 if (bin<0) bin=0;
                 if (bin>histogram.size()-1) bin=histogram.size()-1;
                 histogram[bin]++;
@@ -714,11 +726,7 @@ bool SpottingResults::EMThresholds(int swing)
         
         
         double thresh = GlobalK::otsuThresh(histogram);//( threshold1 + threshold2 ) / 2.0;
-        pullFromScore = (thresh/256)*(maxScore-minScore)+minScore;
-#ifdef TEST_MODE_LONG
-        if (ngram.compare("te")==0)
-            cout<<"init pullFromScore = "<<pullFromScore<<endl;
-#endif
+        pullFromScore = (thresh/256)*(maxScore()-minScore())+minScore();
     }
     
     //expectation
@@ -747,22 +755,22 @@ bool SpottingResults::EMThresholds(int swing)
         numLeftInRange=0;
         for (auto p : instancesById)
         {
-            if (p.second.score!=p.second.score)
+            if (p.second.score(useQbE)!=p.second.score(useQbE))
                 continue; 
             unsigned long id = p.first;
             
 #ifdef TEST_MODE
             //test
-            int bin=(displayLen-1)*(instancesById.at(id).score-minScore)/(maxScore-minScore);
+            int bin=(displayLen-1)*(instancesById.at(id).score(useQbE)-minScore())/(maxScore()-minScore());
 #endif        
             
             if (classById.find(id)!=classById.end())
             {
                 if (classById[id])
                 {
-                    expectedTrue.push_back(instancesById.at(id).score);
+                    expectedTrue.push_back(instancesById.at(id).score(useQbE));
                     //expectedTrue.push_back(instancesById.at(id).score);
-                    sumTrue+=1*instancesById.at(id).score;
+                    sumTrue+=1*instancesById.at(id).score(useQbE);
                     
 #ifdef TEST_MODE
                     //test
@@ -771,9 +779,9 @@ bool SpottingResults::EMThresholds(int swing)
                 }
                 else
                 {
-                    expectedFalse.push_back(instancesById.at(id).score);
+                    expectedFalse.push_back(instancesById.at(id).score(useQbE));
                     //expectedFalse.push_back(instancesById.at(id).score);
-                    sumFalse+=1*instancesById.at(id).score;
+                    sumFalse+=1*instancesById.at(id).score(useQbE);
                     
 #ifdef TEST_MODE
                     //test
@@ -783,19 +791,19 @@ bool SpottingResults::EMThresholds(int swing)
             }
             else
             {
-                if (instancesById.at(id).score >acceptThreshold && instancesById.at(id).score<rejectThreshold)
+                if (instancesById.at(id).score(useQbE) >acceptThreshold && instancesById.at(id).score(useQbE)<rejectThreshold)
                     numLeftInRange++;
-                double trueProb = exp(-1*pow(instancesById.at(id).score - trueMean,2)/(2*trueVariance));
-                double falseProb = exp(-1*pow(instancesById.at(id).score - falseMean,2)/(2*falseVariance));
+                double trueProb = exp(-1*pow(instancesById.at(id).score(useQbE) - trueMean,2)/(2*trueVariance));
+                double falseProb = exp(-1*pow(instancesById.at(id).score(useQbE) - falseMean,2)/(2*falseVariance));
                 if (init)
                 {
-                    trueProb = instancesById.at(id).score<pullFromScore;
-                    falseProb = instancesById.at(id).score>pullFromScore;
+                    trueProb = instancesById.at(id).score(useQbE)<pullFromScore;
+                    falseProb = instancesById.at(id).score(useQbE)>pullFromScore;
                 }
                 if (trueProb>falseProb)
                 {
-                    sumTrue+=instancesById.at(id).score;
-                    expectedTrue.push_back(instancesById.at(id).score);
+                    sumTrue+=instancesById.at(id).score(useQbE);
+                    expectedTrue.push_back(instancesById.at(id).score(useQbE));
                     
 #ifdef TEST_MODE
                     //test
@@ -804,8 +812,8 @@ bool SpottingResults::EMThresholds(int swing)
                 }
                 else
                 {
-                    expectedFalse.push_back(instancesById.at(id).score);
-                    sumFalse+=instancesById.at(id).score;
+                    expectedFalse.push_back(instancesById.at(id).score(useQbE));
+                    sumFalse+=instancesById.at(id).score(useQbE);
                     
 #ifdef TEST_MODE
                     //test
@@ -842,9 +850,9 @@ bool SpottingResults::EMThresholds(int swing)
         //float prevRejectThreshold=rejectThreshold;
         if (falseVariance!=0 && trueVariance!=0)
         {
-            acceptThreshold = max( min(acceptThreshold1,acceptThreshold2), minScore);
-            //rejectThreshold = min( max(rejectThreshold1,rejectThreshold2), maxScore);
-            rejectThreshold = min( rejectThreshold2, maxScore);//This seems to work better
+            acceptThreshold = max( min(acceptThreshold1,acceptThreshold2), minScore());
+            //rejectThreshold = min( max(rejectThreshold1,rejectThreshold2), maxScore());
+            rejectThreshold = min( rejectThreshold2, maxScore());//This seems to work better
         }
         else if (falseVariance==0)
         {
@@ -947,15 +955,15 @@ bool SpottingResults::EMThresholds(int swing)
 //cout <<"adjusted threshs, now "<<acceptThreshold<<" <> "<<rejectThreshold<<"    computed with std dev of: "<<numStdDevs<<endl;
 /*//a historgram visualization
 
-int falseMeanBin=(displayLen-1)*(falseMean-minScore)/(maxScore-minScore);
-int falseVarianceBin1=(displayLen-1)*(falseMean-sqrt(falseVariance)-minScore)/(maxScore-minScore);
-int falseVarianceBin2=(displayLen-1)*(falseMean+sqrt(falseVariance)-minScore)/(maxScore-minScore);
-int trueMeanBin=(displayLen-1)*(trueMean-minScore)/(maxScore-minScore);
-int trueVarianceBin1=(displayLen-1)*(trueMean-sqrt(trueVariance)-minScore)/(maxScore-minScore);
-int trueVarianceBin2=(displayLen-1)*(trueMean+sqrt(trueVariance)-minScore)/(maxScore-minScore);
-int acceptThresholdBin=(displayLen-1)*(acceptThreshold-minScore)/(maxScore-minScore);
-int rejectThresholdBin=(displayLen-1)*(rejectThreshold-minScore)/(maxScore-minScore);
-int pullFromScoreBin=(displayLen-1)*(pullFromScore-minScore)/(maxScore-minScore);
+int falseMeanBin=(displayLen-1)*(falseMean-minScore())/(maxScore()-minScore());
+int falseVarianceBin1=(displayLen-1)*(falseMean-sqrt(falseVariance)-minScore())/(maxScore()-minScore());
+int falseVarianceBin2=(displayLen-1)*(falseMean+sqrt(falseVariance)-minScore())/(maxScore()-minScore());
+int trueMeanBin=(displayLen-1)*(trueMean-minScore())/(maxScore()-minScore());
+int trueVarianceBin1=(displayLen-1)*(trueMean-sqrt(trueVariance)-minScore())/(maxScore()-minScore());
+int trueVarianceBin2=(displayLen-1)*(trueMean+sqrt(trueVariance)-minScore())/(maxScore()-minScore());
+int acceptThresholdBin=(displayLen-1)*(acceptThreshold-minScore())/(maxScore()-minScore());
+int rejectThresholdBin=(displayLen-1)*(rejectThreshold-minScore())/(maxScore()-minScore());
+int pullFromScoreBin=(displayLen-1)*(pullFromScore-minScore())/(maxScore()-minScore());
 for (int bin=0; bin<displayLen; bin++)
 {
     if (falseMeanBin==bin)
@@ -1039,10 +1047,11 @@ for (int bin=0; bin<displayLen; bin++)
     {
         allBatchesSent=true;
         auto iter = instancesByScore.begin();
-        while (iter!=instancesByScore.end() && instancesById.at(*iter).score < rejectThreshold)
+        while (iter!=instancesByScore.end() && instancesById.at(*iter).score(useQbE) < rejectThreshold)
         {
             assert(instancesById.find(*iter) != instancesById.end());
-            if (instancesById.at(*iter).score > acceptThreshold && instancesById.at(*iter).score < rejectThreshold)
+            
+            if (instancesById.at(*iter).score(useQbE) > acceptThreshold && instancesById.at(*iter).score(useQbE) < rejectThreshold)
             {
                 allBatchesSent=false;
                 break;
@@ -1050,14 +1059,14 @@ for (int bin=0; bin<displayLen; bin++)
             iter++;
         } 
     }
-    ///debugState();
+    debugState();
     return allBatchesSent;
 }
 
 
 bool SpottingResults::checkIncomplete()
 {
-    ///debugState();
+    debugState();
     bool incomp=false;
     //cout <<"checkIncomplete, starts is "<<starts.size()<<endl;
     //vector<unsigned long> toRemove;
@@ -1098,14 +1107,13 @@ bool SpottingResults::checkIncomplete()
         allBatchesSent=false;
         return true;
     }
-    ///debugState();
+    debugState();
     return false;
 }
 
 
 multiset<Spotting*,tlComp>::iterator SpottingResults::findOverlap(const Spotting& spotting, float* ratioOff) const
 {
-    ///debugState();
     bool updated=false;
     int width = spotting.brx-spotting.tlx;
     int height = spotting.bry-spotting.tly;
@@ -1154,16 +1162,16 @@ multiset<Spotting*,tlComp>::iterator SpottingResults::findOverlap(const Spotting
             }
         }
     }
-    ///debugState();
     return bestSoFarIter;
 }
 
 //This method is to check to see if we actually have this exemplar already and then prevent is from being re-approved
 void SpottingResults::updateSpottingTrueNoScore(const SpottingExemplar& spotting)
 {
-    ///debugState();
+    debugState();
     assert(spotting.tlx!=-1);
-    assert(spotting.score != spotting.score);
+    assert(spotting.scoreQbE != spotting.scoreQbE);
+    assert(spotting.scoreQbS != spotting.scoreQbS);
 
     //Scan for possibly overlapping (the same) spottings
     Spotting* best=NULL;
@@ -1184,7 +1192,8 @@ void SpottingResults::updateSpottingTrueNoScore(const SpottingExemplar& spotting
         assert(spotting.pageId>=0);
         instancesById[spotting.id]=spotting;
         instancesById.at(spotting.id).type=SPOTTING_TYPE_APPROVED;
-        instancesById.at(spotting.id).score=best->score;//we replace the score so that we contribute to the thresholding
+        instancesById.at(spotting.id).scoreQbE=best->scoreQbE;//we replace the score so that we contribute to the thresholding
+        instancesById.at(spotting.id).scoreQbS=best->scoreQbS;//we replace the score so that we contribute to the thresholding
         instancesByLocation.insert(&instancesById.at(spotting.id));
         classById[spotting.id]=true;
         instancesByLocation.erase(bestIter); //erase by iterator
@@ -1201,28 +1210,29 @@ void SpottingResults::updateSpottingTrueNoScore(const SpottingExemplar& spotting
     {
         addTrueNoScore(spotting);
     }
-    ///debugState();
+    debugState();
 }
 
 //combMin
 bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
 {
-    ///debugState();
+    debugState();
+    int initSize = instancesByScore.size();
     for (Spotting& spotting : *spottings)
     {
         assert(spotting.tlx!=-1);
         //Update max and min
-        if (spotting.score>maxScore)
+        if (spotting.scoreQbE>maxScoreQbE)
         {
-            if (falseMean==maxScore && falseVariance==1.0)
-                falseMean=spotting.score;
-            maxScore=spotting.score;
+            if (falseMean==maxScoreQbE && falseVariance==1.0)
+                falseMean=spotting.scoreQbE;
+            maxScoreQbE=spotting.scoreQbE;
         }
-        if (spotting.score<minScore)
+        if (spotting.scoreQbE<minScoreQbE)
         {
-            if (trueMean==minScore && trueVariance==1.0)
-                trueMean=spotting.score;
-            minScore=spotting.score;
+            if (trueMean==minScoreQbE && trueVariance==1.0)
+                trueMean=spotting.scoreQbE;
+            minScoreQbE=spotting.scoreQbE;
         }
 
         if (spotting.type==SPOTTING_TYPE_TRANS_TRUE)
@@ -1253,32 +1263,37 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
             if (best!=NULL)
             {
                 //Zagoris et al. A Framework for Efficient Transcription of Historical Documents Using Keyword Spotting would indicate that taking the worse (max) score would yield the best combintation results.
-                //However, we choose to do a weighted averaging based on how far spatially the spottings are from one another.
+                
+                //We can choose to do a weighted averaging based on how far spatially the spottings are from one another.
                 //If they are percisely on the same location, we take the max.
                 //If they are maximally off (as allowed by threshold), the min score (selected spotting) is used.
                 //Interpolate between
-                //float worseScore = max(spotting.score, (best)->score);
-                //float bestScore = min(spotting.score, (best)->score);
+                float bestScore = min(spotting.scoreQbE, (best)->scoreQbE); 
+                //float worseScore = max(spotting.scoreQbE, (best)->scoreQbE);
                 //float combScore = (1.0f-ratioOff)*worseScore + (ratioOff)*bestScore;
 
-                //Actually, averaging seems to do better
-                float combScore = (spotting.score + (best)->score)/2.0f;
-                //prevent incorrect changes to score
+
+                //Averaging seems to do better with some expriementation with bigrams, shorter
+                //float combScore = (spotting.scoreQbE + (best)->scoreQbE)/2.0f;
+                
+                //This is most principled. Each ngram has multiple "prototypes," and we want the score of the exemplar closest to the "correct prototype." Also prevents bad exemplars from tugging scores around too much.
+                float combScore = bestScore;
+
+                //prevent worse score for already approved spottings and prevent better score for rejected ones
                 auto iii = classById.find(best->id);
                 if (iii != classById.end())
                 {
-                    if ( (iii->second && combScore>(best)->score) ||
-                            ((!iii->second) && combScore<(best)->score)
+                    if ( (iii->second && combScore>(best)->scoreQbE) ||
+                            ((!iii->second) && combScore<(best)->scoreQbE)
                        )
                     {
-                        combScore = (best)->score;
+                        combScore = (best)->scoreQbE;
                     }
                 }
 
-                if (spotting.score < (best)->score)//then replace the spotting, this happens to skip NaN in the case of a harvested exemplar
+                if (spotting.scoreQbE < (best)->scoreQbE)//then replace the spotting, this happens to skip NaN in the case of a harvested exemplar
                 {
-                    ///debugState();
-                    spotting.score = combScore;
+                    spotting.scoreQbE = combScore;
                     //bool updateWhenInBatch = (best)->type!=SPOTTING_TYPE_THRESHED && instancesByScore.find(best->id)==instancesByScore.end();
                     //if (updateWhenInBatch)
                         updateMap[best->id]=spotting.id;
@@ -1293,7 +1308,9 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                     instancesByLocation.erase(bestIter); //erase by iterator
 
                     //remove the old one
+    assert(instancesByScore.size()>= initSize);
                     int removed = instancesByScore.erase(best->id); //erase by value (pointer)
+    assert(instancesByScore.size()>= initSize);
                     if (!removed)
                         assert(instancesByScore.find(best->id)==instancesByScore.end());
                     if (removed)
@@ -1302,30 +1319,31 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                         instancesByScore.insert(spotting.id);
                         tracer = instancesByScore.begin();
                     }
-                    else if ((best)->type==SPOTTING_TYPE_THRESHED && classById[(best)->id]==false)
+                    else if ((best)->type==SPOTTING_TYPE_THRESHED && classById.at((best)->id)==false)
                     {//This occurs after being resurrected. We'll give a better score another chance.
-                        //cout<<"{} replaced false spotting "<<spotting.score<<endl;
+                        //cout<<"{} replaced false spotting "<<spotting.scoreQbE<<endl;
                         //(best)->type=SPOTTING_TYPE_NONE;
                         classById.erase((best)->id);
                         instancesByScore.insert(spotting.id);
                         tracer = instancesByScore.begin();
                     }
                     instancesById.erase(best->id);
-                    ///debugState();
+    debugState();
+    assert(instancesByScore.size()>= initSize);
                 }
                 else
                 {
                     //becuase we're changing what its indexed by, we need to readd it
+                    auto iter = instancesByScore.find(best->id);
+    assert(instancesByScore.size()>= initSize);
                     int removed = instancesByScore.erase(best->id);
-                    (best)->score = combScore;
+    assert(instancesByScore.size()>= initSize);
+                    (best)->scoreQbE = combScore;
                     if (removed)
                         instancesByScore.insert(best->id);
+    debugState();
+    assert(instancesByScore.size()>= initSize);
                 }
-                //Zagoris et al. A Framework for Efficient Transcription of Historical Documents Using Keyword Spotting would indicate that taking the worse (max) score would yield the best combintation results.
-                //However, we choose to do a weighted averaging based on how far spatially the spottings are from one another.
-                //If they are percisely on the same location, we take the max.
-                //If they are maximally off (as allowed by threshold), the min score (selected spotting) is used.
-                //Interpolate between
             }
             else
             {
@@ -1334,34 +1352,48 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                 instancesByScore.insert(spotting.id);
                 instancesByLocation.insert(&instancesById.at(spotting.id));
                 tracer = instancesByScore.begin();
+    debugState();
+    assert(instancesByScore.size()>= initSize);
             }
         }
     }
     delete spottings;
-    bool allWereSent = allBatchesSent;
-    acceptThreshold=-1;
-    rejectThreshold=-1;
-    EMThresholds();
-    if (allWereSent && !allBatchesSent)
+    if (++numComb>GlobalK::numCombThresh(ngram))
     {
-#ifdef TEST_MODE_LONG
-        cout <<"Should ressurect spottingresults: "<<ngram<<endl;
-#endif
-        //RESURRECT!
-        allBatchesSent=false;
-        return true;
+        useQbE=true;
+        multiset<unsigned long,scoreCompById> newI(scoreCompById(&(this->instancesById),useQbE));
+        for (unsigned long s : instancesByScore)
+            newI.insert(s);
+        assert(newI.size() == instancesByScore.size());
+        instancesByScore = newI;
+    debugState();
+    assert(instancesByScore.size()>= initSize);
+    }
+    if (useQbE)
+    {
+        bool allWereSent = allBatchesSent;
+        acceptThreshold=-1;
+        rejectThreshold=-1;
+        EMThresholds();
+        if (allWereSent && !allBatchesSent)
+        {
+            //RESURRECT!
+            allBatchesSent=false;
+            return true;
+        }
     }
         //Go through spottings
         //If intersection, use previous label and label it instantly, but use the given score, dont put in "queue" (byScores)
         //Else, add it in normally
         //All non-intersected old ones need to have their score not count anymore (but save in case of later resurrection)
-    ///debugState();
+    debugState();
+    assert(instancesByScore.size()>= initSize);
     return false;
 }
 
 void SpottingResults::save(ofstream& out)
 {
-    ///debugState();
+    debugState();
     out<<"SPOTTINGRESULTS"<<endl;
     out<<ngram<<"\n";
     out<<batchesSinceChange<<"\n";
@@ -1373,11 +1405,13 @@ void SpottingResults::save(ofstream& out)
     out<<id<<"\n";
     out<<acceptThreshold<<"\n"<<rejectThreshold<<"\n";
     out<<allBatchesSent<<"\n"<<done<<"\n";
+    out<<useQbE<<"\n"<<numComb<<endl;
     out<<trueMean<<"\n"<<trueVariance<<"\n";
     out<<falseMean<<"\n"<<falseVariance<<"\n";
     out<<lastDifPullFromScore<<"\n"<<momentum<<"\n";
     out<<pullFromScore<<"\n";
-    out<<maxScore<<"\n"<<minScore<<"\n";
+    out<<maxScoreQbE<<"\n"<<minScoreQbE<<"\n";
+    out<<maxScoreQbS<<"\n"<<minScoreQbS<<"\n";
     out<<numLeftInRange<<"\n";
 
     out<<instancesById.size()<<"\n";
@@ -1431,11 +1465,10 @@ void SpottingResults::save(ofstream& out)
     //skip updateMap as no feedback will be recieved.
     //skip tracer as we will just refind it
     out<<contextPad<<"\n";
-    ///debugState();
+    debugState();
 }
 
-SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef) :
-    instancesByScore(scoreCompById(&(this->instancesById)))
+SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef)
 {
     string line;
     getline(in,line);
@@ -1464,6 +1497,11 @@ SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef) :
     getline(in,line);
     done = stoi(line);
     getline(in,line);
+    useQbE = stoi(line);
+    instancesByScore = multiset<unsigned long,scoreCompById>(scoreCompById(&(this->instancesById),useQbE));
+    getline(in,line);
+    numComb = stoi(line);
+    getline(in,line);
     trueMean = stod(line);
     getline(in,line);
     trueVariance = stod(line);
@@ -1478,9 +1516,13 @@ SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef) :
     getline(in,line);
     pullFromScore = stod(line);
     getline(in,line);
-    maxScore = stod(line);
+    maxScoreQbE = stod(line);
     getline(in,line);
-    minScore = stod(line);
+    minScoreQbE = stod(line);
+    getline(in,line);
+    maxScoreQbS = stod(line);
+    getline(in,line);
+    minScoreQbS = stod(line);
     getline(in,line);
     numLeftInRange = stoi(line);
 
@@ -1522,6 +1564,6 @@ SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef) :
     rtn=0;
     atn=0;
 #endif //TEST_MODE
-    ///debugState();
+    debugState();
     
 }
