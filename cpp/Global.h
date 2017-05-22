@@ -28,6 +28,8 @@
 #endif
 
 #define TRANS_DONT_WAIT 0
+#define USE_QBE 1
+#define NO_EXEMPLARS 1
 
 using namespace std;
 

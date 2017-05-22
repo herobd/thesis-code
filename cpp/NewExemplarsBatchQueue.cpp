@@ -89,7 +89,7 @@ void NewExemplarsBatchQueue::remove(unsigned long id)
 
 NewExemplarsBatch* NewExemplarsBatchQueue::dequeue(int batchSize, unsigned int maxWidth, int color, bool any)
 {
-#ifdef NO_EXEMPLARS
+#if NO_EXEMPLARS
     return NULL;///////////////////
 #endif
     lock();

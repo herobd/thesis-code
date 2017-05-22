@@ -193,7 +193,46 @@ private:
     multiset<Spotting*,tlComp> instancesByLocation; //This is a convienince holder of all Spottings
     map<unsigned long,Spotting> instancesById; //This is all the Spottings
     map<unsigned long,bool> classById; //This is the classifications of Spottings
+
+    bool instancesByScoreContains(unsigned long id) const
+    {
+        float score = instancesById.at(id).score(useQbE);
+        auto range = instancesByScore.equal_range(score);
+        for (auto iter=range.first; iter!=range.second; iter++)
+            if (iter->second==id)
+                return true;
+        return false;
+    }
+    bool instancesByScoreErase(unsigned long id)
+    {
+        float score = instancesById.at(id).score(useQbE);
+        auto range = instancesByScore.equal_range(score);
+        for (auto iter=range.first; iter!=range.second; iter++)
+            if (iter->second==id)
+            {
+                instancesByScore.erase(iter);
+                return true;
+            }
+        return false;
+    }
+    void instancesByScoreInsert(unsigned long id)
+    {
+        instancesByScore.emplace(instancesById.at(id).score(useQbE),id);
+    }
     
+    bool instancesByLocationErase(unsigned long id)
+    {
+        //const Spotting& s = instancesById.at(id);
+        auto range = instancesByLocation.equal_range(&instancesById.at(id));//Spotting(s.tlx, s.tly, s.brx, s.bry,s.pageId));
+        for (auto iter=range.first; iter!=range.second; iter++)
+            if ((*iter)->id==id)
+            {
+                instancesByLocation.erase(iter);
+                return true;
+            }
+        return false;
+    }
+
     map<unsigned long, chrono::system_clock::time_point > starts;
    
     //This provides a mapping of ids to allow a feedback of a spotting to be properly mapped if it was updated

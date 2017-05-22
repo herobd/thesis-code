@@ -77,6 +77,16 @@ public:
         scoreQbE = stof(line);
         getline(in,line);
         scoreQbS = stof(line);
+        int box0, box1, box2, box3;
+        getline(in,line);
+        box0 = stoi(line);
+        getline(in,line);
+        box1 = stoi(line);
+        getline(in,line);
+        box2 = stoi(line);
+        getline(in,line);
+        box3 = stoi(line);
+        boxQbE=make_tuple(box0,box1,box2,box3);
         getline(in,line);
         id = stoul(line);
         getline(in,line);
@@ -105,6 +115,7 @@ public:
         out<<ngram<<"\n";
         out<<scoreQbE<<"\n";
         out<<scoreQbS<<endl;
+        out<<get<0>(boxQbE)<<"\n"<<get<1>(boxQbE)<<"\n"<<get<2>(boxQbE)<<"\n"<<get<3>(boxQbE)<<"\n";
         out<<id<<"\n";
         out<<gt<<"\n";
         out<<type<<"\n";
@@ -125,6 +136,7 @@ public:
         ngram = other.ngram;
         scoreQbE = other.scoreQbE;
         scoreQbS = other.scoreQbS;
+        boxQbE=other.boxQbE;
         type = other.type;
         ngramRank = other.ngramRank;
         gt = other.gt;
@@ -140,12 +152,13 @@ public:
     const cv::Mat* pagePnt;
     string ngram;
     float scoreQbE,scoreQbS;
-    float score(bool useQbE)
+    float score(bool useQbE) const
     {
         if (useQbE)
             return scoreQbE;
         return scoreQbS;
     }
+    tuple<int,int,int,int> boxQbE;
     unsigned long id;
     int gt;
     SpottingType type;

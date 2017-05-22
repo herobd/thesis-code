@@ -1,9 +1,5 @@
 #include "CATTSS.h"
 //
-#if TEST_MODE
-//remoce
-fdjkgdfjkgha
-#endif
 
 void checkIncompleteSleeper(CATTSS* cattss, MasterQueue* q, Knowledge::Corpus* c)
 {

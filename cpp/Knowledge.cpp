@@ -827,7 +827,7 @@ void Knowledge::Word::getWordImgAndBin(cv::Mat& wordImg, cv::Mat& b)
 
 vector<Spotting*> Knowledge::Word::harvest()
 {
-#ifdef NO_EXEMPLARS
+#if NO_EXEMPLARS
     return vector<Spotting*>();
 #endif
     assert(false && "harvest() not implemented for variable ngrams");
@@ -1272,7 +1272,7 @@ SpottingExemplar* Knowledge::Word::extractExemplar(int leftLeftBound, int rightL
     if (leftLeftBound!=rightLeftBound &&sum_anchor_wordFront < min(sum_anchor_wordBack,sum_anchor_ngram)/2)
     {
         emergencyAnchor(b,g,tlx, leftLeftBound, sum_anchor_wordFront, min(sum_anchor_wordBack,sum_anchor_ngram)/2, true
-#if TEST_MODE
+#ifdef TEST_MODE
                , showA
 #endif
                );
@@ -1280,7 +1280,7 @@ SpottingExemplar* Knowledge::Word::extractExemplar(int leftLeftBound, int rightL
     if (leftRightBound!=rightRightBound && sum_anchor_wordBack < min(sum_anchor_wordFront,sum_anchor_ngram)/2)
     {
         emergencyAnchor(b,g,brx, rightRightBound, sum_anchor_wordBack, min(sum_anchor_wordFront,sum_anchor_ngram)/2, true
-#if TEST_MODE
+#ifdef TEST_MODE
                , showA
 #endif
                );
@@ -1288,7 +1288,7 @@ SpottingExemplar* Knowledge::Word::extractExemplar(int leftLeftBound, int rightL
     if (sum_anchor_ngram < min(sum_anchor_wordBack,sum_anchor_wordFront)/2)
     {
         emergencyAnchor(b,g,rightLeftBound, leftRightBound, sum_anchor_ngram, min(sum_anchor_wordBack,sum_anchor_wordFront)/2, false
-#if TEST_MODE
+#ifdef TEST_MODE
                , showA
 #endif
                );

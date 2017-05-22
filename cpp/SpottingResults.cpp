@@ -74,7 +74,7 @@ void SpottingResults::add(Spotting spotting) {
     }
     else
     {
-        instancesByScore.emplace(spotting.scoreQbS,spotting.id);
+        instancesByScoreInsert(spotting.id);
     }
     instancesByLocation.insert(&instancesById.at(spotting.id));
     tracer = instancesByScore.begin();
@@ -192,7 +192,7 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
     for (auto iter=instancesByScore.begin(); iter!=instancesByScore.end(); iter++)
     {
         assert(instancesById.find(iter->second) != instancesById.end());
-        Spotting& spotting = instancesById.at(*iter);
+        Spotting& spotting = instancesById.at(iter->second);
         float score=spotting.score(useQbE);
         bool t=false;
         if (spotting.gt==1)
@@ -325,7 +325,7 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
         }
 
         int color=205;
-        if (instancesByScore.find((*iter)->id) == instancesByScore.end())
+        if (!instancesByScoreContains((*iter)->id))
             color = 100;
 
         if (score >=pullFromScore && atPull)
@@ -378,7 +378,7 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
 #endif
 
 SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need) {
-    debugState();
+    ///debugState();
 
     if (!need && (numLeftInRange<12 && numLeftInRange>=0) && starts.size()>1)
 #ifndef NO_NAN
@@ -422,18 +422,18 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
     do
     {
         iterR--;
-        assert(instancesById.find(*iterR) != instancesById.end());
-    } while(iterR!=instancesByScore.begin() && instancesById.at(*iterR).score(useQbE) >rejectThreshold);
+        assert(instancesById.find(iterR->second) != instancesById.end());
+    } while(iterR!=instancesByScore.begin() && instancesById.at(iterR->second).score(useQbE) >rejectThreshold);
     for (float drawScore : scoresToDraw)
     {
         auto iter=iterR;
-        assert(instancesById.find(*iter) != instancesById.end());
-        while (instancesById.at(*iter).score(useQbE) >drawScore && iter!=instancesByScore.begin())
+        assert(instancesById.find(iter->second) != instancesById.end());
+        while (instancesById.at(iter->second).score(useQbE) >drawScore && iter!=instancesByScore.begin())
         {
             iter--;
         }
-        assert(instancesById.find(*iter) != instancesById.end());
-        if (instancesById.at(*iter).score(useQbE)<acceptThreshold && iter!=instancesByScore.end())
+        assert(instancesById.find(iter->second) != instancesById.end());
+        if (instancesById.at(iter->second).score(useQbE)<acceptThreshold && iter!=instancesByScore.end())
         {
             iter++;
             if (iter==instancesByScore.end())
@@ -451,34 +451,34 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
             }
         }
     
-        assert (updateMap.find(*iter)==updateMap.end());
-        assert(instancesById.find(*iter) != instancesById.end());
+        assert (updateMap.find(iter->second)==updateMap.end());
+        assert(instancesById.find(iter->second) != instancesById.end());
 
-        SpottingImage tmp(instancesById.at(*iter),maxWidth,contextPad,color,prevNgram);
+        SpottingImage tmp(instancesById.at(iter->second),maxWidth,contextPad,color,prevNgram);
         ret->push_back(tmp);
 
-        assert(ret->at(ret->size()-1).id == (*iter));
+        assert(ret->at(ret->size()-1).id == (iter->second));
         
         instancesByScore.erase(iter);
     }
 
-    assert(instancesById.find(*iterR) != instancesById.end());
+    assert(instancesById.find(iterR->second) != instancesById.end());
     //check if done
     if (instancesByScore.size()<=1)
         *done=true;
-    else if (instancesById.at(*iterR).score(useQbE) > rejectThreshold)
+    else if (instancesById.at(iterR->second).score(useQbE) > rejectThreshold)
     {
         if (iterR==instancesByScore.begin())
             *done=true;
         else
         {
             iterR--;
-            assert(instancesById.find(*iterR) != instancesById.end());
-            if (instancesById.at(*iterR).score(useQbE) < acceptThreshold)
+            assert(instancesById.find(iterR->second) != instancesById.end());
+            if (instancesById.at(iterR->second).score(useQbE) < acceptThreshold)
                 *done=true;
         }
     }
-    else if (instancesById.at(*iterR).score(useQbE) < acceptThreshold)
+    else if (instancesById.at(iterR->second).score(useQbE) < acceptThreshold)
         *done=true;
 
     
@@ -505,13 +505,13 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
     //sem_post(&mutexSem);
     //numBatches++;
     
-    debugState();
+    ///debugState();
     return ret;
 }
 
 vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long,string> >* retRemove)
 {
-    debugState();
+    ///debugState();
     /*cout << "fed: ";
     for (int i=0; i<ids.size(); i++)
     {   
@@ -578,7 +578,7 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
         }
         else if (!resent)//someone passed, so we need to add it again, unless this is resent, in whichcase we use the old.
         { 
-            instancesByScore.insert(id);
+            instancesByScoreInsert(id);
             tracer = instancesByScore.begin();
         }
     }
@@ -620,51 +620,51 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
         int trueAutoRejected=0;
 #endif
         tracer = instancesByScore.begin();
-        assert(instancesById.find(*tracer) != instancesById.end());
-        while (tracer!=instancesByScore.end() && instancesById.at(*tracer).score(useQbE) <= acceptThreshold)
+        assert(instancesById.find(tracer->second) != instancesById.end());
+        while (tracer!=instancesByScore.end() && instancesById.at(tracer->second).score(useQbE) <= acceptThreshold)
         {
-            assert(instancesById.find(*tracer) != instancesById.end());
+            assert(instancesById.find(tracer->second) != instancesById.end());
 
-            instancesById.at(*tracer).type=SPOTTING_TYPE_THRESHED;
-            ret->push_back(instancesById.at(*tracer));
-            classById[instancesById.at(*tracer).id]=true;
+            instancesById.at(tracer->second).type=SPOTTING_TYPE_THRESHED;
+            ret->push_back(instancesById.at(tracer->second));
+            classById[instancesById.at(tracer->second).id]=true;
             numberAccepted++;
 #ifdef NO_NAN
             GlobalK::knowledge()->autoAccepted();
 #endif
 #ifdef TEST_MODE
             numAutoAccepted++;
-            trueAutoAccepted += GlobalK::knowledge()->ngramAt(ngram, instancesById.at(*tracer).pageId, instancesById.at(*tracer).tlx, instancesById.at(*tracer).tly, instancesById.at(*tracer).brx, instancesById.at(*tracer).bry)?1:0;
+            trueAutoAccepted += GlobalK::knowledge()->ngramAt(ngram, instancesById.at(tracer->second).pageId, instancesById.at(tracer->second).tlx, instancesById.at(tracer->second).tly, instancesById.at(tracer->second).brx, instancesById.at(tracer->second).bry)?1:0;
 #endif
 #ifdef TEST_MODE_LONG
-            cout <<" "<<instancesById.at(*tracer).id<<"[tlx:"<<instancesById.at(*tracer).tlx<<", score:"<<instancesById.at(*tracer).score(useQbE)<<"]: true"<<endl;
+            cout <<" "<<instancesById.at(tracer->second).id<<"[tlx:"<<instancesById.at(tracer->second).tlx<<", score:"<<instancesById.at(tracer->second).score(useQbE)<<"]: true"<<endl;
 #endif
             tracer++;
         }
         while (tracer!=instancesByScore.end())
         {
-            assert(instancesById.find(*tracer) != instancesById.end());
+            assert(instancesById.find(tracer->second) != instancesById.end());
 
-            instancesById.at(*tracer).type=SPOTTING_TYPE_THRESHED;
-            classById[instancesById.at(*tracer).id]=false;
+            instancesById.at(tracer->second).type=SPOTTING_TYPE_THRESHED;
+            classById[instancesById.at(tracer->second).id]=false;
 #ifdef NO_NAN
             GlobalK::knowledge()->autoRejected();
 #endif
 #ifdef TEST_MODE
             numAutoRejected++;
-            trueAutoRejected += GlobalK::knowledge()->ngramAt(ngram, instancesById.at(*tracer).pageId, instancesById.at(*tracer).tlx, instancesById.at(*tracer).tly, instancesById.at(*tracer).brx, instancesById.at(*tracer).bry)?1:0;
+            trueAutoRejected += GlobalK::knowledge()->ngramAt(ngram, instancesById.at(tracer->second).pageId, instancesById.at(tracer->second).tlx, instancesById.at(tracer->second).tly, instancesById.at(tracer->second).brx, instancesById.at(tracer->second).bry)?1:0;
 #endif
 #ifdef TEST_MODE_LONG
-            cout <<" "<<instancesById.at(*tracer).id<<"[tlx:"<<instancesById.at(*tracer).tlx<<", score:"<<instancesById.at(*tracer).score(useQbE)<<"]: false"<<endl;
+            cout <<" "<<instancesById.at(tracer->second).id<<"[tlx:"<<instancesById.at(tracer->second).tlx<<", score:"<<instancesById.at(tracer->second).score(useQbE)<<"]: false"<<endl;
 #endif
             tracer++;
         }
-        instancesByScore.clear();
         //cout << "hit end "<<(tracer==instancesByScore.end())<<endl;
         numberRejected = distance(tracer,instancesByScore.end());
 #ifdef TEST_MODE
         cout<<"["<<id<<"]:"<<ngram<<" AUTO accepted["<<numAutoAccepted<<"]: "<<(0.0+trueAutoAccepted)/numAutoAccepted<<"  rejected["<<numAutoRejected<<"]: "<<(0.0+trueAutoRejected)/numAutoRejected<<endl;
 #endif        
+        instancesByScore.clear();
         tracer = instancesByScore.begin();
     }
     else if (!allBatchesSent && allWereSent)
@@ -674,7 +674,7 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
         cout<<"SpottingResults ["<<id<<"]:"<<ngram<<" has more batches and will be re-enqueued"<<endl;
 #endif
     }
-    debugState();
+    ///debugState();
     return ret;
 }
     
@@ -684,7 +684,7 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
 bool SpottingResults::EMThresholds(int swing)
 {
     
-    debugState();
+    ///debugState();
     assert(instancesById.size()>1);
     assert(maxScore()!=-999999);
     bool init = acceptThreshold==-1 && rejectThreshold==-1;
@@ -1047,11 +1047,11 @@ for (int bin=0; bin<displayLen; bin++)
     {
         allBatchesSent=true;
         auto iter = instancesByScore.begin();
-        while (iter!=instancesByScore.end() && instancesById.at(*iter).score(useQbE) < rejectThreshold)
+        while (iter!=instancesByScore.end() && instancesById.at(iter->second).score(useQbE) < rejectThreshold)
         {
-            assert(instancesById.find(*iter) != instancesById.end());
+            assert(instancesById.find(iter->second) != instancesById.end());
             
-            if (instancesById.at(*iter).score(useQbE) > acceptThreshold && instancesById.at(*iter).score(useQbE) < rejectThreshold)
+            if (instancesById.at(iter->second).score(useQbE) > acceptThreshold && instancesById.at(iter->second).score(useQbE) < rejectThreshold)
             {
                 allBatchesSent=false;
                 break;
@@ -1059,14 +1059,14 @@ for (int bin=0; bin<displayLen; bin++)
             iter++;
         } 
     }
-    debugState();
+    ///debugState();
     return allBatchesSent;
 }
 
 
 bool SpottingResults::checkIncomplete()
 {
-    debugState();
+    ///debugState();
     bool incomp=false;
     //cout <<"checkIncomplete, starts is "<<starts.size()<<endl;
     //vector<unsigned long> toRemove;
@@ -1086,7 +1086,7 @@ bool SpottingResults::checkIncomplete()
                 else
                     assert(false && "SpottingResults::checkIncomplete() is trying to restart a non-existant spotting id");
             }
-            instancesByScore.insert(restartId);
+            instancesByScoreInsert(restartId);
             tracer = instancesByScore.begin();
             incomp=true;
             //toRemove.push_back(start.first);
@@ -1107,7 +1107,7 @@ bool SpottingResults::checkIncomplete()
         allBatchesSent=false;
         return true;
     }
-    debugState();
+    ///debugState();
     return false;
 }
 
@@ -1137,7 +1137,7 @@ multiset<Spotting*,tlComp>::iterator SpottingResults::findOverlap(const Spotting
 
             assert(instancesById.find((*itLow)->id) != instancesById.end());
 
-            bool updateWhenInBatch = (*itLow)->type!=SPOTTING_TYPE_THRESHED && instancesByScore.find((*itLow)->id)==instancesByScore.end();
+            bool updateWhenInBatch = (*itLow)->type!=SPOTTING_TYPE_THRESHED && !instancesByScoreContains((*itLow)->id);
             if (updateWhenInBatch)
                 thresh=UPDATE_OVERLAP_THRESH_TIGHT;
             double ratio = overlapArea/max(spottingArea,1.0*((*itLow)->brx-(*itLow)->tlx)*((*itLow)->bry-(*itLow)->tly));
@@ -1168,7 +1168,7 @@ multiset<Spotting*,tlComp>::iterator SpottingResults::findOverlap(const Spotting
 //This method is to check to see if we actually have this exemplar already and then prevent is from being re-approved
 void SpottingResults::updateSpottingTrueNoScore(const SpottingExemplar& spotting)
 {
-    debugState();
+    ///debugState();
     assert(spotting.tlx!=-1);
     assert(spotting.scoreQbE != spotting.scoreQbE);
     assert(spotting.scoreQbS != spotting.scoreQbS);
@@ -1199,7 +1199,7 @@ void SpottingResults::updateSpottingTrueNoScore(const SpottingExemplar& spotting
         instancesByLocation.erase(bestIter); //erase by iterator
 
         //remove the old one
-        int removed = instancesByScore.erase(best->id); //erase by value (pointer)
+        bool removed = instancesByScoreErase(best->id); //erase by value (pointer)
         if (removed)
         {
             tracer = instancesByScore.begin();
@@ -1210,14 +1210,36 @@ void SpottingResults::updateSpottingTrueNoScore(const SpottingExemplar& spotting
     {
         addTrueNoScore(spotting);
     }
-    debugState();
+    ///debugState();
 }
 
 //combMin
 bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
 {
-    debugState();
+    ///debugState();
     int initSize = instancesByScore.size();
+#if USE_QBE
+    if (!useQbE && ++numComb>GlobalK::numCombThresh(ngram))
+    {
+        cout<<"["<<ngram<<"] now using combine QbE scores."<<endl;
+        useQbE=true;
+        multimap<float,unsigned long> tmpI=instancesByScore;
+        instancesByScore.clear();
+        for (auto p : tmpI)
+            instancesByScoreInsert(p.second);
+        for (auto& p : instancesById)
+        {
+            instancesByLocationErase(p.first);
+            p.second.tlx = get<0>(p.second.boxQbE);
+            p.second.tly = get<1>(p.second.boxQbE);
+            p.second.brx = get<2>(p.second.boxQbE);
+            p.second.bry = get<3>(p.second.boxQbE);
+            instancesByLocation.insert(&instancesById.at(p.first));
+        }
+    ///debugState();
+    assert(instancesByScore.size()>= initSize);
+    }
+#endif
     for (Spotting& spotting : *spottings)
     {
         assert(spotting.tlx!=-1);
@@ -1291,84 +1313,86 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                     }
                 }
 
-                if (spotting.scoreQbE < (best)->scoreQbE)//then replace the spotting, this happens to skip NaN in the case of a harvested exemplar
+                if (useQbE)
                 {
-                    spotting.scoreQbE = combScore;
-                    //bool updateWhenInBatch = (best)->type!=SPOTTING_TYPE_THRESHED && instancesByScore.find(best->id)==instancesByScore.end();
-                    //if (updateWhenInBatch)
-                        updateMap[best->id]=spotting.id;
-#ifdef TEST_MODE
-                    //else
-                    //    testUpdateMap[best->id]=spotting.id;
-#endif
-                    //Add this spotting
-                    assert(spotting.pageId>=0);
-                    instancesById[spotting.id]=spotting;
-                    instancesByLocation.insert(&instancesById.at(spotting.id));
-                    instancesByLocation.erase(bestIter); //erase by iterator
 
-                    //remove the old one
-    assert(instancesByScore.size()>= initSize);
-                    int removed = instancesByScore.erase(best->id); //erase by value (pointer)
-    assert(instancesByScore.size()>= initSize);
-                    if (!removed)
-                        assert(instancesByScore.find(best->id)==instancesByScore.end());
-                    if (removed)
+                    if (spotting.scoreQbE < (best)->scoreQbE)//then replace the spotting, this happens to skip NaN in the case of a harvested exemplar
                     {
-                        //add
-                        instancesByScore.insert(spotting.id);
-                        tracer = instancesByScore.begin();
+                        spotting.scoreQbE = combScore;
+                        //bool updateWhenInBatch = (best)->type!=SPOTTING_TYPE_THRESHED && instancesByScore.find(best->id)==instancesByScore.end();
+                        //if (updateWhenInBatch)
+                            updateMap[best->id]=spotting.id;
+#ifdef TEST_MODE
+                        //else
+                        //    testUpdateMap[best->id]=spotting.id;
+#endif
+                        //Add this spotting
+                        assert(spotting.pageId>=0);
+                        instancesById[spotting.id]=spotting;
+                        instancesByLocation.insert(&instancesById.at(spotting.id));
+                        instancesByLocation.erase(bestIter); //erase by iterator
+
+                        //remove the old one
+        assert(instancesByScore.size()>= initSize);
+                        bool removed = instancesByScoreErase(best->id); //erase by value (pointer)
+                        if (removed)
+                        {
+                            //add
+                            instancesByScoreInsert(spotting.id);
+                            tracer = instancesByScore.begin();
+        assert(instancesByScore.size()>= initSize);
+                        }
+                        else if ((best)->type==SPOTTING_TYPE_THRESHED && classById.at((best)->id)==false)
+                        {//This occurs after being resurrected. We'll give a better score another chance.
+                            //cout<<"{} replaced false spotting "<<spotting.scoreQbE<<endl;
+                            //(best)->type=SPOTTING_TYPE_NONE;
+                            classById.erase((best)->id);
+                            instancesByScoreInsert(spotting.id);
+                            tracer = instancesByScore.begin();
+                        }
+                        instancesById.erase(best->id);
+        ///debugState();
+        assert(instancesByScore.size()>= initSize);
                     }
-                    else if ((best)->type==SPOTTING_TYPE_THRESHED && classById.at((best)->id)==false)
-                    {//This occurs after being resurrected. We'll give a better score another chance.
-                        //cout<<"{} replaced false spotting "<<spotting.scoreQbE<<endl;
-                        //(best)->type=SPOTTING_TYPE_NONE;
-                        classById.erase((best)->id);
-                        instancesByScore.insert(spotting.id);
-                        tracer = instancesByScore.begin();
+                    else
+                    {
+                        //becuase we're changing what its indexed by, we need to readd it
+                        //auto iter = instancesByScore.find(best->id);
+        assert(instancesByScore.size()>= initSize);
+                        int removed = instancesByScoreErase(best->id);
+                        (best)->scoreQbE = combScore;
+                        if (removed)
+                            instancesByScoreInsert(best->id);
+        ///debugState();
+        assert(instancesByScore.size()>= initSize);
                     }
-                    instancesById.erase(best->id);
-    debugState();
-    assert(instancesByScore.size()>= initSize);
                 }
                 else
                 {
-                    //becuase we're changing what its indexed by, we need to readd it
-                    auto iter = instancesByScore.find(best->id);
-    assert(instancesByScore.size()>= initSize);
-                    int removed = instancesByScore.erase(best->id);
-    assert(instancesByScore.size()>= initSize);
-                    (best)->scoreQbE = combScore;
-                    if (removed)
-                        instancesByScore.insert(best->id);
-    debugState();
-    assert(instancesByScore.size()>= initSize);
+                    if (combScore<best->scoreQbE || best->scoreQbE!=best->scoreQbE)
+                    {
+                        best->boxQbE=make_tuple(spotting.tlx, spotting.tly, spotting.brx, spotting.bry);
+                    }
+
+                    best->scoreQbE = combScore;
                 }
             }
             else
             {
+#if USE_QBE
                 assert(spotting.pageId>=0);
+                spotting.boxQbE=make_tuple(spotting.tlx, spotting.tly, spotting.brx, spotting.bry);
                 instancesById[spotting.id]=spotting;
-                instancesByScore.insert(spotting.id);
+                instancesByScoreInsert(spotting.id);
                 instancesByLocation.insert(&instancesById.at(spotting.id));
                 tracer = instancesByScore.begin();
-    debugState();
+    ///debugState();
     assert(instancesByScore.size()>= initSize);
+#endif
             }
         }
     }
     delete spottings;
-    if (++numComb>GlobalK::numCombThresh(ngram))
-    {
-        useQbE=true;
-        multiset<unsigned long,scoreCompById> newI(scoreCompById(&(this->instancesById),useQbE));
-        for (unsigned long s : instancesByScore)
-            newI.insert(s);
-        assert(newI.size() == instancesByScore.size());
-        instancesByScore = newI;
-    debugState();
-    assert(instancesByScore.size()>= initSize);
-    }
     if (useQbE)
     {
         bool allWereSent = allBatchesSent;
@@ -1386,14 +1410,14 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
         //If intersection, use previous label and label it instantly, but use the given score, dont put in "queue" (byScores)
         //Else, add it in normally
         //All non-intersected old ones need to have their score not count anymore (but save in case of later resurrection)
-    debugState();
+    ///debugState();
     assert(instancesByScore.size()>= initSize);
     return false;
 }
 
 void SpottingResults::save(ofstream& out)
 {
-    debugState();
+    ///debugState();
     out<<"SPOTTINGRESULTS"<<endl;
     out<<ngram<<"\n";
     out<<batchesSinceChange<<"\n";
@@ -1423,8 +1447,9 @@ void SpottingResults::save(ofstream& out)
 
     out<<instancesByScore.size()+starts.size()<<"\n";
     out.flush();
-    for (unsigned long sid : instancesByScore)
+    for (auto p : instancesByScore)
     {
+        unsigned long sid = p.second;
         //unsigned long sid = s->id;
         if (instancesById.find(sid) == instancesById.end())
         {
@@ -1465,7 +1490,7 @@ void SpottingResults::save(ofstream& out)
     //skip updateMap as no feedback will be recieved.
     //skip tracer as we will just refind it
     out<<contextPad<<"\n";
-    debugState();
+    ///debugState();
 }
 
 SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef)
@@ -1498,7 +1523,6 @@ SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef)
     done = stoi(line);
     getline(in,line);
     useQbE = stoi(line);
-    instancesByScore = multiset<unsigned long,scoreCompById>(scoreCompById(&(this->instancesById),useQbE));
     getline(in,line);
     numComb = stoi(line);
     getline(in,line);
@@ -1541,7 +1565,8 @@ SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef)
     {
         getline(in,line);
         unsigned long sid = stoul(line);
-        instancesByScore.insert(sid);
+        if (!instancesByScoreContains(sid))
+            instancesByScoreInsert(sid);
     }
     getline(in,line);
     size = stoi(line);
@@ -1564,6 +1589,6 @@ SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef)
     rtn=0;
     atn=0;
 #endif //TEST_MODE
-    debugState();
+    ///debugState();
     
 }
