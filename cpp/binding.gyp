@@ -39,7 +39,7 @@
                     "SpecialBatchRetrieveWorker.cpp"
                 ],
       "old_sources": [ "AlmazanSpotter.h", "AlmazanSpotter.cpp", "AlmazanDataset.h", "AlmazanDataset.cpp" ],
-      "cflags": ["-Wall", "-std=c++11", "-fexceptions", "-DOPENCV2", "-DTEST_MODE" "-DGRAPH_SPOTTING_RESULTS"],
+      "cflags": ["-Wall", "-std=c++11", "-fexceptions", "-DOPENCV2", "-DTEST_MODE", "-DGRAPH_SPOTTING_RESULTS"],
       'cflags!': [ '-fno-exceptions' ,'-fno-rtti'],
       'cflags_cc!': [ '-fno-exceptions', '-fno-rtti' ],
       "include_dirs" : ["<!(node -e \"require('nan')\")", 

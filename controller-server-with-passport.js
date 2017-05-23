@@ -487,6 +487,16 @@ var ControllerApp = function(port) {
                 res.redirect('/login');
             }
         });
+        self.app.get('/xxx/save', function(req, res) {
+            if ((req.user && req.user.id=='herobd@gmail.com') || debug) {
+                spottingaddon.save(page,function (err) {
+                    if (err) console.log(err);
+                    res.send('ok');
+                });
+            } else {
+                res.redirect('/login');
+            }
+        });
         self.app.get('/xxx/force', function(req, res) {
             if ((req.user && req.user.id=='herobd@gmail.com') || debug) {
                 var ngram = '';

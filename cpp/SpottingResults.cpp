@@ -3,6 +3,7 @@
 #include <ctime>
 #include <random>
 
+
 atomic_ulong Spotting::_id;
 atomic_ulong SpottingResults::_id;
 
@@ -182,7 +183,8 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
         int dif = instancesByScore.size()+3-undoneGraph.cols;
         cv::hconcat(undoneGraph,cv::Mat::zeros(undoneGraph.rows,dif,CV_8UC3),undoneGraph);
     }
-    cv::Mat newUndoneLine = cv::Mat::zeros(2,undoneGraph.cols,CV_8UC3);
+
+    cv::Mat newUndoneLine = cv::Mat::zeros(2,undoneGraph.cols,CV_8UC3);//the line we're building now
     int inUndone=0;
 #endif
     for (auto iter=instancesByLocation.begin(); iter!=instancesByLocation.end(); iter++)
@@ -299,8 +301,8 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
     if (fullInstancesByScore.size() < instancesById.size())
     {
         fullInstancesByScore.clear();
-        for (auto p : instancesById)
-            fullInstancesByScore.insert(&(instancesById.at(p.first)));
+        for (const auto& p : instancesById)
+            fullInstancesByScore.emplace(p.second.score(useQbE),p.first);
     }
 
     if (fullGraph.cols==0)
@@ -314,18 +316,19 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
     int inFull=0;
     for (auto iter=fullInstancesByScore.begin(); iter!=fullInstancesByScore.end(); iter++)
     {
-        float score = (*iter)->score(useQbE);
+        float score = iter->first;
+        Spotting* spotting = &(instancesById.at(iter->second));
         bool t=false;
-        if ((*iter)->gt==1)
+        if (spotting->gt==1)
             t=true;
-        else if ((*iter)->gt!=0)
+        else if (spotting->gt!=0)
         {
-            t = GlobalK::knowledge()->ngramAt(ngram, (*iter)->pageId, (*iter)->tlx, (*iter)->tly, (*iter)->brx, (*iter)->bry);
-            (*iter)->gt=t;
+            t = GlobalK::knowledge()->ngramAt(ngram, spotting->pageId, spotting->tlx, spotting->tly, spotting->brx, spotting->bry);
+            spotting->gt=t;
         }
 
         int color=205;
-        if (!instancesByScoreContains((*iter)->id))
+        if (!instancesByScoreContains(spotting->id))
             color = 100;
 
         if (score >=pullFromScore && atPull)
@@ -363,6 +366,7 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
     fullGraph.push_back(newFullLine);
     //if (fullGraph.rows-1%4==0)
         cv::imwrite(fullGraphName,fullGraph);
+    cout<<"wrote "<<fullGraphName<<endl;
     //cv::imshow(fullGraphName,fullGraph);
     //cv::waitKey(100);
 #endif
@@ -389,10 +393,6 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
 
     if (acceptThreshold==-1 && rejectThreshold==-1)
         EMThresholds();
-#ifdef TEST_MODE
-    cout <<"\ngetBatch, from:"<<pullFromScore<<"\n"<<endl;
-
-#endif
     //sem_wait(&mutexSem);
     
     unsigned int toRet = ((hard&&instancesByScore.size()>=num)||((((signed int)instancesByScore.size())-(signed int) num)>3))?num:instancesByScore.size();
@@ -408,6 +408,9 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
     set<float> scoresToDraw;
     //normal_distribution<float> distribution(pullFromScore,((pullFromScore-acceptThreshold)+(rejectThreshold-pullFromScore))/4.0);
     uniform_real_distribution<float> distribution(acceptThreshold,rejectThreshold);
+#ifdef TEST_MODE
+    cout <<"\ngetBatch, from: ";
+#endif
     for (int i=0; i<min(toRet,(unsigned int)instancesByScore.size()); i++)
     {
         float v = distribution(generator);
@@ -416,9 +419,15 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
         if (v>=rejectThreshold)
             v=2*rejectThreshold-v;
         scoresToDraw.insert(v);
+#ifdef TEST_MODE
+        cout<<v<<", ";
+#endif
     }
+#ifdef TEST_MODE
+    cout<<endl;
+#endif
 
-    auto iterR = instancesByScore.end();
+    /*auto iterR = instancesByScore.end();
     do
     {
         iterR--;
@@ -460,10 +469,40 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
         assert(ret->at(ret->size()-1).id == (iter->second));
         
         instancesByScore.erase(iter);
+    }*/
+
+    //scoresToDraw will be ordered by set<>, so we just need to increment the iterator along
+    auto iterR = instancesByScore.begin();
+    do
+    {
+        iterR++;
+        assert(instancesById.find(iterR->second) != instancesById.end());
+    } while(iterR!=instancesByScore.end() && instancesById.at(iterR->second).score(useQbE) < acceptThreshold);
+    for (float drawScore : scoresToDraw)
+    {
+        while (instancesById.at(iterR->second).score(useQbE) < drawScore && iterR!=instancesByScore.begin())
+        {
+            iterR++;
+        }
+        if (instancesById.at(iterR->second).score(useQbE)>rejectThreshold && iterR!=instancesByScore.begin())
+        {
+            iterR--;
+        }
+    
+        assert (updateMap.find(iterR->second)==updateMap.end());
+        assert(instancesById.find(iterR->second) != instancesById.end());
+
+        SpottingImage tmp(instancesById.at(iterR->second),maxWidth,contextPad,color,prevNgram);
+        ret->push_back(tmp);
+
+        assert(ret->at(ret->size()-1).id == (iterR->second));
+        
+        iterR = instancesByScore.erase(iterR);
+        if (iterR == instancesByScore.end() && iterR != instancesByScore.begin())
+            iterR--;
     }
 
-    assert(instancesById.find(iterR->second) != instancesById.end());
-    //check if done
+    //check if done, that is we don't have spottings left between the thresholds
     if (instancesByScore.size()<=1)
         *done=true;
     else if (instancesById.at(iterR->second).score(useQbE) > rejectThreshold)
@@ -479,7 +518,17 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
         }
     }
     else if (instancesById.at(iterR->second).score(useQbE) < acceptThreshold)
-        *done=true;
+    {
+        iterR++;
+        if (iterR==instancesByScore.end())
+            *done=true;
+        else
+        {
+            assert(instancesById.find(iterR->second) != instancesById.end());
+            if (instancesById.at(iterR->second).score(useQbE) > rejectThreshold)
+                *done=true;
+        }
+    }
 
     
     if (batchesSinceChange++ > CHECK_IF_BAD_SPOTTING_START)
@@ -712,7 +761,7 @@ bool SpottingResults::EMThresholds(int swing)
         //int total = 0;//instancesById.size();
         for (auto p : instancesById)
         {
-            if (p.second.score(useQbE)==p.second.score(useQbE))
+            if (p.second.score(useQbE)==p.second.score(useQbE) && p.second.score(useQbE)!=MAX_FLOAT)
             {
                 //total++;
                 unsigned long id = p.first;
@@ -755,7 +804,7 @@ bool SpottingResults::EMThresholds(int swing)
         numLeftInRange=0;
         for (auto p : instancesById)
         {
-            if (p.second.score(useQbE)!=p.second.score(useQbE))
+            if (p.second.score(useQbE)!=p.second.score(useQbE) || p.second.score(useQbE)==MAX_FLOAT)
                 continue; 
             unsigned long id = p.first;
             
@@ -838,6 +887,9 @@ bool SpottingResults::EMThresholds(int swing)
             falseVariance += (score-falseMean)*(score-falseMean);
         if (expectedFalse.size()!=0)
             falseVariance/=expectedFalse.size();
+
+        assert(sqrt(falseVariance)==sqrt(falseVariance));
+        assert(sqrt(trueVariance)==sqrt(trueVariance));
         
 
         //set new thresholds
@@ -865,6 +917,7 @@ bool SpottingResults::EMThresholds(int swing)
             acceptThreshold = falseMean-2*numStdDevs*sqrt(falseVariance);
         }
 
+        assert(rejectThreshold==rejectThreshold && acceptThreshold==acceptThreshold);
 #ifdef TEST_MODE
         if (rejectThreshold==rejectThreshold1)
             rtn=1;
@@ -1168,6 +1221,9 @@ multiset<Spotting*,tlComp>::iterator SpottingResults::findOverlap(const Spotting
 //This method is to check to see if we actually have this exemplar already and then prevent is from being re-approved
 void SpottingResults::updateSpottingTrueNoScore(const SpottingExemplar& spotting)
 {
+#ifdef GRAPH_SPOTTING_RESULTS
+    fullInstancesByScore.clear();
+#endif
     ///debugState();
     assert(spotting.tlx!=-1);
     assert(spotting.scoreQbE != spotting.scoreQbE);
@@ -1216,6 +1272,9 @@ void SpottingResults::updateSpottingTrueNoScore(const SpottingExemplar& spotting
 //combMin
 bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
 {
+#ifdef GRAPH_SPOTTING_RESULTS
+    fullInstancesByScore.clear();
+#endif
     ///debugState();
     int initSize = instancesByScore.size();
 #if USE_QBE
@@ -1229,13 +1288,24 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
             instancesByScoreInsert(p.second);
         for (auto& p : instancesById)
         {
-            instancesByLocationErase(p.first);
-            p.second.tlx = get<0>(p.second.boxQbE);
-            p.second.tly = get<1>(p.second.boxQbE);
-            p.second.brx = get<2>(p.second.boxQbE);
-            p.second.bry = get<3>(p.second.boxQbE);
-            instancesByLocation.insert(&instancesById.at(p.first));
+            if (p.second.scoreQbE==p.second.scoreQbE && p.second.scoreQbE!=MAX_FLOAT)
+            {
+                instancesByLocationErase(p.first);
+                p.second.tlx = get<0>(p.second.boxQbE);
+                p.second.tly = get<1>(p.second.boxQbE);
+                p.second.brx = get<2>(p.second.boxQbE);
+                p.second.bry = get<3>(p.second.boxQbE);
+                instancesByLocation.insert(&instancesById.at(p.first));
+            }
         }
+#if defined(TEST_MODE) && defined(GRAPH_SPOTTING_RESULTS)
+        cv::Mat undoneW(1,undoneGraph.cols,CV_8UC3);
+        undoneW = cv::Scalar(255,255,255);
+        undoneGraph.push_back(undoneW);
+        cv::Mat fullW(1,fullGraph.cols,CV_8UC3);
+        fullW = cv::Scalar(255,255,255);
+        fullGraph.push_back(fullW);
+#endif
     ///debugState();
     assert(instancesByScore.size()>= initSize);
     }

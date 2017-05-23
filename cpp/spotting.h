@@ -74,9 +74,9 @@ public:
             pagePnt = pageRef->getPageImg(pageId);
         getline(in,ngram);
         getline(in,line);
-        scoreQbE = stof(line);
+        scoreQbE = (line[0]=='M')?MAX_FLOAT : stof(line);
         getline(in,line);
-        scoreQbS = stof(line);
+        scoreQbS = (line[0]=='M')?MAX_FLOAT : stof(line);
         int box0, box1, box2, box3;
         getline(in,line);
         box0 = stoi(line);
@@ -113,8 +113,14 @@ public:
         out<<tlx<<"\n"<<tly<<"\n"<<brx<<"\n"<<bry<<"\n";
         out<<pageId<<"\n";
         out<<ngram<<"\n";
-        out<<scoreQbE<<"\n";
-        out<<scoreQbS<<endl;
+        if (scoreQbE==MAX_FLOAT)
+            out<<"MAX\n";
+        else
+            out<<scoreQbE<<"\n";
+        if (scoreQbS==MAX_FLOAT)
+            out<<"MAX\n";
+        else
+            out<<scoreQbS<<"\n";
         out<<get<0>(boxQbE)<<"\n"<<get<1>(boxQbE)<<"\n"<<get<2>(boxQbE)<<"\n"<<get<3>(boxQbE)<<"\n";
         out<<id<<"\n";
         out<<gt<<"\n";

@@ -667,7 +667,15 @@ multimap<float,string> Knowledge::Word::scoreAndThresh(vector<string> match) con
 #ifdef TEST_MODE
         for (auto iter =scores.lower_bound(thresh); iter!=scores.end(); iter++)
             if (iter->second.compare(gt)==0)
+            {
                 cout<<"[!]Pruning discarded correct: "<<gt<<endl;
+                for (auto iter2=scores.begin(); iter2!=scores.lower_bound(thresh); iter2++)
+                    cout<<"+ "<<iter2->first<<": "<<iter2->second<<endl;
+                for (auto iter2=scores.lower_bound(thresh); iter2!=iter; iter2++)
+                    cout<<"- "<<iter2->first<<": "<<iter2->second<<endl;
+                cout<<"- "<<iter->first<<": "<<iter->second<<endl;
+            }
+
 #endif
 #ifdef NO_NAN
         for (auto iter =scores.lower_bound(thresh); iter!=scores.end(); iter++)
@@ -818,6 +826,7 @@ void Knowledge::Word::getWordImgAndBin(cv::Mat& wordImg, cv::Mat& b)
     int blockSize = (1+bry-tly)/2;
     if (blockSize%2==0)
         blockSize++;
+    assert(blockSize>1);
     wordImg = getWordImg();
     //wordImg = (*pagePnt)(cv::Rect(tlx,tly,brx-tlx+1,bry-tly+1));
     if (wordImg.type()==CV_8UC3)
@@ -1629,6 +1638,7 @@ int Knowledge::getBreakPoint(int lxBound, int ty, int rxBound, int by, const cv:
     int blockSize = max((rxBound-lxBound)/2,(by-ty)/2);
     if (blockSize%2==0)
         blockSize++;
+    assert(blockSize>1);
     cv::Mat orig = (*pagePnt)(cv::Rect(lxBound,ty,rxBound-lxBound+1,by-ty+1));
     if (orig.type()==CV_8UC3)
         cv::cvtColor(orig,orig,CV_RGB2GRAY);
@@ -2027,6 +2037,7 @@ void Knowledge::findPotentailWordBoundraies(Spotting s, int* tlx, int* tly, int*
     int blockSize = max(s.brx-s.tlx,s.bry-s.tly);
     if (blockSize%2==0)
         blockSize++;
+    assert(blockSize>1);
     cv::Mat orig = *s.pagePnt;
     if (orig.type()==CV_8UC3)
         cv::cvtColor(orig,orig,CV_RGB2GRAY);

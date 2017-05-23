@@ -267,7 +267,7 @@ private:
     cv::Mat undoneGraph;
     string fullGraphName;
     cv::Mat fullGraph;
-    multiset<Spotting*,scoreComp> fullInstancesByScore;
+    multimap<float,unsigned long> fullInstancesByScore;
 #endif
     
 };

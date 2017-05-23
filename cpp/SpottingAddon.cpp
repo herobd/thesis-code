@@ -197,6 +197,11 @@ NAN_METHOD(showCorpus) {
 
     AsyncQueueWorker(new MiscWorker(callback,cattss, "showCorpus"));
 }
+NAN_METHOD(save) {
+    Callback *callback = new Callback(info[0].As<Function>());
+
+    AsyncQueueWorker(new MiscWorker(callback,cattss, "save"));
+}
 NAN_METHOD(showInteractive) {
     int page = To<int>(info[0]).FromJust();
     Callback *callback = new Callback(info[1].As<Function>());
@@ -469,6 +474,8 @@ NAN_MODULE_INIT(Init) {
         GetFunction(New<FunctionTemplate>(manualFinish)).ToLocalChecked());
     Nan::Set(target, New<v8::String>("showCorpus").ToLocalChecked(),
         GetFunction(New<FunctionTemplate>(showCorpus)).ToLocalChecked());
+    Nan::Set(target, New<v8::String>("save").ToLocalChecked(),
+        GetFunction(New<FunctionTemplate>(save)).ToLocalChecked());
     Nan::Set(target, New<v8::String>("showInteractive").ToLocalChecked(),
         GetFunction(New<FunctionTemplate>(showInteractive)).ToLocalChecked());
     Nan::Set(target, New<v8::String>("forceNgram").ToLocalChecked(),
