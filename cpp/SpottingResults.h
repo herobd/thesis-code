@@ -7,6 +7,7 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include <vector>
 #include <set>
+#include <list>
 #include <map>
 #include <chrono>
 
@@ -14,6 +15,8 @@
 #include "batches.h"
 #include "Global.h"
 #include "PageRef.h"
+
+#define TAIL_DENSITY_TRUE_THRESHOLD 0.1
 
 #define UPDATE_OVERLAP_THRESH 0.4
 #define UPDATE_OVERLAP_THRESH_TIGHT 0.7
@@ -139,6 +142,7 @@ public:
 
 #ifdef TEST_MODE
     void setDebugInfo(SpottingsBatch* b);
+    void saveHistogram(float actualModelDif);
 #endif
     void debugState() const;
     
@@ -156,8 +160,18 @@ private:
     
     float trueMean;
     float trueVariance;
+
+    //When QbE is on, these are assumed to be the log version of the parameters
+    //When QbS, the mean is fixed to (near) the max score
     float falseMean;
     float falseVariance;
+
+    //This is here for testing purposes
+    float usedMean, usedStd;
+
+    bool takeFromTail; //This means we don't have good enough spotting to try and auto approve any, and modelling the true distribution will be difficult
+    float tailEnd;
+    float tailEndScore;
 
     //float lastDifAcceptThreshold;
     //float lastDifRejectThreshold;
@@ -193,6 +207,7 @@ private:
     multiset<Spotting*,tlComp> instancesByLocation; //This is a convienince holder of all Spottings
     map<unsigned long,Spotting> instancesById; //This is all the Spottings
     map<unsigned long,bool> classById; //This is the classifications of Spottings
+    list<Spotting> instancesToAddQbE; //These are instances without QbS scores, and thus cann't be added to instancesByScore
 
     bool instancesByScoreContains(unsigned long id) const
     {
@@ -217,7 +232,9 @@ private:
     }
     void instancesByScoreInsert(unsigned long id)
     {
-        instancesByScore.emplace(instancesById.at(id).score(useQbE),id);
+        float score = instancesById.at(id).score(useQbE);
+        assert(score==score);
+        instancesByScore.emplace(score,id);
     }
     
     bool instancesByLocationErase(unsigned long id)
@@ -240,6 +257,8 @@ private:
 #ifdef TEST_MODE
     map<unsigned long, unsigned long> testUpdateMap;
     int atn, rtn;
+
+    string histFile;
 #endif
 
     //This acts as a pointer to where we last extracted a batch to speed up searching for the correct score area to extract a batch from
@@ -253,6 +272,9 @@ private:
     //returns (and sets allBatchesSent) whether we are now done (all spottings lie outside the thresholds)
     //It uses an Otsu threshold to be used to estimate some initail parameters on the first run.
     bool EMThresholds(int swing=0);
+
+    float NPD(float x, float mean, float var); //normal probability distribution function
+    float PHI(float x); //cumulative distribution function of normal distribution
 
     //This returns the iterator of instancesByLocation for the spotting which overlaps (spatailly) the one given
     //It returns instancesByLocation.end() if none is found.

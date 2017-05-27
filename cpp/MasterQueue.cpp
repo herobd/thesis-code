@@ -677,9 +677,9 @@ unsigned long MasterQueue::updateSpottingResults(vector<Spotting>* spottings, un
         
         sem_t* sem=p.second.first;
         SpottingResults* res = p.second.second;
-        sem_wait(sem);
         if (res->ngram.compare(spottings->front().ngram) == 0)
         {
+            sem_wait(sem);
             pthread_rwlock_unlock(&semResults);
             bool resurrect = res->updateSpottings(spottings);
             unsigned long rid = res->getId();
@@ -695,10 +695,6 @@ unsigned long MasterQueue::updateSpottingResults(vector<Spotting>* spottings, un
             }
             return rid;
             
-        }
-        else
-        {
-            sem_post(sem);
         }
     }
         
@@ -720,7 +716,9 @@ unsigned long MasterQueue::updateSpottingResults(vector<Spotting>* spottings, un
         n->add(s);
         //cout <<"added spotting : "<<s.id<<endl;
     }
-    n->debugState();
+#ifdef TEST_MODE
+    //n->debugState();
+#endif
     sem_post(sem);
     delete spottings;
     pthread_rwlock_wrlock(&semResultsQueue);

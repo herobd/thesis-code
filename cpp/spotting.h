@@ -47,12 +47,14 @@ public:
         tlx(tlx), tly(tly), brx(brx), bry(bry), pageId(pageId), pagePnt(pagePnt), ngram(ngram), scoreQbE(MAX_FLOAT), scoreQbS(nan("")), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(gt), wordId(wordId), wordX0(wordX0)
     {
         id = ++_id;
+        assert(brx-tlx>0 && bry-tly>0);
     }
     
     Spotting(const Spotting& s) : 
         tlx(s.tlx), tly(s.tly), brx(s.brx), bry(s.bry), pageId(s.pageId), pagePnt(s.pagePnt), ngram(s.ngram), scoreQbE(s.scoreQbE), scoreQbS(s.scoreQbS), type(s.type), ngramRank(s.ngramRank), gt(s.gt), wordId(s.wordId), wordX0(s.wordX0)
     {
         id = s.id;
+        assert(brx-tlx>0 && bry-tly>0);
     }
 
     Spotting(ifstream& in, PageRef* pageRef)
@@ -101,6 +103,7 @@ public:
         wordId = stoi(line);
         getline(in,line);
         wordX0 = stoi(line);
+        assert(brx-tlx>0 && bry-tly>0);
     }
     //Note the reversal in paramter order, this prevents ambigous overload when passing nullptr
     Spotting(const cv::Mat* pagePnt, ifstream& in) : Spotting(in,NULL)
@@ -129,6 +132,7 @@ public:
         out<<_id.load()<<"\n";
         out<<wordId<<endl;
         out<<wordX0<<endl;
+        assert(brx-tlx>0 && bry-tly>0);
     }
     Spotting& operator=(const Spotting& other)
     {
@@ -149,6 +153,7 @@ public:
         id=other.id;
         wordId=other.wordId;
         wordX0=other.wordX0;
+        assert(brx-tlx>0 && bry-tly>0);
 
         return *this;
     }

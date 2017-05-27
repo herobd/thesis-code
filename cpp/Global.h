@@ -34,6 +34,7 @@
 using namespace std;
 
 #define MAX_FLOAT numeric_limits<float>::max()
+#define MIN_FLOAT numeric_limits<float>::min()
 
 #if defined(TEST_MODE) || defined(NO_NAN)
 class WordBound
@@ -130,9 +131,9 @@ class GlobalK
             if (l==1)
                 return 30;
             else if (l==2)
-                return 15;
+                return 25;
             else
-                return 15;
+                return 20;
         }
 
 #ifdef NO_NAN

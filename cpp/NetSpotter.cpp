@@ -11,14 +11,14 @@ NetSpotter::NetSpotter(const Dataset* corpus, string modelPrefix, int charWidth,
 vector<SpottingResult> NetSpotter::runQuery(SpottingQuery* query)
 {
     vector< SubwordSpottingResult > res;
-    float refinePortion=0.20;
+    float refinePortion=0.25;
+    float refinePortionQbE=0.15;
 #ifdef NO_NAN
     float ap, accumAP;
     int initAccumResSize = GlobalK::knowledge()->accumResFor(query->getNgram())->size();
 #endif
     if (query->getImg().cols==0)
     {
-        refinePortion=0.25;
 //#ifdef NO_NAN
 //           res = spotter->subwordSpot_eval(query->getNgram(),refinePortion, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP, &resLock);
 //#else
@@ -31,10 +31,10 @@ vector<SpottingResult> NetSpotter::runQuery(SpottingQuery* query)
         {
             //this assumes this was spotted from a word, so we give the spotter a reference to it so we don't need to embed it again
 #ifdef NO_NAN
-           res = spotter->subwordSpot_eval(query->getWordId(), query->getX0(), query->getNgram(), refinePortion, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP, &resLock);
+           res = spotter->subwordSpot_eval(query->getWordId(), query->getX0(), query->getNgram(), refinePortionQbE, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP, &resLock);
            
 #else
-           res = spotter->subwordSpot(query->getNgram().length(),query->getWordId(), query->getX0(), refinePortion);
+           res = spotter->subwordSpot(query->getNgram().length(),query->getWordId(), query->getX0(), refinePortionQbE);
 #endif
             
         }
@@ -43,7 +43,7 @@ vector<SpottingResult> NetSpotter::runQuery(SpottingQuery* query)
             if (query->getImg().channels()==1)
             {
 #ifdef NO_NAN
-               res = spotter->subwordSpot_eval(query->getImg(), query->getNgram(), refinePortion, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP, &resLock);
+               res = spotter->subwordSpot_eval(query->getImg(), query->getNgram(), refinePortionQbE, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP, &resLock);
                
 #else
                res = spotter->subwordSpot(query->getNgram().length(),query->getImg(), refinePortion);
@@ -54,7 +54,7 @@ vector<SpottingResult> NetSpotter::runQuery(SpottingQuery* query)
                 cv::Mat gray;
                 cv::cvtColor(query->getImg(),gray,CV_RGB2GRAY);
 #ifdef NO_NAN
-                res = spotter->subwordSpot_eval(gray, query->getNgram(), refinePortion, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP, &resLock);
+                res = spotter->subwordSpot_eval(gray, query->getNgram(), refinePortionQbE, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP, &resLock);
                 
 #else
                 res = spotter->subwordSpot(query->getNgram().length(),gray, refinePortion);
@@ -75,11 +75,14 @@ vector<SpottingResult> NetSpotter::runQuery(SpottingQuery* query)
 
     vector <SpottingResult> ret(res.size());
     for (int i=0; i<res.size(); i++)
+    {
+        assert(res[i].endX-res[i].startX>0);
         ret[i] = SpottingResult(res[i].imIdx,
                                 res[i].score,
                                 res[i].startX,
                                 res[i].endX
                                );
+    }
     return ret;
 }
 

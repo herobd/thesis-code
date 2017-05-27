@@ -47,6 +47,9 @@ SpottingResults::SpottingResults(string ngram, int contextPad) :
     fullGraphName="save/graph/graph_full_"+ngram+".png";
     //cv::namedWindow(undoneGraphName);
 #endif
+#ifdef TEST_MODE
+    histFile = "save/graph/hist_"+ngram+".csv";
+#endif
 }
 
 void SpottingResults::add(Spotting spotting) {
@@ -133,9 +136,10 @@ void SpottingResults::addTrueNoScore(const SpottingExemplar& spotting) {
 
 void SpottingResults::debugState() const
 {
-    if (ngram.compare("th")==0)
-        cout<<"[th] byId: "<<instancesById.size()<<"  byScore: "<<instancesByScore.size()<<" numLeftInRange: "<<numLeftInRange<<endl;
+    //if (ngram.compare("th")==0)
+    //    cout<<"[th] byId: "<<instancesById.size()<<"  byScore: "<<instancesByScore.size()<<" numLeftInRange: "<<numLeftInRange<<endl;
 
+    /*
     for (auto iter=instancesByLocation.begin(); iter!=instancesByLocation.end(); iter++)
     {
         assert(instancesById.find((**iter).id) != instancesById.end());
@@ -143,13 +147,14 @@ void SpottingResults::debugState() const
     for (auto iter=instancesByScore.begin(); iter!=instancesByScore.end(); iter++)
     {
         assert(instancesById.find(iter->second) != instancesById.end());
-    }
+    }*/
 
     for (auto p : instancesById)
     {
-        if (classById.find(p.first) == classById.end())
-            assert(instancesByScoreContains(p.first) ||
-                   starts.find(p.first) != starts.end());
+        assert(p.second.brx-p.second.tlx>0 &&p.second.bry-p.second.tly>0);
+        //if (classById.find(p.first) == classById.end())
+        //    assert(instancesByScoreContains(p.first) ||
+        //           starts.find(p.first) != starts.end());
     }
 }
 
@@ -174,8 +179,7 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
     int tBetAfter=0;
     int fBetAfter=0;
 #ifdef GRAPH_SPOTTING_RESULTS
-    //cv::Mat newFullLine = cv::Mat::zeros(2,fullGraph.cols,CV_8UC3);
-    //int inFull=0;
+    /*
     if (undoneGraph.cols==0)
         undoneGraph = cv::Mat::zeros(1,instancesByScore.size()+3,CV_8UC3);
     if (undoneGraph.cols<instancesByScore.size()+3)
@@ -185,7 +189,7 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
     }
 
     cv::Mat newUndoneLine = cv::Mat::zeros(2,undoneGraph.cols,CV_8UC3);//the line we're building now
-    int inUndone=0;
+    int inUndone=0;*/
 #endif
     for (auto iter=instancesByLocation.begin(); iter!=instancesByLocation.end(); iter++)
     {
@@ -210,7 +214,7 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
             atPull=false;
 #ifdef GRAPH_SPOTTING_RESULTS
 
-            newUndoneLine.at<cv::Vec3b>(0,inUndone++) = cv::Vec3b(255,200,200);
+            //newUndoneLine.at<cv::Vec3b>(0,inUndone++) = cv::Vec3b(255,200,200);
 #endif
         }
         if (score >=acceptThreshold && acceptT)
@@ -218,26 +222,19 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
             acceptT=false;
             betweenT=true;
 #ifdef GRAPH_SPOTTING_RESULTS
-            if (atn==0)
+            /*if (atn==0)
                 newUndoneLine.at<cv::Vec3b>(0,inUndone++) = cv::Vec3b(255,0,0);
             else if (atn==1)
                 newUndoneLine.at<cv::Vec3b>(0,inUndone++) = cv::Vec3b(255,200,0);
             else if (atn==2)
                 newUndoneLine.at<cv::Vec3b>(0,inUndone++) = cv::Vec3b(255,0,200);
+                */
 #endif
         }
         if (score >rejectThreshold && betweenT)
         {
             rejectT=true;
             betweenT=false;
-#ifdef GRAPH_SPOTTING_RESULTS
-            if (rtn==0)
-                newUndoneLine.at<cv::Vec3b>(0,inUndone++) = cv::Vec3b(255,0,0);
-            else if (rtn==1)
-                newUndoneLine.at<cv::Vec3b>(0,inUndone++) = cv::Vec3b(255,200,0);
-            else if (rtn==2)
-                newUndoneLine.at<cv::Vec3b>(0,inUndone++) = cv::Vec3b(255,0,200);
-#endif
         }
 
         if (atPull)
@@ -276,10 +273,11 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
                 fBetAfter++;
         }
 #ifdef GRAPH_SPOTTING_RESULTS
-        if (t)
+        /*if (t)
             newUndoneLine.at<cv::Vec3b>(0,inUndone++) = cv::Vec3b(0,205,0);
         else
             newUndoneLine.at<cv::Vec3b>(0,inUndone++) = cv::Vec3b(0,0,205);
+            */
 #endif
     }
     cout<<"["<<id<<"]:"<<ngram<<" serving batch."<<endl;
@@ -289,11 +287,12 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
     cout<<"("<<precRejectT/countRejectT<<", "<<(int)precRejectT<<", "<<(int)(countRejectT-precRejectT)<<")"<<endl;;
 
 #ifdef GRAPH_SPOTTING_RESULTS
-    undoneGraph.push_back(newUndoneLine);
+    /*undoneGraph.push_back(newUndoneLine);
     //if (undoneGraph.rows-1%4==0)
         cv::imwrite(undoneGraphName,undoneGraph);
     //cv::imshow(undoneGraphName,undoneGraph);
     //cv::waitKey(100);
+    */
     atPull=true;
     acceptT=true;
     rejectT=false;
@@ -302,7 +301,10 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
     {
         fullInstancesByScore.clear();
         for (const auto& p : instancesById)
+        {
+            assert(p.second.brx-p.second.tlx>0 && p.second.bry-p.second.tly>0);
             fullInstancesByScore.emplace(p.second.score(useQbE),p.first);
+        }
     }
 
     if (fullGraph.cols==0)
@@ -379,10 +381,95 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
     b->addDebugInfo(precAtPull,precAcceptT,precRejectT,precBetweenT, countAcceptT, countRejectT, countBetweenT);
     //cout<<"precAtPull: "<<precAtPull<<"\t
 }
+
+
+void SpottingResults::saveHistogram(float actualModelDif)
+{
+    int numBuckets=50;
+    vector<int> bucketsT(numBuckets);
+    vector<int> bucketsF(numBuckets);
+    for (auto& p : instancesById)
+    {
+        float score = p.second.score(useQbE);
+        if (score!=score || score==MAX_FLOAT)
+            continue;
+        int bucket = (numBuckets-1)*(score-minScore())/(maxScore()-minScore());
+        assert(bucket>=0 && bucket<numBuckets);
+        bool t=false;
+        if (p.second.gt==1)
+            t=true;
+        else if (p.second.gt!=0)
+        {
+            t = GlobalK::knowledge()->ngramAt(ngram, p.second.pageId, p.second.tlx, p.second.tly, p.second.brx, p.second.bry);
+            p.second.gt=t;
+        }
+
+        if (t)
+            bucketsT[bucket]++;
+        else
+            bucketsF[bucket]++;
+    }
+    ofstream file (histFile,ofstream::app);
+    file<<ngram<<" "<<(useQbE?"QbE ":"QbS ")<<numComb<<"   actualModelDif:"<<actualModelDif<<"   tailEndScoreInit:"<<tailEndScore<<"   accept:"<<acceptThreshold<<"   reject:"<<rejectThreshold<<endl;
+    file<<"Score, ";
+    for (int i=0; i<numBuckets; i++)
+        file<<minScore()+((i+0.5)*(maxScore()-minScore())/numBuckets)<<", ";
+    file<<"\nTrue, ";
+    int maxTrue=0;
+    for (int n : bucketsT)
+    {
+        if (n>maxTrue)
+            maxTrue=n;
+        file<<n<<", ";
+    }
+    file<<"\nFalse, ";
+    int maxFalse=0;
+    for (int n : bucketsF)
+    {
+        if (n>maxFalse)
+            maxFalse=n;
+        file<<n<<", ";
+    }
+
+    
+    vector<float> binScores(numBuckets+1);
+    for (int bin=0; bin<numBuckets+1; bin++)
+    {
+        float v = minScore() + ((bin+0.0)/numBuckets)*(maxScore()-minScore());
+        binScores[bin]=v;
+    }
+    
+    file<<"\nInitail, ";
+    for (int bin=0; bin<numBuckets; bin++)
+    {
+        float b = (binScores[bin]-usedMean)/usedStd;
+        //float bNext = (binScores[bin+1]-usedMean)/usedStd;
+        //file<<(int)(maxFalse*(PHI(bNext)-PHI(b))/0.4)<<", ";
+        file<<(int)(maxFalse*NPD(b,usedMean,usedStd*usedStd)/0.4)<<", ";
+    }
+    file<<"\nest True, ";
+    for (int bin=0; bin<numBuckets; bin++)
+    {
+        float b = (binScores[bin]-trueMean)/sqrt(trueVariance);
+        //float bNext = (binScores[bin+1]-trueMean)/sqrt(trueVariance);
+        //file<<(int)(maxFalse*(PHI(bNext)-PHI(b))/0.4)<<", ";
+        file<<(int)(maxTrue*NPD(b,trueMean,trueVariance)/0.4)<<", ";
+    }
+    file<<"\nest False, ";
+    for (int bin=0; bin<numBuckets; bin++)
+    {
+        float b = (binScores[bin]-falseMean)/sqrt(falseVariance);
+        //float bNext = (binScores[bin+1]-falseMean)/sqrt(falseVariance);
+        //file<<(int)(maxFalse*(PHI(bNext)-PHI(b))/0.4)<<", ";
+        file<<(int)(maxFalse*NPD(b,falseMean,falseVariance)/0.4)<<", ";
+    }
+    file<<"\n"<<endl;
+    file.close();
+}
 #endif
 
 SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need) {
-    ///debugState();
+    debugState();
 
     if (!need && (numLeftInRange<12 && numLeftInRange>=0) && starts.size()>1)
 #ifndef NO_NAN
@@ -408,9 +495,6 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
     set<float> scoresToDraw;
     //normal_distribution<float> distribution(pullFromScore,((pullFromScore-acceptThreshold)+(rejectThreshold-pullFromScore))/4.0);
     uniform_real_distribution<float> distribution(acceptThreshold,rejectThreshold);
-#ifdef TEST_MODE
-    cout <<"\ngetBatch, from: ";
-#endif
     for (int i=0; i<min(toRet,(unsigned int)instancesByScore.size()); i++)
     {
         float v = distribution(generator);
@@ -419,11 +503,11 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
         if (v>=rejectThreshold)
             v=2*rejectThreshold-v;
         scoresToDraw.insert(v);
-#ifdef TEST_MODE
-        cout<<v<<", ";
-#endif
     }
 #ifdef TEST_MODE
+    cout <<"\ngetBatch, from: ";
+    for (float v : scoresToDraw)
+        cout<<v<<", ";
     cout<<endl;
 #endif
 
@@ -473,14 +557,13 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
 
     //scoresToDraw will be ordered by set<>, so we just need to increment the iterator along
     auto iterR = instancesByScore.begin();
-    do
+    while(iterR!=instancesByScore.end() && instancesById.at(iterR->second).score(useQbE) < acceptThreshold)
     {
         iterR++;
-        assert(instancesById.find(iterR->second) != instancesById.end());
-    } while(iterR!=instancesByScore.end() && instancesById.at(iterR->second).score(useQbE) < acceptThreshold);
+    } 
     for (float drawScore : scoresToDraw)
     {
-        while (instancesById.at(iterR->second).score(useQbE) < drawScore && iterR!=instancesByScore.begin())
+        while (instancesById.at(iterR->second).score(useQbE) < drawScore && iterR!=instancesByScore.end())
         {
             iterR++;
         }
@@ -554,13 +637,13 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
     //sem_post(&mutexSem);
     //numBatches++;
     
-    ///debugState();
+    debugState();
     return ret;
 }
 
 vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long,string> >* retRemove)
 {
-    ///debugState();
+    debugState();
     /*cout << "fed: ";
     for (int i=0; i<ids.size(); i++)
     {   
@@ -723,17 +806,37 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
         cout<<"SpottingResults ["<<id<<"]:"<<ngram<<" has more batches and will be re-enqueued"<<endl;
 #endif
     }
-    ///debugState();
+    debugState();
     return ret;
 }
+
+float SpottingResults::NPD(float x, float mean, float var)
+{
+    if (useQbE)
+    {
+        return (1/x)*(1/sqrt(2*CV_PI*var))*exp(-0.5*pow(logCvt(x)-mean,2)/var);
+    }
+    else
+        return (1/sqrt(2*CV_PI*var))*exp(-0.5*pow(x-mean,2)/var);
+}
     
-   
+float SpottingResults::PHI(float x) //cumulative distribution function of normal distribution
+{
+    float sum=x;
+    float value =x;
+    for (int i=1; i<100; i++)
+    {
+        value=(value*x*x/(2*i+1));
+        sum+=value;
+    }
+    return 0.5+(sum/sqrt(2*CV_PI))*exp(-(x*x)/2);
+}
     
 
 bool SpottingResults::EMThresholds(int swing)
 {
     
-    ///debugState();
+    debugState();
     assert(instancesById.size()>1);
     assert(maxScore()!=-999999);
     bool init = acceptThreshold==-1 && rejectThreshold==-1;
@@ -751,36 +854,114 @@ bool SpottingResults::EMThresholds(int swing)
     vector<int> histogramGP(displayLen);
     vector<int> histogramGN(displayLen);
     //test
+    float actualModelDif;
 #endif
+    float trueFalseDivide;
     
     if (init)
     {
-        //we initailize our split with Otsu, as we are assuming two distributions.
-        //make histogram
-        vector<int> histogram(256);
-        //int total = 0;//instancesById.size();
+        /*
+        */
+        float usedSum=0;
+        vector<float> usedValues;
+        vector<float> allValues;
         for (auto p : instancesById)
         {
-            if (p.second.score(useQbE)==p.second.score(useQbE) && p.second.score(useQbE)!=MAX_FLOAT)
-            {
-                //total++;
-                unsigned long id = p.first;
-                
-                int bin = 255*(instancesById.at(id).score(useQbE)-minScore())/(maxScore()-minScore());
-                if (bin<0) bin=0;
-                if (bin>histogram.size()-1) bin=histogram.size()-1;
-                histogram[bin]++;
-            }
+            if (p.second.score(useQbE)!=p.second.score(useQbE) || p.second.score(useQbE)==MAX_FLOAT)
+                continue;
+            float score = useQbE?logCvt(p.second.score(useQbE)):p.second.score(useQbE);
+            allValues.push_back(score); 
+            if (classById.find(p.first)!=classById.end() && classById.at(p.first))
+                continue;//we've labeled it as true, so we can atleast prune this
+            usedSum += score;
+            usedValues.push_back(score);
         }
-        
-        
-        double thresh = GlobalK::otsuThresh(histogram);//( threshold1 + threshold2 ) / 2.0;
-        pullFromScore = (thresh/256)*(maxScore()-minScore())+minScore();
+        usedMean = useQbE?usedSum/usedValues.size():maxScore(); //The QbS false distributions are always cut off, so we just assinge the max as the mean
+        usedStd=0;
+        for (float v : usedValues)
+            usedStd += pow(v-usedMean,2);
+        usedStd = sqrt(usedStd/usedValues.size());
+
+        //Do we have outliers on our tail?   ('tail' being the trailing low scores that positive instances should lie in).
+
+        tailEnd=useQbE?2.5:-1.5;
+        tailEndScore=usedMean + usedStd*tailEnd;
+        if (useQbE)
+            tailEndScore = expCvt(tailEndScore);
+        //Count instances in the tail
+        int countTail=0;
+        for (float v : allValues)
+            if (v<tailEndScore)
+                countTail++;
+        //This represent the density that the model says should be after we have any examples. Given more examples (not threshing the spotting results) this would be in our data
+        float cutOffDensity = useQbE?1:(1-PHI(maxScore()-usedMean)/usedStd);
+
+        //We then estimate how many instances we would have if this part wern't cut off
+        float estTotalCount = allValues.size() + allValues.size()*(1-cutOffDensity);
+        assert(estTotalCount >= allValues.size());
+
+        //We use this to compute what the density of the tail region is
+        float actualDensity = countTail/estTotalCount;
+
+        //Compute expected (model) density of tail
+        //float normalizedTailEndScore = ( (useQbE?logCvt(tailEndScore):tailEndScore) -usedMean)/usedStd;
+        float modelDensity = PHI(tailEnd);
+
+        //If difference is above a threshold, we have a good True distribution
+        actualModelDif=actualDensity-modelDensity;
+        if (actualDensity-modelDensity > TAIL_DENSITY_TRUE_THRESHOLD)
+        {
+            takeFromTail=false;
+
+            //we initailize our split with Otsu, as we are assuming two distinct distributions.
+            //make histogram
+            vector<int> histogram(256);
+            //int total = 0;//instancesById.size();
+            for (auto p : instancesById)
+            {
+                if (p.second.score(useQbE)==p.second.score(useQbE) && p.second.score(useQbE)!=MAX_FLOAT)
+                {
+                    //total++;
+                    unsigned long id = p.first;
+                    
+                    int bin = 255*(instancesById.at(id).score(useQbE)-minScore())/(maxScore()-minScore());
+                    if (bin<0) bin=0;
+                    if (bin>histogram.size()-1) bin=histogram.size()-1;
+                    histogram[bin]++;
+                }
+            }
+            
+            
+            double thresh = GlobalK::otsuThresh(histogram);
+            trueFalseDivide = (thresh/256)*(maxScore()-minScore())+minScore();
+            if (useQbE)
+                trueFalseDivide=logCvt(trueFalseDivide);
+        }
+        else
+        {
+            takeFromTail=true;
+        }
+
     }
     
     //expectation
+
+    /*
+    bool strictPredict=classById.size()/(0.0+numLeftInRange)>0.1;
+#if defined(TEST_MODE) && defined(GRAPH_SPOTTING_RESULTS)
+    if (strictPredict && init)
+    {
+        cv::Mat undoneW(1,undoneGraph.cols,CV_8UC3);
+        undoneW = cv::Scalar(255,0,0);
+        undoneGraph.push_back(undoneW);
+        cv::Mat fullW(1,fullGraph.cols,CV_8UC3);
+        fullW = cv::Scalar(255,0,0);
+        fullGraph.push_back(fullW);
+    }
+#endif
+    */
     //bool initV=init;
-    //while (1)
+    //while (1)//this terminates unless we are initailizing and strictPredict, in which case it will go again with strictPredict off
     //{
 #ifdef TEST_MODE
         for (int i=0; i<displayLen; i++)
@@ -800,26 +981,28 @@ bool SpottingResults::EMThresholds(int swing)
         
         
         
-        
         numLeftInRange=0;
         for (auto p : instancesById)
         {
             if (p.second.score(useQbE)!=p.second.score(useQbE) || p.second.score(useQbE)==MAX_FLOAT)
                 continue; 
             unsigned long id = p.first;
+            float score = instancesById.at(id).score(useQbE);
+            if (useQbE)
+                score=logCvt(score);
             
 #ifdef TEST_MODE
             //test
-            int bin=(displayLen-1)*(instancesById.at(id).score(useQbE)-minScore())/(maxScore()-minScore());
+            int bin=(displayLen-1)*(score-minScore())/(maxScore()-minScore());
 #endif        
             
             if (classById.find(id)!=classById.end())
             {
                 if (classById[id])
                 {
-                    expectedTrue.push_back(instancesById.at(id).score(useQbE));
+                    expectedTrue.push_back(score);
                     //expectedTrue.push_back(instancesById.at(id).score);
-                    sumTrue+=1*instancesById.at(id).score(useQbE);
+                    sumTrue+=1*score;
                     
 #ifdef TEST_MODE
                     //test
@@ -828,9 +1011,9 @@ bool SpottingResults::EMThresholds(int swing)
                 }
                 else
                 {
-                    expectedFalse.push_back(instancesById.at(id).score(useQbE));
+                    expectedFalse.push_back(score);
                     //expectedFalse.push_back(instancesById.at(id).score);
-                    sumFalse+=1*instancesById.at(id).score(useQbE);
+                    sumFalse+=1*score;
                     
 #ifdef TEST_MODE
                     //test
@@ -840,19 +1023,30 @@ bool SpottingResults::EMThresholds(int swing)
             }
             else
             {
-                if (instancesById.at(id).score(useQbE) >acceptThreshold && instancesById.at(id).score(useQbE)<rejectThreshold)
+                bool inRange = instancesById.at(id).score(useQbE) >acceptThreshold && instancesById.at(id).score(useQbE)<rejectThreshold;
+                if (inRange)
                     numLeftInRange++;
-                double trueProb = exp(-1*pow(instancesById.at(id).score(useQbE) - trueMean,2)/(2*trueVariance));
-                double falseProb = exp(-1*pow(instancesById.at(id).score(useQbE) - falseMean,2)/(2*falseVariance));
+                //if (strictPredict && init)
+                //    continue; //skip, but we'll repeat once we've drawn mean and var from labeled examples
+                double trueProb = NPD(instancesById.at(id).score(useQbE),trueMean,trueVariance);//exp(-1*pow(score - trueMean,2)/(2*trueVariance));
+                double falseProb = NPD(instancesById.at(id).score(useQbE),falseMean,falseVariance);//exp(-1*pow(score - falseMean,2)/(2*falseVariance));
                 if (init)
                 {
-                    trueProb = instancesById.at(id).score(useQbE)<pullFromScore;
-                    falseProb = instancesById.at(id).score(useQbE)>pullFromScore;
+                    if (!takeFromTail)
+                    {
+                        trueProb = score<trueFalseDivide;
+                        falseProb = score>trueFalseDivide;
+                    }
+                    else
+                    {
+                        trueProb=0;
+                        falseProb=1;
+                    }
                 }
                 if (trueProb>falseProb)
                 {
-                    sumTrue+=instancesById.at(id).score(useQbE);
-                    expectedTrue.push_back(instancesById.at(id).score(useQbE));
+                    sumTrue+=score;
+                    expectedTrue.push_back(score);
                     
 #ifdef TEST_MODE
                     //test
@@ -861,8 +1055,8 @@ bool SpottingResults::EMThresholds(int swing)
                 }
                 else
                 {
-                    expectedFalse.push_back(instancesById.at(id).score(useQbE));
-                    sumFalse+=instancesById.at(id).score(useQbE);
+                    expectedFalse.push_back(score);
+                    sumFalse+=score;
                     
 #ifdef TEST_MODE
                     //test
@@ -891,47 +1085,67 @@ bool SpottingResults::EMThresholds(int swing)
         assert(sqrt(falseVariance)==sqrt(falseVariance));
         assert(sqrt(trueVariance)==sqrt(trueVariance));
         
-
-        //set new thresholds
-        float numStdDevs = 1;// + ((1.0+min((int)instancesById.size(),50))/(1.0+min((int)classById.size(),50)));//Use less as more are classified, we are more confident. Capped to reduce effect of many returned instances bogging us down.
-        float acceptThreshold1 = falseMean-numStdDevs*sqrt(falseVariance);
-        float rejectThreshold1 = trueMean+numStdDevs*sqrt(trueVariance);
-        float acceptThreshold2 = trueMean-numStdDevs*sqrt(trueVariance);
-        float rejectThreshold2 = falseMean-numStdDevs*sqrt(falseVariance);
-        //float prevAcceptThreshold=acceptThreshold;
-        //float prevRejectThreshold=rejectThreshold;
-        if (falseVariance!=0 && trueVariance!=0)
+        if (takeFromTail)
         {
-            acceptThreshold = max( min(acceptThreshold1,acceptThreshold2), minScore());
-            //rejectThreshold = min( max(rejectThreshold1,rejectThreshold2), maxScore());
-            rejectThreshold = min( rejectThreshold2, maxScore());//This seems to work better
-        }
-        else if (falseVariance==0)
-        {
-            acceptThreshold = acceptThreshold2;
-            rejectThreshold = trueMean+2*numStdDevs*sqrt(trueVariance);
+            acceptThreshold = minScore();
+            rejectThreshold = falseMean + sqrt(falseVariance)*tailEnd;
         }
         else
         {
-            rejectThreshold = rejectThreshold2;
-            acceptThreshold = falseMean-2*numStdDevs*sqrt(falseVariance);
+            //TODO
+
+            //set new thresholds
+            float numStdDevs = 1;// + ((1.0+min((int)instancesById.size(),50))/(1.0+min((int)classById.size(),50)));//Use less as more are classified, we are more confident. Capped to reduce effect of many returned instances bogging us down.
+            float acceptThreshold1 = falseMean-numStdDevs*sqrt(falseVariance);
+            float rejectThreshold1 = trueMean+numStdDevs*sqrt(trueVariance);
+            float acceptThreshold2 = trueMean-numStdDevs*sqrt(trueVariance);
+            float rejectThreshold2 = falseMean-numStdDevs*sqrt(falseVariance);
+            //float prevAcceptThreshold=acceptThreshold;
+            //float prevRejectThreshold=rejectThreshold;
+            if (falseVariance!=0 && trueVariance!=0)
+            {
+                acceptThreshold = max( min(acceptThreshold1,acceptThreshold2), (useQbE?logCvt(minScore()):minScore()));
+                //rejectThreshold = min( max(rejectThreshold1,rejectThreshold2), maxScore());
+                rejectThreshold = min( rejectThreshold2, (useQbE?logCvt(maxScore()):maxScore()));//This seems to work better
+            }
+            else if (falseVariance==0)
+            {
+                acceptThreshold = acceptThreshold2;
+                rejectThreshold = trueMean+2*numStdDevs*sqrt(trueVariance);
+            }
+            else
+            {
+                rejectThreshold = rejectThreshold2;
+                acceptThreshold = falseMean-2*numStdDevs*sqrt(falseVariance);
+            }
+#ifdef TEST_MODE
+            
+            if (rejectThreshold==rejectThreshold1)
+                rtn=1;
+            else if (rejectThreshold==rejectThreshold2)
+                rtn=2;
+            else
+                rtn=0;
+            
+            if (acceptThreshold==acceptThreshold1)
+                atn=1;
+            else if (acceptThreshold==acceptThreshold2)
+                atn=2;
+            else
+                atn=0;
+#endif //TEST_MODE
         }
+        if (useQbE)
+        {
+            acceptThreshold=exp(acceptThreshold);
+            rejectThreshold=exp(rejectThreshold);
+        }
+
 
         assert(rejectThreshold==rejectThreshold && acceptThreshold==acceptThreshold);
 #ifdef TEST_MODE
-        if (rejectThreshold==rejectThreshold1)
-            rtn=1;
-        else if (rejectThreshold==rejectThreshold2)
-            rtn=2;
-        else
-            rtn=0;
-        
-        if (acceptThreshold==acceptThreshold1)
-            atn=1;
-        else if (acceptThreshold==acceptThreshold2)
-            atn=2;
-        else
-            atn=0;
+        if (init)
+            saveHistogram(actualModelDif);
 #endif //TEST_MODE
 
         /*if (!init)
@@ -953,7 +1167,7 @@ bool SpottingResults::EMThresholds(int swing)
             lastDifRejectThreshold=difRejectThreshold;
         }*/
 #ifdef TEST_MODE
-        cout <<"adjusted threshs, now "<<acceptThreshold<<" <> "<<rejectThreshold<<"    computed with std devs of: f:"<<sqrt(falseVariance)<<", t:"<<sqrt(trueVariance)<<endl;
+        cout <<ngram<<": adjusted threshs, now "<<acceptThreshold<<" <> "<<rejectThreshold<<"    computed with std devs of: f:"<<sqrt(falseVariance)<<", t:"<<sqrt(trueVariance)<<endl;
 #endif        
         /*if (!init || !initV)
             break;
@@ -963,6 +1177,10 @@ bool SpottingResults::EMThresholds(int swing)
         else
             initV=false;
         pullFromScore = trueMean;*/
+
+        //if (!init || !strictPredict)
+        //    break;
+        //strictPredict=false;
     //}
     float prevPullFromScore = pullFromScore;
     pullFromScore = (acceptThreshold+rejectThreshold)/2.0;// -sqrt(trueVariance);
@@ -1112,14 +1330,14 @@ for (int bin=0; bin<displayLen; bin++)
             iter++;
         } 
     }
-    ///debugState();
+    debugState();
     return allBatchesSent;
 }
 
 
 bool SpottingResults::checkIncomplete()
 {
-    ///debugState();
+    debugState();
     bool incomp=false;
     //cout <<"checkIncomplete, starts is "<<starts.size()<<endl;
     //vector<unsigned long> toRemove;
@@ -1160,7 +1378,7 @@ bool SpottingResults::checkIncomplete()
         allBatchesSent=false;
         return true;
     }
-    ///debugState();
+    debugState();
     return false;
 }
 
@@ -1224,7 +1442,7 @@ void SpottingResults::updateSpottingTrueNoScore(const SpottingExemplar& spotting
 #ifdef GRAPH_SPOTTING_RESULTS
     fullInstancesByScore.clear();
 #endif
-    ///debugState();
+    debugState();
     assert(spotting.tlx!=-1);
     assert(spotting.scoreQbE != spotting.scoreQbE);
     assert(spotting.scoreQbS != spotting.scoreQbS);
@@ -1266,7 +1484,7 @@ void SpottingResults::updateSpottingTrueNoScore(const SpottingExemplar& spotting
     {
         addTrueNoScore(spotting);
     }
-    ///debugState();
+    debugState();
 }
 
 //combMin
@@ -1275,29 +1493,42 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
 #ifdef GRAPH_SPOTTING_RESULTS
     fullInstancesByScore.clear();
 #endif
-    ///debugState();
+    debugState();
     int initSize = instancesByScore.size();
 #if USE_QBE
-    if (!useQbE && ++numComb>GlobalK::numCombThresh(ngram))
+    if (++numComb>GlobalK::numCombThresh(ngram) && !useQbE)
     {
         cout<<"["<<ngram<<"] now using combine QbE scores."<<endl;
         useQbE=true;
+        acceptThreshold=-1;//re-init the thresholds
+        rejectThreshold=-1;
         multimap<float,unsigned long> tmpI=instancesByScore;
         instancesByScore.clear();
         for (auto p : tmpI)
             instancesByScoreInsert(p.second);
         for (auto& p : instancesById)
         {
-            if (p.second.scoreQbE==p.second.scoreQbE && p.second.scoreQbE!=MAX_FLOAT)
+            if (p.second.scoreQbE==p.second.scoreQbE && p.second.scoreQbE!=MAX_FLOAT &&
+                    p.second.scoreQbS==p.second.scoreQbS)
             {
                 instancesByLocationErase(p.first);
                 p.second.tlx = get<0>(p.second.boxQbE);
                 p.second.tly = get<1>(p.second.boxQbE);
                 p.second.brx = get<2>(p.second.boxQbE);
                 p.second.bry = get<3>(p.second.boxQbE);
+                assert(p.second.brx-p.second.tlx>0 && p.second.bry-p.second.tly>0);
                 instancesByLocation.insert(&instancesById.at(p.first));
             }
         }
+        for (auto& spotting : instancesToAddQbE)
+        {
+            //spotting.boxQbE=make_tuple(spotting.tlx, spotting.tly, spotting.brx, spotting.bry);
+            instancesById[spotting.id]=spotting;
+            instancesByScoreInsert(spotting.id);
+            instancesByLocation.insert(&instancesById.at(spotting.id));
+        }
+        instancesToAddQbE.clear();
+        tracer = instancesByScore.begin();
 #if defined(TEST_MODE) && defined(GRAPH_SPOTTING_RESULTS)
         cv::Mat undoneW(1,undoneGraph.cols,CV_8UC3);
         undoneW = cv::Scalar(255,255,255);
@@ -1306,13 +1537,13 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
         fullW = cv::Scalar(255,255,255);
         fullGraph.push_back(fullW);
 #endif
-    ///debugState();
+    debugState();
     assert(instancesByScore.size()>= initSize);
     }
 #endif
     for (Spotting& spotting : *spottings)
     {
-        assert(spotting.tlx!=-1);
+        assert(spotting.tlx!=-1 && spotting.scoreQbE!=MAX_FLOAT && spotting.scoreQbE==spotting.scoreQbE);
         //Update max and min
         if (spotting.scoreQbE>maxScoreQbE)
         {
@@ -1421,7 +1652,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                             tracer = instancesByScore.begin();
                         }
                         instancesById.erase(best->id);
-        ///debugState();
+        debugState();
         assert(instancesByScore.size()>= initSize);
                     }
                     else
@@ -1433,7 +1664,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                         (best)->scoreQbE = combScore;
                         if (removed)
                             instancesByScoreInsert(best->id);
-        ///debugState();
+        debugState();
         assert(instancesByScore.size()>= initSize);
                     }
                 }
@@ -1450,14 +1681,13 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
             else
             {
 #if USE_QBE
-                assert(spotting.pageId>=0);
-                spotting.boxQbE=make_tuple(spotting.tlx, spotting.tly, spotting.brx, spotting.bry);
-                instancesById[spotting.id]=spotting;
-                instancesByScoreInsert(spotting.id);
-                instancesByLocation.insert(&instancesById.at(spotting.id));
-                tracer = instancesByScore.begin();
-    ///debugState();
-    assert(instancesByScore.size()>= initSize);
+                instancesToAddQbE.push_back(spotting);
+                //assert(spotting.pageId>=0);
+                //spotting.boxQbE=make_tuple(spotting.tlx, spotting.tly, spotting.brx, spotting.bry);
+                //instancesById[spotting.id]=spotting;
+                //instancesByScoreInsert(spotting.id);
+                //instancesByLocation.insert(&instancesById.at(spotting.id));
+                //tracer = instancesByScore.begin();
 #endif
             }
         }
@@ -1466,8 +1696,6 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
     if (useQbE)
     {
         bool allWereSent = allBatchesSent;
-        acceptThreshold=-1;
-        rejectThreshold=-1;
         EMThresholds();
         if (allWereSent && !allBatchesSent)
         {
@@ -1480,14 +1708,14 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
         //If intersection, use previous label and label it instantly, but use the given score, dont put in "queue" (byScores)
         //Else, add it in normally
         //All non-intersected old ones need to have their score not count anymore (but save in case of later resurrection)
-    ///debugState();
+    debugState();
     assert(instancesByScore.size()>= initSize);
     return false;
 }
 
 void SpottingResults::save(ofstream& out)
 {
-    ///debugState();
+    debugState();
     out<<"SPOTTINGRESULTS"<<endl;
     out<<ngram<<"\n";
     out<<batchesSinceChange<<"\n";
@@ -1560,7 +1788,7 @@ void SpottingResults::save(ofstream& out)
     //skip updateMap as no feedback will be recieved.
     //skip tracer as we will just refind it
     out<<contextPad<<"\n";
-    ///debugState();
+    debugState();
 }
 
 SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef)
@@ -1659,6 +1887,6 @@ SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef)
     rtn=0;
     atn=0;
 #endif //TEST_MODE
-    ///debugState();
+    debugState();
     
 }

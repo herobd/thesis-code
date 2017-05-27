@@ -197,7 +197,7 @@ int main(int argc, char** argv)
         avgCharWidth=38;
     assert(avgCharWidth>0);
 
-    int numSpottingThreads = 5;
+    int numSpottingThreads = 1;//CNNSPPSpotter will use the same network object
     int numTaskThreads = 3;
     int height = 1000;
     int width = 2500;
