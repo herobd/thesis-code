@@ -717,7 +717,7 @@ unsigned long MasterQueue::updateSpottingResults(vector<Spotting>* spottings, un
         //cout <<"added spotting : "<<s.id<<endl;
     }
 #ifdef TEST_MODE
-    //n->debugState();
+    n->debugState();
 #endif
     sem_post(sem);
     delete spottings;

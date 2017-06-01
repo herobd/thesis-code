@@ -16,7 +16,9 @@
 #include "Global.h"
 #include "PageRef.h"
 
-#define TAIL_DENSITY_TRUE_THRESHOLD 0.1
+#define TAIL_DENSITY_TRUE_THRESHOLD 0.01
+
+#define CVT_MARGIN 0.05
 
 #define UPDATE_OVERLAP_THRESH 0.4
 #define UPDATE_OVERLAP_THRESH_TIGHT 0.7
@@ -156,6 +158,7 @@ private:
     bool allBatchesSent;
     bool done;
     bool useQbE; //This indicates whether enough exemplars have been combined to make QbE reliable
+    float cvtMax; //A max value taken when switching to QbE mode. It must remain constant
     int numComb;
     
     float trueMean;
@@ -190,6 +193,20 @@ private:
             return maxScoreQbS;
     }
     float& minScore()
+    {
+        if (useQbE)
+            return minScoreQbE;
+        else
+            return minScoreQbS;
+    }
+    float maxScore() const
+    {
+        if (useQbE)
+            return maxScoreQbE;
+        else
+            return maxScoreQbS;
+    }
+    float minScore() const
     {
         if (useQbE)
             return minScoreQbE;
@@ -275,6 +292,8 @@ private:
 
     float NPD(float x, float mean, float var); //normal probability distribution function
     float PHI(float x); //cumulative distribution function of normal distribution
+    float logCvt(float x);
+    float expCvt(float x);
 
     //This returns the iterator of instancesByLocation for the spotting which overlaps (spatailly) the one given
     //It returns instancesByLocation.end() if none is found.
