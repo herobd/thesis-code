@@ -110,7 +110,7 @@ public:
     {
         this->pagePnt=pagePnt;
     }
-    virtual void save(ofstream& out)
+    virtual void save(ofstream& out) const
     {
         out<<"SPOTTING"<<endl;
         out<<tlx<<"\n"<<tly<<"\n"<<brx<<"\n"<<bry<<"\n";
@@ -304,7 +304,7 @@ public:
         GlobalK::loadImage(image,in);
         GlobalK::loadImage(ngramImage,in);
     }
-    void save(ofstream& out) 
+    void save(ofstream& out) const
     {
         Spotting::save(out);
         GlobalK::saveImage(image,out);
@@ -360,7 +360,7 @@ public:
     {
         GlobalK::loadImage(ngramImage,in);
     }
-    void save(ofstream& out)
+    void save(ofstream& out) const
     {
         Spotting::save(out);
         GlobalK::saveImage(ngramImage,out);

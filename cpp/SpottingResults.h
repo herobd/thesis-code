@@ -16,7 +16,8 @@
 #include "Global.h"
 #include "PageRef.h"
 
-#define TAIL_DENSITY_TRUE_THRESHOLD 0.01
+#define TAIL_DENSITY_TRUE_THRESHOLD 0.025
+#define GOOD_TAIL_SCORE -0.01
 
 #define CVT_MARGIN 0.05
 
@@ -170,7 +171,7 @@ private:
     float falseVariance;
 
     //This is here for testing purposes
-    float usedMean, usedStd;
+    float usedMean, usedStd, trueFalseDivide;
 
     bool takeFromTail; //This means we don't have good enough spotting to try and auto approve any, and modelling the true distribution will be difficult
     float tailEnd;
@@ -224,7 +225,11 @@ private:
     multiset<Spotting*,tlComp> instancesByLocation; //This is a convienince holder of all Spottings
     map<unsigned long,Spotting> instancesById; //This is all the Spottings
     map<unsigned long,bool> classById; //This is the classifications of Spottings
-    list<Spotting> instancesToAddQbE; //These are instances without QbS scores, and thus cann't be added to instancesByScore
+
+    int numSpottingsQbEMax; //This sets a cap on how many instances we hang on to when combining with QbE.
+    multimap<float,unsigned long> allInstancesByScoreQbE;//for pruning the number of instances to a set size. When we combine, we accumulate instances
+    vector<Spotting> instancesToAddQbE; //These are instances without QbS scores, and thus cann't be added to instancesByScore.
+    multiset<Spotting*,tlComp> instancesToAddQbEByLocation;//For checking for overlaps/duplicates when still in QbS mode
 
     bool instancesByScoreContains(unsigned long id) const
     {
@@ -243,6 +248,18 @@ private:
             if (iter->second==id)
             {
                 instancesByScore.erase(iter);
+                return true;
+            }
+        return false;
+    }
+    bool allInstancesByScoreQbEErase(unsigned long id)
+    {
+        float score = instancesById.at(id).score(useQbE);
+        auto range = allInstancesByScoreQbE.equal_range(score);
+        for (auto iter=range.first; iter!=range.second; iter++)
+            if (iter->second==id)
+            {
+                allInstancesByScoreQbE.erase(iter);
                 return true;
             }
         return false;
