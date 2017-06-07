@@ -59,29 +59,52 @@ public:
     if (reverse) return (lhs->score>rhs->score);
     else return (lhs->score<rhs->score);
   }
+};
+class tlCompById
+{
+  const map<unsigned long,Spotting>* instancesById;
+public:
+  tlCompById(const map<unsigned long,Spotting>* instancesById=NULL) : instancesById(instancesById)
+    {}
+  bool operator() (unsigned long lhs, unsigned long rhs) const
+  {
+      const Spotting& r = instancesById->at(rhs);
+      const Spotting& l = instancesById->at(lhs);
+      if (l.pageId == r.pageId)
+      {
+          if (l.tlx == r.tlx)
+              return l.tly < r.tly;
+          else
+              return l.tlx < r.tlx;
+      }
+      else
+          return l.pageId < r.pageId;
+  }
 };*/
+
 class tlComp
 {
   bool reverse;
 public:
   tlComp(const bool& revparam=false)
     {reverse=revparam;}
-  bool operator() (const Spotting* lhs, const Spotting* rhs) const
+  bool operator() (const Spotting& lhs, const Spotting& rhs) const
   {
       bool ret;
-      if (lhs->pageId == rhs->pageId)
+      if (lhs.pageId == rhs.pageId)
       {
-          if (lhs->tlx == rhs->tlx)
-              ret=lhs->tly < rhs->tly;
+          if (lhs.tlx == rhs.tlx)
+              ret=lhs.tly < rhs.tly;
           else
-              ret = lhs->tlx < rhs->tlx;
+              ret = lhs.tlx < rhs.tlx;
       }
       else
-          ret = lhs->pageId < rhs->pageId;
+          ret = lhs.pageId < rhs.pageId;
     if (reverse) return !ret;
     else return ret;
   }
 };
+
 
 /* This class holds all of the results of a single spotting query.
  * It orders these by score. It tracks an accept and reject 
@@ -222,14 +245,15 @@ private:
     //multiset<Spotting*,scoreComp> instancesByScore; //This holds Spottings yet to be classified
     //multiset<unsigned long,scoreCompById> instancesByScore; //This holds Spottings yet to be classified
     multimap<float,unsigned long> instancesByScore; //This holds Spottings yet to be classified
-    multiset<Spotting*,tlComp> instancesByLocation; //This is a convienince holder of all Spottings
+    multiset<Spotting,tlComp> instancesByLocation; //This is a convienince holder of all Spottings
     map<unsigned long,Spotting> instancesById; //This is all the Spottings
     map<unsigned long,bool> classById; //This is the classifications of Spottings
 
     int numSpottingsQbEMax; //This sets a cap on how many instances we hang on to when combining with QbE.
     multimap<float,unsigned long> allInstancesByScoreQbE;//for pruning the number of instances to a set size. When we combine, we accumulate instances
-    vector<Spotting> instancesToAddQbE; //These are instances without QbS scores, and thus cann't be added to instancesByScore.
-    multiset<Spotting*,tlComp> instancesToAddQbEByLocation;//For checking for overlaps/duplicates when still in QbS mode
+    //vector<Spotting> instancesToAddQbE; //These are instances without QbS scores, and thus cann't be added to instancesByScore.
+    multiset<Spotting,tlComp> instancesToAddQbEByLocation;//For checking for overlaps/duplicates when still in QbS mode
+    set<unsigned long> kickedOut; //Just debugging, which instances QbE accumulation kicked out durting QbS mode
 
     bool instancesByScoreContains(unsigned long id) const
     {
@@ -274,9 +298,9 @@ private:
     bool instancesByLocationErase(unsigned long id)
     {
         //const Spotting& s = instancesById.at(id);
-        auto range = instancesByLocation.equal_range(&instancesById.at(id));//Spotting(s.tlx, s.tly, s.brx, s.bry,s.pageId));
+        auto range = instancesByLocation.equal_range(instancesById.at(id));//Spotting(s.tlx, s.tly, s.brx, s.bry,s.pageId));
         for (auto iter=range.first; iter!=range.second; iter++)
-            if ((*iter)->id==id)
+            if (iter->id==id)
             {
                 instancesByLocation.erase(iter);
                 return true;
@@ -315,7 +339,7 @@ private:
     //This returns the iterator of instancesByLocation for the spotting which overlaps (spatailly) the one given
     //It returns instancesByLocation.end() if none is found.
     //It sets ratioOff to indicate how far off the overlap is, 1 beng the max allowed by the threshold, 0 being perfectly alligned
-    multiset<Spotting*,tlComp>::iterator findOverlap(const Spotting& spotting, float* ratioOff) const;
+    multiset<Spotting,tlComp>::iterator findOverlap(const Spotting& spotting, float* ratioOff) const;
 
     //How much to pad (top and bottom) images sent to users
     int contextPad;
@@ -328,6 +352,34 @@ private:
     multimap<float,unsigned long> fullInstancesByScore;
 #endif
     
+    /*bool tlComp (unsigned long lhs, unsigned long rhs) const
+    {
+        const Spotting& r = instancesById->at(rhs);
+        const Spotting& l = instancesById->at(lhs);
+        if (l.pageId == r.pageId)
+        {
+            if (l.tlx == r.tlx)
+                return l.tly < r.tly;
+            else
+                return l.tlx < r.tlx;
+        }
+        else
+            return l.pageId < r.pageId;
+    }
+    bool tlToAddComp (unsigned long lhs, unsigned long rhs) const
+    {
+        const Spotting& r = instancesToAddQbE->at(rhs);
+        const Spotting& l = instancesToAddQbE->at(lhs);
+        if (l.pageId == r.pageId)
+        {
+            if (l.tlx == r.tlx)
+                return l.tly < r.tly;
+            else
+                return l.tlx < r.tlx;
+        }
+        else
+            return l.pageId < r.pageId;
+    }*/
 };
 
 #endif

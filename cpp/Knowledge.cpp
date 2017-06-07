@@ -2936,7 +2936,7 @@ void Knowledge::Word::save(ofstream& out)
     out<<tlx<<"\n"<<tly<<"\n"<<brx<<"\n"<<bry<<"\n";
     out<<query<<"\n"<<gt<<"\n";
     meta.save(out);
-    out<<pageId<<"\n"<<spottingIndex<<"\n";
+    out<<pageId<<"\n";//<<spottingIndex<<"\n";
     out<<topBaseline<<"\n"<<botBaseline<<"\n";
     out<<spottings.size()<<"\n";
     for (auto p : spottings)
@@ -2986,8 +2986,8 @@ Knowledge::Word::Word(ifstream& in, const cv::Mat* pagePnt, const Spotter* const
     meta = SearchMeta(in);
     getline(in,line);
     pageId = stoi(line);
-    getline(in,line);
-    spottingIndex = stoi(line);
+    //getline(in,line);
+    //spottingIndex = stoi(line);
     getline(in,line);
     topBaseline = stoi(line);
     getline(in,line);

@@ -89,7 +89,7 @@ private:
     const float* averageCharWidth;
     int* countCharWidth;
     int pageId;
-    int spottingIndex;
+    //int spottingIndex;
    
     int topBaseline, botBaseline;
 

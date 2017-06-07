@@ -25,6 +25,7 @@ SpottingResults::SpottingResults(string ngram, int contextPad) :
     maxScoreQbS=-999999;
     minScoreQbS=999999;
     
+    useQbE=false;
     
     trueMean=minScore();//How to initailize?
     trueVariance=1.0;
@@ -37,7 +38,6 @@ SpottingResults::SpottingResults(string ngram, int contextPad) :
     
     done=false;
 
-    useQbE=false;
     numComb=0;
 
     //pullFromScore=splitThreshold;
@@ -54,7 +54,9 @@ SpottingResults::SpottingResults(string ngram, int contextPad) :
 #endif
 #ifdef TEST_MODE
     histFile = "save/graph/hist_"+ngram+".csv";
-#endif
+    rtn=0;
+    atn=0;
+#endif //TEST_MODE
 }
 
 void SpottingResults::add(Spotting spotting) {
@@ -85,7 +87,7 @@ void SpottingResults::add(Spotting spotting) {
     {
         instancesByScoreInsert(spotting.id);
     }
-    instancesByLocation.insert(&instancesById.at(spotting.id));
+    instancesByLocation.insert(spotting);
     tracer = instancesByScore.begin();
     if (spotting.scoreQbS>maxScore())
     {
@@ -107,7 +109,7 @@ void SpottingResults::addTrueNoScore(const SpottingExemplar& spotting) {
     //sem_wait(&mutexSem);
     instancesById[spotting.id]=spotting;
     instancesById.at(spotting.id).type=SPOTTING_TYPE_APPROVED;
-    instancesByLocation.insert(&instancesById.at(spotting.id));
+    instancesByLocation.insert(spotting);
     classById[spotting.id]=true;
     //sem_post(&mutexSem);
 }
@@ -147,9 +149,13 @@ void SpottingResults::debugState() const
     
     for (auto iter=instancesByLocation.begin(); iter!=instancesByLocation.end(); iter++)
     {
-        assert(instancesById.find((**iter).id) != instancesById.end());
+        assert(instancesById.find(iter->id) != instancesById.end());
     }
     for (auto iter=instancesByScore.begin(); iter!=instancesByScore.end(); iter++)
+    {
+        assert(instancesById.find(iter->second) != instancesById.end());
+    }
+    for (auto iter=allInstancesByScoreQbE.begin(); iter!=allInstancesByScoreQbE.end(); iter++)
     {
         assert(instancesById.find(iter->second) != instancesById.end());
     }
@@ -208,7 +214,7 @@ void SpottingResults::setDebugInfo(SpottingsBatch* b)
 #endif
     for (auto iter=instancesByLocation.begin(); iter!=instancesByLocation.end(); iter++)
     {
-        assert(instancesById.find((**iter).id) != instancesById.end());
+        assert(instancesById.find(iter->id) != instancesById.end());
     }
     for (auto iter=instancesByScore.begin(); iter!=instancesByScore.end(); iter++)
     {
@@ -695,7 +701,12 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
                 numberClassifiedFalse--;
         }
         
-        assert(instancesById.find(id) != instancesById.end());
+        if (instancesById.find(id) == instancesById.end())
+        {
+            //This occurs when QbE accumulations have kicked the instance out.
+            assert(kickedOut.find(id)!=kickedOut.end());
+            continue;
+        }
         instancesById.at(id).type=SPOTTING_TYPE_APPROVED;
         // adjust threshs
         if (userClassifications[i]>0)
@@ -1415,7 +1426,7 @@ bool SpottingResults::checkIncomplete()
 }
 
 
-multiset<Spotting*,tlComp>::iterator SpottingResults::findOverlap(const Spotting& spotting, float* ratioOff) const
+multiset<Spotting,tlComp>::iterator SpottingResults::findOverlap(const Spotting& spotting, float* ratioOff) const
 {
     bool updated=false;
     int width = spotting.brx-spotting.tlx;
@@ -1429,21 +1440,21 @@ multiset<Spotting*,tlComp>::iterator SpottingResults::findOverlap(const Spotting
         //Find all spottings for given tlx
         Spotting lb(spotting.pageId,tlx,spotting.tly-height*(1-UPDATE_OVERLAP_THRESH));
         Spotting ub(spotting.pageId,tlx,spotting.tly+height*(1-UPDATE_OVERLAP_THRESH));
-        auto itLow = instancesByLocation.lower_bound(&lb);
-        auto itHigh = instancesByLocation.upper_bound(&ub);
+        auto itLow = instancesByLocation.lower_bound(lb);
+        auto itHigh = instancesByLocation.upper_bound(ub);
 
 
         for (;itLow!=itHigh; itLow++)
         {
-            int overlapArea = ( min(spotting.brx,(*itLow)->brx) - max(spotting.tlx,(*itLow)->tlx) ) * ( min(spotting.bry,(*itLow)->bry) - max(spotting.tly,(*itLow)->tly) );
+            int overlapArea = ( min(spotting.brx,itLow->brx) - max(spotting.tlx,itLow->tlx) ) * ( min(spotting.bry,itLow->bry) - max(spotting.tly,itLow->tly) );
             double thresh = UPDATE_OVERLAP_THRESH;
 
-            assert(instancesById.find((*itLow)->id) != instancesById.end());
+            assert(instancesById.find(itLow->id) != instancesById.end());
 
-            bool updateWhenInBatch = (*itLow)->type!=SPOTTING_TYPE_THRESHED && !instancesByScoreContains((*itLow)->id);
+            bool updateWhenInBatch = itLow->type!=SPOTTING_TYPE_THRESHED && !instancesByScoreContains(itLow->id);
             if (updateWhenInBatch)
                 thresh=UPDATE_OVERLAP_THRESH_TIGHT;
-            double ratio = overlapArea/max(spottingArea,1.0*((*itLow)->brx-(*itLow)->tlx)*((*itLow)->bry-(*itLow)->tly));
+            double ratio = overlapArea/max(spottingArea,1.0*(itLow->brx-itLow->tlx)*(itLow->bry-itLow->tly));
             if (ratio > thresh)
             {
                 if (overlapArea > bestOverlap)
@@ -1468,16 +1479,16 @@ multiset<Spotting*,tlComp>::iterator SpottingResults::findOverlap(const Spotting
         {
             Spotting lb(spotting.pageId,tlx,spotting.tly-height*(1-UPDATE_OVERLAP_THRESH));
             Spotting ub(spotting.pageId,tlx,spotting.tly+height*(1-UPDATE_OVERLAP_THRESH));
-            auto itLow = instancesToAddQbEByLocation.lower_bound(&lb);
-            auto itHigh = instancesToAddQbEByLocation.upper_bound(&ub);
+            auto itLow = instancesToAddQbEByLocation.lower_bound(lb);
+            auto itHigh = instancesToAddQbEByLocation.upper_bound(ub);
 
 
             for (;itLow!=itHigh; itLow++)
             {
-                int overlapArea = ( min(spotting.brx,(*itLow)->brx) - max(spotting.tlx,(*itLow)->tlx) ) * ( min(spotting.bry,(*itLow)->bry) - max(spotting.tly,(*itLow)->tly) );
+                int overlapArea = ( min(spotting.brx,itLow->brx) - max(spotting.tlx,itLow->tlx) ) * ( min(spotting.bry,itLow->bry) - max(spotting.tly,itLow->tly) );
                 double thresh = UPDATE_OVERLAP_THRESH;
 
-                double ratio = overlapArea/max(spottingArea,1.0*((*itLow)->brx-(*itLow)->tlx)*((*itLow)->bry-(*itLow)->tly));
+                double ratio = overlapArea/max(spottingArea,1.0*(itLow->brx-itLow->tlx)*(itLow->bry-itLow->tly));
                 if (ratio > thresh)
                 {
                     if (overlapArea > bestOverlap)
@@ -1515,37 +1526,36 @@ void SpottingResults::updateSpottingTrueNoScore(const SpottingExemplar& spotting
     assert(spotting.scoreQbS != spotting.scoreQbS);
 
     //Scan for possibly overlapping (the same) spottings
-    Spotting* best=NULL;
     auto bestIter = findOverlap(spotting,NULL);
-    if (bestIter != instancesByLocation.end())
-        best=*bestIter;
-    if (best!=NULL)
+    if (bestIter != instancesByLocation.end() && instancesById.find(bestIter->id)!=instancesById.end())
     {
+        Spotting best=*bestIter;
 
         //bool updateWhenInBatch = (best)->type!=SPOTTING_TYPE_THRESHED && instancesByScore.find(best->id)==instancesByScore.end();
         //if (updateWhenInBatch)
-            updateMap[best->id]=spotting.id;
+            updateMap[best.id]=spotting.id;
 #ifdef TEST_MODE
         //else
-        //    testUpdateMap[best->id]=spotting.id;
+        //    testUpdateMap[best.id]=spotting.id;
 #endif
         //Add this spotting
         assert(spotting.pageId>=0);
         instancesById[spotting.id]=spotting;
         instancesById.at(spotting.id).type=SPOTTING_TYPE_APPROVED;
-        instancesById.at(spotting.id).scoreQbE=best->scoreQbE;//we replace the score so that we contribute to the thresholding
-        instancesById.at(spotting.id).scoreQbS=best->scoreQbS;//we replace the score so that we contribute to the thresholding
-        instancesByLocation.insert(&instancesById.at(spotting.id));
+        instancesById.at(spotting.id).scoreQbE=best.scoreQbE;//we replace the score so that we contribute to the thresholding
+        instancesById.at(spotting.id).scoreQbS=best.scoreQbS;//we replace the score so that we contribute to the thresholding
+        instancesByLocation.insert(instancesById.at(spotting.id));
         classById[spotting.id]=true;
         instancesByLocation.erase(bestIter); //erase by iterator
 
         //remove the old one
-        bool removed = instancesByScoreErase(best->id); //erase by value (pointer)
+        bool removed = instancesByScoreErase(best.id); //erase by value (pointer)
         if (removed)
         {
             tracer = instancesByScore.begin();
         }
-        instancesById.erase(best->id);
+        allInstancesByScoreQbEErase(best.id);
+        instancesById.erase(best.id);
     }
     else
     {
@@ -1584,19 +1594,19 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                 p.second.brx = get<2>(p.second.boxQbE);
                 p.second.bry = get<3>(p.second.boxQbE);
                 assert(p.second.brx-p.second.tlx>0 && p.second.bry-p.second.tly>0);
-                instancesByLocation.insert(&instancesById.at(p.first));
+                instancesByLocation.insert(instancesById.at(p.first));
             }
         }
-        for (auto& spotting : instancesToAddQbE)
+        for (auto& spotting : instancesToAddQbEByLocation)
         {
             //spotting.boxQbE=make_tuple(spotting.tlx, spotting.tly, spotting.brx, spotting.bry);
             instancesById[spotting.id]=spotting;
             instancesByScoreInsert(spotting.id);
-            instancesByLocation.insert(&instancesById.at(spotting.id));
+            instancesByLocation.insert(instancesById.at(spotting.id));
             allInstancesByScoreQbE.emplace(spotting.scoreQbE,spotting.id);
         }
         instancesToAddQbEByLocation.clear();
-        instancesToAddQbE.clear();
+        //instancesToAddQbE.clear();
         tracer = instancesByScore.begin();
 #if defined(TEST_MODE) && defined(GRAPH_SPOTTING_RESULTS)
         cv::Mat undoneW(1,undoneGraph.cols,CV_8UC3);
@@ -1638,7 +1648,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
             numberClassifiedTrue++;
             assert(spotting.pageId>=0);
             instancesById[spotting.id]=spotting;
-            instancesByLocation.insert(&instancesById.at(spotting.id));
+            instancesByLocation.insert(spotting);
         }
         else if (spotting.type==SPOTTING_TYPE_TRANS_FALSE)
         {
@@ -1646,32 +1656,36 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
             numberClassifiedFalse++;
             assert(spotting.pageId>=0);
             instancesById[spotting.id]=spotting;
-            instancesByLocation.insert(&instancesById.at(spotting.id));
+            instancesByLocation.insert(spotting);
         }
         else
         {
 
             //Scan for possibly overlapping (the same) spottings
-            Spotting* best=NULL;
+            //Spotting* best=NULL;
             float ratioOff;//1 at threshold, 0 exactly the same
             auto bestIter = findOverlap(spotting, &ratioOff);
+            //if (bestIter != instancesByLocation.end())
+            //    if (instancesById.find(bestIter->id)!=instancesById.end())
+            //        best=&instancesById.at(bestIter->id);
+            //    else
+
             if (bestIter != instancesByLocation.end())
-                best=*bestIter;
-            if (best!=NULL)
             {
+                Spotting best = *bestIter; //bestIter comes from instancesByLocation, which are copies already
                 //Zagoris et al. A Framework for Efficient Transcription of Historical Documents Using Keyword Spotting would indicate that taking the worse (max) score would yield the best combintation results.
                 
                 //We can choose to do a weighted averaging based on how far spatially the spottings are from one another.
                 //If they are percisely on the same location, we take the max.
                 //If they are maximally off (as allowed by threshold), the min score (selected spotting) is used.
                 //Interpolate between
-                float bestScore = min(spotting.scoreQbE, (best)->scoreQbE); 
+                float bestScore = min(spotting.scoreQbE, best.scoreQbE); 
                 //float worseScore = max(spotting.scoreQbE, (best)->scoreQbE);
                 //float combScore = (1.0f-ratioOff)*worseScore + (ratioOff)*bestScore;
 
 
                 //Averaging seems to do better with some expriementation with bigrams, shorter
-                //float combScore = (spotting.scoreQbE + (best)->scoreQbE)/2.0f;
+                //float combScore = (spotting.scoreQbE + best.scoreQbE)/2.0f;
                 
                 //This is most principled. Each ngram has multiple "prototypes," and we want the score of the exemplar closest to the "correct prototype." Also prevents bad exemplars from tugging scores around too much.
                 float combScore = bestScore;
@@ -1679,14 +1693,14 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                 
 
                 //prevent worse score for already approved spottings and prevent better score for rejected ones
-                auto iii = classById.find(best->id);
+                auto iii = classById.find(best.id);
                 if (iii != classById.end())
                 {
-                    if ( (iii->second && combScore>(best)->scoreQbE) ||
-                            ((!iii->second) && combScore<(best)->scoreQbE)
+                    if ( (iii->second && combScore>best.scoreQbE) ||
+                            ((!iii->second) && combScore<best.scoreQbE)
                        )
                     {
-                        combScore = (best)->scoreQbE;
+                        combScore = best.scoreQbE;
                     }
                 }
                 if (combScore != combScore)
@@ -1697,27 +1711,27 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                 if (useQbE)
                 {
 
-                    if (spotting.scoreQbE < (best)->scoreQbE)//then replace the spotting, this happens to skip NaN in the case of a harvested exemplar
+                    if (spotting.scoreQbE < best.scoreQbE)//then replace the spotting, this happens to skip NaN in the case of a harvested exemplar
                     {
                         spotting.scoreQbE = combScore;
-                        //bool updateWhenInBatch = (best)->type!=SPOTTING_TYPE_THRESHED && instancesByScore.find(best->id)==instancesByScore.end();
+                        //bool updateWhenInBatch = best.type!=SPOTTING_TYPE_THRESHED && instancesByScore.find(best.id)==instancesByScore.end();
                         //if (updateWhenInBatch)
-                            updateMap[best->id]=spotting.id;
+                            updateMap[best.id]=spotting.id;
 #ifdef TEST_MODE
                         //else
-                        //    testUpdateMap[best->id]=spotting.id;
+                        //    testUpdateMap[best.id]=spotting.id;
 #endif
                         //Add this spotting
                         assert(spotting.pageId>=0);
                         instancesById[spotting.id]=spotting;
                         allInstancesByScoreQbE.emplace(spotting.scoreQbE,spotting.id);
-                        instancesByLocation.insert(&instancesById.at(spotting.id));
+                        instancesByLocation.insert(spotting);
                         instancesByLocation.erase(bestIter); //erase by iterator
 
                         //remove the old one
         assert(instancesByScore.size()>= initSize);
-                        allInstancesByScoreQbEErase(best->id);
-                        bool removed = instancesByScoreErase(best->id); 
+                        allInstancesByScoreQbEErase(best.id);
+                        bool removed = instancesByScoreErase(best.id); 
                         if (removed)
                         {
                             //add
@@ -1725,40 +1739,71 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                             tracer = instancesByScore.begin();
         assert(instancesByScore.size()>= initSize);
                         }
-                        else if ((best)->type==SPOTTING_TYPE_THRESHED && classById.at((best)->id)==false)
+                        else if (best.type==SPOTTING_TYPE_THRESHED && classById.at(best.id)==false)
                         {//This occurs after being resurrected. We'll give a better score another chance.
                             //cout<<"{} replaced false spotting "<<spotting.scoreQbE<<endl;
-                            //(best)->type=SPOTTING_TYPE_NONE;
-                            classById.erase((best)->id);
+                            //best.type=SPOTTING_TYPE_NONE;
+                            classById.erase(best.id);
                             instancesByScoreInsert(spotting.id);
                             tracer = instancesByScore.begin();
                         }
-                        instancesById.erase(best->id);
+                        instancesById.erase(best.id);
         debugState();
         assert(instancesByScore.size()>= initSize);
                     }
                     else
                     {
                         //becuase we're changing what its indexed by, we need to readd it
-                        //auto iter = instancesByScore.find(best->id);
-        assert(instancesByScore.size()>= initSize);
-                        int removed = instancesByScoreErase(best->id);
-                        (best)->scoreQbE = combScore;
+                        //auto iter = instancesByScore.find(best.id);
+                        int removed = instancesByScoreErase(best.id);
+                        instancesById.at(best.id).scoreQbE = combScore;
                         if (removed)
-                            instancesByScoreInsert(best->id);
+                            instancesByScoreInsert(best.id);
         debugState();
         assert(instancesByScore.size()>= initSize);
                     }
                 }
                 else
                 {
-                    if (combScore<best->scoreQbE || best->scoreQbE!=best->scoreQbE)
+                    //because the 'best' comes from instancesByLocation, which are copies, not references to isntanceById
+                    if (instancesById.find(best.id) != instancesById.end())
                     {
-                        best->boxQbE=make_tuple(spotting.tlx, spotting.tly, spotting.brx, spotting.bry);
-                    }
+                        Spotting& bestSpot = instancesById.at(best.id);
+                        if (combScore<best.scoreQbE || best.scoreQbE!=best.scoreQbE)
+                        {
+                            bestSpot.boxQbE=make_tuple(spotting.tlx, spotting.tly, spotting.brx, spotting.bry);
+                        }
 
-                    best->scoreQbE = combScore;
-                    allInstancesByScoreQbE.emplace(best->scoreQbE,best->id);
+                        bestSpot.scoreQbE = combScore;
+                        allInstancesByScoreQbE.emplace(bestSpot.scoreQbE,bestSpot.id);
+                    }
+                    else
+                    {
+                        pair<multiset<Spotting,tlComp>::iterator,multiset<Spotting,tlComp>::iterator> range = instancesToAddQbEByLocation.equal_range(best);
+                        for (multiset<Spotting,tlComp>::iterator iter=range.first; iter!=range.second; iter++)
+                            if (iter->id==best.id)
+                            {
+                                if (combScore<best.scoreQbE || best.scoreQbE!=best.scoreQbE)
+                                {
+                                    //iter->scoreQbE = combScore; wont compile
+                                    //so hack
+                                    Spotting hack=*iter;
+                                    instancesToAddQbEByLocation.erase(iter);
+                                    hack.scoreQbE = combScore;
+                                    instancesToAddQbEByLocation.insert(hack);
+                                }
+                                else
+                                {
+                                    instancesToAddQbEByLocation.erase(iter);
+                                    spotting.scoreQbE = combScore;
+                                    instancesToAddQbEByLocation.insert(spotting);
+                                }
+
+                                break;
+                            }
+
+
+                    }
                 }
             }
             else
@@ -1768,14 +1813,14 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                 {
                     instancesById[spotting.id]=spotting;
                     instancesByScoreInsert(spotting.id);
-                    instancesByLocation.insert(&instancesById.at(spotting.id));
+                    instancesByLocation.insert(instancesById.at(spotting.id));
                     allInstancesByScoreQbE.emplace(spotting.scoreQbE,spotting.id);
                 }
                 else
                 {
                     //allInstancesByScoreQbE.emplace(spotting.scoreQbE,spotting);
-                    instancesToAddQbE.push_back(spotting);
-                    instancesToAddQbEByLocation.insert(&instancesToAddQbE.back());
+                    //instancesToAddQbE.push_back(spotting);
+                    instancesToAddQbEByLocation.insert(spotting);
                 }
                 //assert(spotting.pageId>=0);
                 //spotting.boxQbE=make_tuple(spotting.tlx, spotting.tly, spotting.brx, spotting.bry);
@@ -1788,6 +1833,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
         }
 
     }
+    bool check_didRemove=false;
     while (allInstancesByScoreQbE.size() > numSpottingsQbEMax)
     {
         auto worstIter = allInstancesByScoreQbE.end();
@@ -1797,6 +1843,9 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
             instancesByScoreErase(worstIter->second);
             instancesByLocationErase(worstIter->second);
             instancesById.erase(worstIter->second);
+            check_didRemove=true;
+            if (!useQbE)
+                kickedOut.insert(worstIter->second);
         }
         allInstancesByScoreQbE.erase(worstIter);
     }
@@ -1817,7 +1866,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
         //Else, add it in normally
         //All non-intersected old ones need to have their score not count anymore (but save in case of later resurrection)
     debugState();
-    assert(instancesByScore.size()>= initSize);
+    assert(instancesByScore.size()>= initSize || check_didRemove);
     return false;
 }
 
@@ -1896,8 +1945,8 @@ void SpottingResults::save(ofstream& out)
 
 
 
-    out<<instancesToAddQbE.size()<<endl;
-    for (const Spotting& s : instancesToAddQbE)
+    out<<instancesToAddQbEByLocation.size()<<endl;
+    for (const Spotting& s : instancesToAddQbEByLocation)
     {
         s.save(out);
     }
@@ -1909,7 +1958,7 @@ void SpottingResults::save(ofstream& out)
     debugState();
 }
 
-SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef)
+SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef) 
 {
     string line;
     getline(in,line);
@@ -1973,7 +2022,7 @@ SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef)
         Spotting s(in,pageRef);
         assert(pageRef->verify(s.pageId,s.tlx,s.tly,s.brx,s.bry));
         instancesById[s.id]=s;
-        instancesByLocation.insert(&instancesById.at(s.id));
+        instancesByLocation.insert(instancesById.at(s.id));
         if (s.scoreQbE==s.scoreQbE && s.scoreQbE!=MAX_FLOAT)
             allInstancesByScoreQbE.emplace(s.scoreQbE,s.id);
     }
@@ -2003,8 +2052,8 @@ SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef)
     for (int i=0; i<size; i++)
     {
         Spotting s(in,pageRef);
-        instancesToAddQbE.push_back(s);
-        instancesToAddQbEByLocation.insert(&(instancesToAddQbE.back()));
+        //instancesToAddQbE.push_back(s);
+        instancesToAddQbEByLocation.insert(s);
     }
     getline(in,line);
     numSpottingsQbEMax = stoi(line);
