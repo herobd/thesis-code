@@ -17,7 +17,9 @@
 #include "PageRef.h"
 
 #define TAIL_DENSITY_TRUE_THRESHOLD 0.025
-#define GOOD_TAIL_SCORE -0.01
+#define GOOD_TAIL_SCORE -0.01 //Hueristic
+
+#define ACCEPT_THRESH 2 //number of false instances acceptable above accept threshold
 
 #define CVT_MARGIN 0.05
 
@@ -278,7 +280,7 @@ private:
     }
     bool allInstancesByScoreQbEErase(unsigned long id)
     {
-        float score = instancesById.at(id).score(useQbE);
+        float score = instancesById.at(id).scoreQbE;
         auto range = allInstancesByScoreQbE.equal_range(score);
         for (auto iter=range.first; iter!=range.second; iter++)
             if (iter->second==id)
@@ -333,6 +335,7 @@ private:
 
     float NPD(float x, float mean, float var); //normal probability distribution function
     float PHI(float x); //cumulative distribution function of normal distribution
+    float PHI(float x, float mean, float std);
     float logCvt(float x);
     float expCvt(float x);
 

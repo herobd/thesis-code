@@ -151,13 +151,22 @@ void SpottingResults::debugState() const
     {
         assert(instancesById.find(iter->id) != instancesById.end());
     }
+    set<unsigned long> check;
     for (auto iter=instancesByScore.begin(); iter!=instancesByScore.end(); iter++)
     {
-        assert(instancesById.find(iter->second) != instancesById.end());
+        auto iter2=instancesById.find(iter->second);
+        assert(iter2 != instancesById.end());
+        assert(check.find(iter->second) == check.end());
+        check.insert(iter->second);
     }
+    check.clear();
     for (auto iter=allInstancesByScoreQbE.begin(); iter!=allInstancesByScoreQbE.end(); iter++)
     {
-        assert(instancesById.find(iter->second) != instancesById.end());
+        auto iter2=instancesById.find(iter->second);
+        assert(iter2 != instancesById.end());
+        assert(iter->first == iter2->second.scoreQbE);
+        assert(check.find(iter->second) == check.end());
+        check.insert(iter->second);
     }
 
     //float maxS=-999999;
@@ -175,6 +184,12 @@ void SpottingResults::debugState() const
         //if (classById.find(p.first) == classById.end())
         //    assert(instancesByScoreContains(p.first) ||
         //           starts.find(p.first) != starts.end());
+        if (p.second.scoreQbE==p.second.scoreQbE && p.second.scoreQbE!=MAX_FLOAT)
+        {
+            auto range = allInstancesByScoreQbE.equal_range(p.second.scoreQbE);
+            assert(range.first!=range.second);
+        }
+
     }
     //assert(maxS==maxScore() && minS==minScore());
 }
@@ -409,11 +424,18 @@ void SpottingResults::saveHistogram(float actualModelDif)
     int numBuckets=50;
     vector<int> bucketsT(numBuckets);
     vector<int> bucketsF(numBuckets);
+    int count=0;
     for (auto& p : instancesById)
     {
         float score = p.second.score(useQbE);
         if (score!=score || score==MAX_FLOAT)
             continue;
+        count++;
+        if (useQbE)
+        {
+            auto range = allInstancesByScoreQbE.equal_range(score);
+            assert(range.first != range.second);
+        }
 
         int bucket = (numBuckets-1)*(score-minScore())/(maxScore()-minScore());
         assert(bucket>=0 && bucket<numBuckets);
@@ -431,6 +453,8 @@ void SpottingResults::saveHistogram(float actualModelDif)
         else
             bucketsF[bucket]++;
     }
+    if (useQbE)
+        assert(numSpottingsQbEMax>=count);
     ofstream file (histFile,ofstream::app);
     file<<ngram<<" "<<(useQbE?"QbE ":"QbS ")<<numComb<<"   actualModelDif:"<<actualModelDif<<"   tailEndScoreInit("<<tailEnd<<"):"<<tailEndScore<<"   trueFalseDivide:"<<trueFalseDivide<<"   accept:"<<acceptThreshold<<"   reject:"<<rejectThreshold<<endl;
     file<<"Score, ";
@@ -470,19 +494,19 @@ void SpottingResults::saveHistogram(float actualModelDif)
     file<<"\nInitail, ";
     for (int bin=0; bin<numBuckets; bin++)
     {
-        float scale = binSize*sumFalse*(useQbE?-1.0:2.0);
+        float scale = binSize*sumFalse*2.0; ///(useQbE?-1.0:2.0);
         file<<(int)(scale*NPD(binScores[bin],usedMean,usedStd*usedStd))<<", ";
     }
     file<<"\nest True, ";
     for (int bin=0; bin<numBuckets; bin++)
     { 
-        float scale = binSize*sumTrue*(useQbE?-1.0:2.0);
+        float scale = binSize*sumTrue*2.0; ///(useQbE?-1.0:2.0);
         file<<(int)(scale*NPD(binScores[bin],trueMean,trueVariance))<<", ";
     }
     file<<"\nest False, ";
     for (int bin=0; bin<numBuckets; bin++)
     {
-        float scale = binSize*sumFalse*(useQbE?-1.0:2.0);
+        float scale = binSize*sumFalse*2.0; ///(useQbE?-1.0:2.0);
         file<<(int)(scale*NPD(binScores[bin],falseMean,falseVariance))<<", ";
     }
     file<<"\n"<<endl;
@@ -839,11 +863,11 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
 
 float SpottingResults::NPD(float x, float mean, float var)
 {
-    if (useQbE)
-    {
-        return (1/x)*(1/sqrt(2*CV_PI*var))*exp(-0.5*pow(logCvt(x)-mean,2)/var);
-    }
-    else
+    ///if (useQbE)
+    ///{
+    ///    return (1/x)*(1/sqrt(2*CV_PI*var))*exp(-0.5*pow(logCvt(x)-mean,2)/var);
+    ///}
+    ///else
         return (1/sqrt(2*CV_PI*var))*exp(-0.5*pow(x-mean,2)/var);
 }
     
@@ -857,6 +881,15 @@ float SpottingResults::PHI(float x) //cumulative distribution function of normal
         sum+=value;
     }
     return 0.5+(sum/sqrt(2*CV_PI))*exp(-(x*x)/2);
+}
+float SpottingResults::PHI(float x, float mean, float std) //cumulative distribution function of normal distribution
+{
+    float nX;
+    ///if (useQbE)
+    ///    nX = (logCvt(x)-mean)/std;
+    ///else
+        nX = (x-mean)/std;
+    return PHI(nX);
 }
 float SpottingResults::logCvt(float x)
 {
@@ -906,14 +939,14 @@ bool SpottingResults::EMThresholds(int swing)
         {
             if (p.second.score(useQbE)!=p.second.score(useQbE) || p.second.score(useQbE)==MAX_FLOAT)
                 continue;
-            float score = useQbE?logCvt(p.second.score(useQbE)):p.second.score(useQbE);
+            float score = p.second.score(useQbE); ///useQbE?logCvt(p.second.score(useQbE)):p.second.score(useQbE);
             allValues.push_back(score); 
             if (classById.find(p.first)!=classById.end() && classById.at(p.first))
                 continue;//we've labeled it as true, so we can atleast prune this
             usedSum += score;
             usedValues.push_back(score);
         }
-        usedMean = useQbE?usedSum/usedValues.size():maxScore(); //The QbS false distributions are always cut off, so we just assinge the max as the mean
+        usedMean = maxScore(); ///useQbE?usedSum/usedValues.size():maxScore(); //The QbS false distributions are always cut off, so we just assinge the max as the mean
         usedStd=0;
         for (float v : usedValues)
             usedStd += pow(v-usedMean,2);
@@ -921,23 +954,23 @@ bool SpottingResults::EMThresholds(int swing)
 
         //Do we have outliers on our tail?   ('tail' being the trailing low scores that positive instances should lie in).
 
-        tailEnd=useQbE?2.5:-1.8;
+        tailEnd=-1.8; ///useQbE?2.5:-1.8;
         tailEndScore=usedMean + usedStd*tailEnd;
         //hack
-        if (!useQbE)
-        {
+        //if (!useQbE)
+        //{
             tailEndScore = (0.7*tailEndScore+0.3*GOOD_TAIL_SCORE);//Lean towards a 'good' tail score to prevent grevious errors
             tailEnd = (tailEndScore-usedMean)/usedStd;
-        }
-        if (useQbE)
-            tailEndScore = expCvt(tailEndScore);
+        //}
+        //if (useQbE)
+        //    tailEndScore = expCvt(tailEndScore);
         //Count instances in the tail
         int countTail=0;
         for (float v : allValues)
-            if ( (!useQbE&&v<tailEndScore) || (useQbE&&v>tailEndScore) )
+            if (v<tailEndScore) ///if ( (!useQbE&&v<tailEndScore) || (useQbE&&v>tailEndScore) )
                 countTail++;
         //This represent the density that the model says should be after we have any examples. Given more examples (not threshing the spotting results) this would be in our data
-        float cutOffDensity = useQbE?1:(1-PHI((maxScore()-usedMean)/usedStd));
+        float cutOffDensity = (1-PHI((maxScore()-usedMean)/usedStd)); ///useQbE?1:(1-PHI((maxScore()-usedMean)/usedStd));
 
         //We then estimate how many instances we would have if this part wern't cut off
         float estTotalCount = allValues.size() + allValues.size()*(1-cutOffDensity);
@@ -947,7 +980,6 @@ bool SpottingResults::EMThresholds(int swing)
         float actualDensity = countTail/estTotalCount;
 
         //Compute expected (model) density of tail
-        //float normalizedTailEndScore = ( (useQbE?logCvt(tailEndScore):tailEndScore) -usedMean)/usedStd;
         float modelDensity = PHI(tailEnd);
 
         //If difference is above a threshold, we have a good True distribution
@@ -977,8 +1009,8 @@ bool SpottingResults::EMThresholds(int swing)
             
             double thresh = GlobalK::otsuThresh(histogram);
             trueFalseDivide = (thresh/40)*(maxScore()-minScore())+minScore();
-            if (useQbE)
-                trueFalseDivide=logCvt(trueFalseDivide);
+            ///if (useQbE)
+            ///    trueFalseDivide=logCvt(trueFalseDivide);
         }
         else
         {
@@ -1031,8 +1063,8 @@ bool SpottingResults::EMThresholds(int swing)
                 continue; 
             unsigned long id = p.first;
             float score = instancesById.at(id).score(useQbE);
-            if (useQbE)
-                score=logCvt(score);
+            ///if (useQbE)
+            ///    score=logCvt(score);
             
 #ifdef TEST_MODE
             //test
@@ -1073,18 +1105,15 @@ bool SpottingResults::EMThresholds(int swing)
                 //    continue; //skip, but we'll repeat once we've drawn mean and var from labeled examples
                 double trueProb = NPD(instancesById.at(id).score(useQbE),trueMean,trueVariance);//exp(-1*pow(score - trueMean,2)/(2*trueVariance));
                 double falseProb = NPD(instancesById.at(id).score(useQbE),falseMean,falseVariance);//exp(-1*pow(score - falseMean,2)/(2*falseVariance));
-                if (init)
+                if (takeFromTail)
                 {
-                    if (!takeFromTail)
-                    {
-                        trueProb = score<trueFalseDivide;
-                        falseProb = score>trueFalseDivide;
-                    }
-                    else
-                    {
-                        trueProb=0;
-                        falseProb=1;
-                    }
+                    trueProb=0;
+                    falseProb=1;
+                }
+                else if (init)
+                {
+                    trueProb = score<trueFalseDivide;
+                    falseProb = score>trueFalseDivide;
                 }
                 if (trueProb>falseProb)
                 {
@@ -1113,7 +1142,7 @@ bool SpottingResults::EMThresholds(int swing)
         if (expectedTrue.size()!=0)
             trueMean=sumTrue/expectedTrue.size();
         if (expectedFalse.size()!=0)
-            falseMean=useQbE?(sumFalse/expectedFalse.size()):maxScore();
+            falseMean=maxScore(); ///useQbE?(sumFalse/expectedFalse.size()):maxScore();
         trueVariance=0;
         for (float score : expectedTrue)
             trueVariance += (score-trueMean)*(score-trueMean);
@@ -1125,24 +1154,60 @@ bool SpottingResults::EMThresholds(int swing)
         if (expectedFalse.size()!=0)
             falseVariance/=expectedFalse.size();
 
-        assert(sqrt(falseVariance)==sqrt(falseVariance));
-        assert(sqrt(trueVariance)==sqrt(trueVariance));
+        float falseStd = sqrt(falseVariance);
+        float trueStd = sqrt(trueVariance);
+
+        assert(falseStd==falseStd);
+        assert(trueStd==trueStd);
         
         if (takeFromTail)
         {
             acceptThreshold = minScore();
-            rejectThreshold = falseMean + sqrt(falseVariance)*tailEnd;
+            rejectThreshold = falseMean + falseStd*tailEnd;
+            //if (useQbE)
+            //    rejectThreshold=exp(rejectThreshold);
         }
         else
         {
-            //TODO
+            //just take region of intersection between distribitons
+            float delta = (maxScore()-minScore())/1000;
+            float x1=minScore();
+            while (1)
+            {
+                float density = PHI(x1,falseMean,falseStd)*expectedFalse.size();
+                if (density>ACCEPT_THRESH)
+                {
+                    x1-=delta;
+                    break;
+                }
+                x1+=delta;
+                assert(x1<maxScore());
+            }
+            float x2=x1+delta;
+            float constOverlap = PHI(x1,trueMean,trueStd)*expectedTrue.size() - PHI(x1,falseMean,falseStd)*expectedFalse.size();
+            while (1)
+            {
+                float dif = PHI(x2,falseMean,falseStd)*expectedFalse.size() - PHI(x2,trueMean,trueStd)*expectedTrue.size() + constOverlap;
+                if (dif > 0)
+                {
+                    x2-=delta;
+                    break;
+                }
+                x2+=delta;
+                assert(x1<maxScore());
+            }
+
+            acceptThreshold = x1;
+            rejectThreshold = x2;
+
+            /*
 
             //set new thresholds
             float numStdDevs = 1;// + ((1.0+min((int)instancesById.size(),50))/(1.0+min((int)classById.size(),50)));//Use less as more are classified, we are more confident. Capped to reduce effect of many returned instances bogging us down.
-            float acceptThreshold1 = falseMean-numStdDevs*sqrt(falseVariance);
-            float rejectThreshold1 = trueMean+numStdDevs*sqrt(trueVariance);
-            float acceptThreshold2 = trueMean-numStdDevs*sqrt(trueVariance);
-            float rejectThreshold2 = falseMean-numStdDevs*sqrt(falseVariance);
+            float acceptThreshold1 = falseMean-numStdDevs*falseStd;
+            float rejectThreshold1 = trueMean+numStdDevs*trueStd;
+            float acceptThreshold2 = trueMean-numStdDevs*trueStd;
+            float rejectThreshold2 = falseMean-numStdDevs*falseStd;
             //float prevAcceptThreshold=acceptThreshold;
             //float prevRejectThreshold=rejectThreshold;
             if (falseVariance!=0 && trueVariance!=0)
@@ -1154,12 +1219,12 @@ bool SpottingResults::EMThresholds(int swing)
             else if (falseVariance==0)
             {
                 acceptThreshold = acceptThreshold2;
-                rejectThreshold = trueMean+2*numStdDevs*sqrt(trueVariance);
+                rejectThreshold = trueMean+2*numStdDevs*trueStd;
             }
             else
             {
                 rejectThreshold = rejectThreshold2;
-                acceptThreshold = falseMean-2*numStdDevs*sqrt(falseVariance);
+                acceptThreshold = falseMean-2*numStdDevs*falseStd;
             }
 #ifdef TEST_MODE
             
@@ -1177,11 +1242,12 @@ bool SpottingResults::EMThresholds(int swing)
             else
                 atn=0;
 #endif //TEST_MODE
-        }
-        if (useQbE)
-        {
-            acceptThreshold=exp(acceptThreshold);
-            rejectThreshold=exp(rejectThreshold);
+            if (useQbE)
+          {
+              acceptThreshold=exp(acceptThreshold);
+              rejectThreshold=exp(rejectThreshold);
+          }
+            */
         }
 
 
@@ -1565,14 +1631,13 @@ void SpottingResults::updateSpottingTrueNoScore(const SpottingExemplar& spotting
 }
 
 //combMin
+#if USE_QBE
 bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
 {
 #ifdef GRAPH_SPOTTING_RESULTS
     fullInstancesByScore.clear();
 #endif
     debugState();
-    int initSize = instancesByScore.size();
-#if USE_QBE
     if (++numComb>GlobalK::numCombThresh(ngram) && !useQbE)
     {
         cout<<"["<<ngram<<"] now using combine QbE scores."<<endl;
@@ -1599,10 +1664,22 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
         }
         for (auto& spotting : instancesToAddQbEByLocation)
         {
-            //spotting.boxQbE=make_tuple(spotting.tlx, spotting.tly, spotting.brx, spotting.bry);
             instancesById[spotting.id]=spotting;
-            instancesByScoreInsert(spotting.id);
-            instancesByLocation.insert(instancesById.at(spotting.id));
+            instancesByLocation.insert(spotting);
+            if (spotting.type==SPOTTING_TYPE_TRANS_TRUE)
+            {
+                classById[spotting.id]=true;
+                numberClassifiedTrue++;
+            }
+            else if (spotting.type==SPOTTING_TYPE_TRANS_FALSE)
+            {
+                classById[spotting.id]=false;
+                numberClassifiedFalse++;
+            }
+            else
+            {
+                instancesByScoreInsert(spotting.id);
+            }
             allInstancesByScoreQbE.emplace(spotting.scoreQbE,spotting.id);
         }
         instancesToAddQbEByLocation.clear();
@@ -1617,11 +1694,12 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
         fullGraph.push_back(fullW);
 #endif
     debugState();
-    assert(instancesByScore.size()>= initSize);
 
         cvtMax = maxScoreQbE;
     }
-#endif
+
+    //For debugging
+    int initSize = instancesByScore.size();
 
     if (numSpottingsQbEMax == -1)
         numSpottingsQbEMax = spottings->size();
@@ -1642,213 +1720,366 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
             minScoreQbE=spotting.scoreQbE;
         }
 
-        if (spotting.type==SPOTTING_TYPE_TRANS_TRUE)
-        {
-            classById[spotting.id]=true;
-            numberClassifiedTrue++;
-            assert(spotting.pageId>=0);
-            instancesById[spotting.id]=spotting;
-            instancesByLocation.insert(spotting);
-        }
-        else if (spotting.type==SPOTTING_TYPE_TRANS_FALSE)
-        {
-            classById[spotting.id]=false;
-            numberClassifiedFalse++;
-            assert(spotting.pageId>=0);
-            instancesById[spotting.id]=spotting;
-            instancesByLocation.insert(spotting);
-        }
-        else
-        {
 
-            //Scan for possibly overlapping (the same) spottings
-            //Spotting* best=NULL;
-            float ratioOff;//1 at threshold, 0 exactly the same
-            auto bestIter = findOverlap(spotting, &ratioOff);
-            //if (bestIter != instancesByLocation.end())
-            //    if (instancesById.find(bestIter->id)!=instancesById.end())
-            //        best=&instancesById.at(bestIter->id);
-            //    else
+        //Scan for possibly overlapping (the same) spottings
+        //Spotting* best=NULL;
+        float ratioOff;//1 at threshold, 0 exactly the same
+        auto bestIter = findOverlap(spotting, &ratioOff);
+        //if (bestIter != instancesByLocation.end())
+        //    if (instancesById.find(bestIter->id)!=instancesById.end())
+        //        best=&instancesById.at(bestIter->id);
+        //    else
 
-            if (bestIter != instancesByLocation.end())
+        if (bestIter != instancesByLocation.end())
+        {
+            //We found matching spotting, so we need to merge them.
+
+            Spotting best = *bestIter; //bestIter comes from instancesByLocation, which are copies already
+            //Zagoris et al. A Framework for Efficient Transcription of Historical Documents Using Keyword Spotting would indicate that taking the worse (max) score would yield the best combintation results.
+            
+            //We can choose to do a weighted averaging based on how far spatially the spottings are from one another.
+            //If they are percisely on the same location, we take the max.
+            //If they are maximally off (as allowed by threshold), the min score (selected spotting) is used.
+            //Interpolate between
+            float bestScore = min(spotting.scoreQbE, best.scoreQbE); 
+            //float worseScore = max(spotting.scoreQbE, (best)->scoreQbE);
+            //float combScore = (1.0f-ratioOff)*worseScore + (ratioOff)*bestScore;
+
+
+            //Averaging seems to do better with some expriementation with bigrams, shorter
+            //float combScore = (spotting.scoreQbE + best.scoreQbE)/2.0f;
+            
+            //This is most principled. Each ngram has multiple "prototypes," and we want the score of the exemplar closest to the "correct prototype." Also prevents bad exemplars from tugging scores around too much.
+            float combScore = bestScore;
+
+            
+
+            //prevent worse score for already approved spottings and prevent better score for rejected ones
+            auto iii = classById.find(best.id);
+            if (iii != classById.end())
             {
-                Spotting best = *bestIter; //bestIter comes from instancesByLocation, which are copies already
-                //Zagoris et al. A Framework for Efficient Transcription of Historical Documents Using Keyword Spotting would indicate that taking the worse (max) score would yield the best combintation results.
-                
-                //We can choose to do a weighted averaging based on how far spatially the spottings are from one another.
-                //If they are percisely on the same location, we take the max.
-                //If they are maximally off (as allowed by threshold), the min score (selected spotting) is used.
-                //Interpolate between
-                float bestScore = min(spotting.scoreQbE, best.scoreQbE); 
-                //float worseScore = max(spotting.scoreQbE, (best)->scoreQbE);
-                //float combScore = (1.0f-ratioOff)*worseScore + (ratioOff)*bestScore;
-
-
-                //Averaging seems to do better with some expriementation with bigrams, shorter
-                //float combScore = (spotting.scoreQbE + best.scoreQbE)/2.0f;
-                
-                //This is most principled. Each ngram has multiple "prototypes," and we want the score of the exemplar closest to the "correct prototype." Also prevents bad exemplars from tugging scores around too much.
-                float combScore = bestScore;
-
-                
-
-                //prevent worse score for already approved spottings and prevent better score for rejected ones
-                auto iii = classById.find(best.id);
-                if (iii != classById.end())
+                if ( (iii->second && combScore>best.scoreQbE) ||
+                        ((!iii->second) && combScore<best.scoreQbE)
+                   )
                 {
-                    if ( (iii->second && combScore>best.scoreQbE) ||
-                            ((!iii->second) && combScore<best.scoreQbE)
-                       )
-                    {
-                        combScore = best.scoreQbE;
-                    }
+                    combScore = best.scoreQbE;
                 }
-                if (combScore != combScore)
-                    combScore = spotting.scoreQbE;
+            }
+            if (combScore != combScore)
+                combScore = spotting.scoreQbE;
 
-                assert(combScore==combScore);
+            assert(combScore==combScore);
 
-                if (useQbE)
+            if (useQbE)
+            {
+
+                if (spotting.scoreQbE < best.scoreQbE)//then replace the spotting, this happens to skip NaN in the case of a harvested exemplar
                 {
+                    //Replace spotting.
 
-                    if (spotting.scoreQbE < best.scoreQbE)//then replace the spotting, this happens to skip NaN in the case of a harvested exemplar
-                    {
-                        spotting.scoreQbE = combScore;
-                        //bool updateWhenInBatch = best.type!=SPOTTING_TYPE_THRESHED && instancesByScore.find(best.id)==instancesByScore.end();
-                        //if (updateWhenInBatch)
-                            updateMap[best.id]=spotting.id;
+                    spotting.scoreQbE = combScore;
+                    //bool updateWhenInBatch = best.type!=SPOTTING_TYPE_THRESHED && instancesByScore.find(best.id)==instancesByScore.end();
+                    //if (updateWhenInBatch)
+                        updateMap[best.id]=spotting.id;
 #ifdef TEST_MODE
-                        //else
-                        //    testUpdateMap[best.id]=spotting.id;
+                    //else
+                    //    testUpdateMap[best.id]=spotting.id;
 #endif
-                        //Add this spotting
-                        assert(spotting.pageId>=0);
-                        instancesById[spotting.id]=spotting;
-                        allInstancesByScoreQbE.emplace(spotting.scoreQbE,spotting.id);
-                        instancesByLocation.insert(spotting);
-                        instancesByLocation.erase(bestIter); //erase by iterator
+                    //Add this spotting
+                    assert(spotting.pageId>=0);
+                    instancesById[spotting.id]=spotting;
+                    allInstancesByScoreQbE.emplace(spotting.scoreQbE,spotting.id);
+                    instancesByLocation.insert(spotting);
+                    instancesByLocation.erase(bestIter); //erase by iterator
 
-                        //remove the old one
-        assert(instancesByScore.size()>= initSize);
-                        allInstancesByScoreQbEErase(best.id);
-                        bool removed = instancesByScoreErase(best.id); 
-                        if (removed)
-                        {
-                            //add
-                            instancesByScoreInsert(spotting.id);
-                            tracer = instancesByScore.begin();
-        assert(instancesByScore.size()>= initSize);
-                        }
-                        else if (best.type==SPOTTING_TYPE_THRESHED && classById.at(best.id)==false)
-                        {//This occurs after being resurrected. We'll give a better score another chance.
-                            //cout<<"{} replaced false spotting "<<spotting.scoreQbE<<endl;
-                            //best.type=SPOTTING_TYPE_NONE;
-                            classById.erase(best.id);
-                            instancesByScoreInsert(spotting.id);
-                            tracer = instancesByScore.begin();
-                        }
-                        instancesById.erase(best.id);
-        debugState();
-        assert(instancesByScore.size()>= initSize);
-                    }
-                    else
+                    //remove the old one
+    assert(instancesByScore.size()>= initSize);
+                    allInstancesByScoreQbEErase(best.id);
+                    bool removed = instancesByScoreErase(best.id); 
+                    if (removed)
                     {
-                        //becuase we're changing what its indexed by, we need to readd it
-                        //auto iter = instancesByScore.find(best.id);
-                        int removed = instancesByScoreErase(best.id);
-                        instancesById.at(best.id).scoreQbE = combScore;
-                        if (removed)
-                            instancesByScoreInsert(best.id);
-        debugState();
-        assert(instancesByScore.size()>= initSize);
+                        //This was queued, we need to readd it
+                        
+                        if (spotting.type==SPOTTING_TYPE_TRANS_TRUE)
+                        {
+                            classById[spotting.id]=true;
+                            numberClassifiedTrue++;
+                        }
+                        else if (spotting.type==SPOTTING_TYPE_TRANS_FALSE)
+                        {
+                            classById[spotting.id]=false;
+                            numberClassifiedFalse++;
+                        }
+                        else
+                        {
+                            instancesByScoreInsert(spotting.id);
+                        }
+                        tracer = instancesByScore.begin();
+    assert(instancesByScore.size()>= initSize);
                     }
+                    else if (best.type==SPOTTING_TYPE_THRESHED && classById.at(best.id)==false)
+                    {
+                        //This occurs after being resurrected. We'll give a better score another chance.
+
+                        //cout<<"{} replaced false spotting "<<spotting.scoreQbE<<endl;
+                        //best.type=SPOTTING_TYPE_NONE;
+                        if (classById.at(best.id))
+                            numberClassifiedTrue--;
+                        else
+                            numberClassifiedFalse--;
+
+                        classById.erase(best.id);
+                        if (spotting.type==SPOTTING_TYPE_TRANS_TRUE)
+                        {
+                            classById[spotting.id]=true;
+                            numberClassifiedTrue++;
+                        }
+                        else if (spotting.type==SPOTTING_TYPE_TRANS_FALSE)
+                        {
+                            classById[spotting.id]=false;
+                            numberClassifiedFalse++;
+                        }
+                        else
+                        {
+                            instancesByScoreInsert(spotting.id);
+                        }
+                        tracer = instancesByScore.begin();
+                    }
+                    else if (spotting.type==SPOTTING_TYPE_TRANS_TRUE)
+                    {
+                        //It's been classified, correct that classification if needed
+                        if (!classById.at(best.id))
+                        {
+                            numberClassifiedFalse--;
+                            numberClassifiedTrue++;
+                        }
+                        classById.erase(best.id);
+                        classById[spotting.id]=true;
+                    }
+                    else if (spotting.type==SPOTTING_TYPE_TRANS_FALSE)
+                    {
+                        //It's been classified, correct that classification if needed
+                        if (classById.at(best.id))
+                        {
+                            numberClassifiedTrue--;
+                            numberClassifiedFalse++;
+                        }
+                        classById.erase(best.id);
+                        classById[spotting.id]=false;
+                    }
+
+                    instancesById.erase(best.id);
+    //debugState();
+    assert(instancesByScore.size()>= initSize);
                 }
                 else
                 {
-                    //because the 'best' comes from instancesByLocation, which are copies, not references to isntanceById
-                    if (instancesById.find(best.id) != instancesById.end())
+                    //Use original spotting, just merge score.
+
+                    //becuase we're changing what its indexed by, we need to readd it
+                    //auto iter = instancesByScore.find(best.id);
+                    int removed = instancesByScoreErase(best.id);
+                    instancesById.at(best.id).scoreQbE = combScore;
+                    if (removed)
                     {
-                        Spotting& bestSpot = instancesById.at(best.id);
-                        if (combScore<best.scoreQbE || best.scoreQbE!=best.scoreQbE)
+                        if (spotting.type==SPOTTING_TYPE_TRANS_TRUE)
                         {
-                            bestSpot.boxQbE=make_tuple(spotting.tlx, spotting.tly, spotting.brx, spotting.bry);
+                            classById[best.id]=true;
+                            numberClassifiedTrue++;
+                            initSize--;
                         }
-
-                        bestSpot.scoreQbE = combScore;
-                        allInstancesByScoreQbE.emplace(bestSpot.scoreQbE,bestSpot.id);
+                        else if (spotting.type==SPOTTING_TYPE_TRANS_FALSE)
+                        {
+                            classById[best.id]=false;
+                            numberClassifiedFalse++;
+                            initSize--;
+                        }
+                        else
+                        {
+                            instancesByScoreInsert(best.id);
+                        }
                     }
-                    else
+                    else if (spotting.type==SPOTTING_TYPE_TRANS_TRUE)
                     {
-                        pair<multiset<Spotting,tlComp>::iterator,multiset<Spotting,tlComp>::iterator> range = instancesToAddQbEByLocation.equal_range(best);
-                        for (multiset<Spotting,tlComp>::iterator iter=range.first; iter!=range.second; iter++)
-                            if (iter->id==best.id)
-                            {
-                                if (combScore<best.scoreQbE || best.scoreQbE!=best.scoreQbE)
-                                {
-                                    //iter->scoreQbE = combScore; wont compile
-                                    //so hack
-                                    Spotting hack=*iter;
-                                    instancesToAddQbEByLocation.erase(iter);
-                                    hack.scoreQbE = combScore;
-                                    instancesToAddQbEByLocation.insert(hack);
-                                }
-                                else
-                                {
-                                    instancesToAddQbEByLocation.erase(iter);
-                                    spotting.scoreQbE = combScore;
-                                    instancesToAddQbEByLocation.insert(spotting);
-                                }
-
-                                break;
-                            }
-
-
+                        if (!classById.at(best.id))
+                        {
+                            numberClassifiedFalse--;
+                            numberClassifiedTrue++;
+                            classById[best.id]=true;
+                        }
                     }
+                    else if (spotting.type==SPOTTING_TYPE_TRANS_FALSE)
+                    {
+                        if (classById.at(best.id))
+                        {
+                            numberClassifiedTrue--;
+                            classById[best.id]=false;
+                            numberClassifiedFalse++;
+                        }
+                    }
+    //debugState();
+    assert(instancesByScore.size()>= initSize);
                 }
             }
             else
             {
-#if USE_QBE
-                if (useQbE)
+                //QbS mode
+
+                //because the 'best' comes from instancesByLocation, which are copies, not references to isntanceById
+                if (instancesById.find(best.id) != instancesById.end())
                 {
-                    instancesById[spotting.id]=spotting;
-                    instancesByScoreInsert(spotting.id);
-                    instancesByLocation.insert(instancesById.at(spotting.id));
-                    allInstancesByScoreQbE.emplace(spotting.scoreQbE,spotting.id);
+                    //This is a QbS instance, we just save the new BB and merge scores.
+
+                    Spotting& bestSpot = instancesById.at(best.id);
+                    if (combScore<best.scoreQbE || best.scoreQbE!=best.scoreQbE)
+                    {
+                        bestSpot.boxQbE=make_tuple(spotting.tlx, spotting.tly, spotting.brx, spotting.bry);
+                    }
+                    allInstancesByScoreQbEErase(bestSpot.id);
+
+                    bestSpot.scoreQbE = combScore;
+                    allInstancesByScoreQbE.emplace(bestSpot.scoreQbE,bestSpot.id);
+                    if (spotting.type==SPOTTING_TYPE_TRANS_TRUE)
+                    {
+                        if(instancesByScoreErase(bestSpot.id))
+                            initSize--;
+                        auto iter = classById.find(best.id);
+                        if (iter != classById.end())
+                        {
+                            if (!iter->second)
+                            {
+                                iter->second=true;
+                                numberClassifiedFalse--;
+                                numberClassifiedTrue++;
+                            }
+                        }
+                        else
+                        {
+                            classById[bestSpot.id]=true;
+                            numberClassifiedTrue++;
+                        }
+                    }
+                    else if (spotting.type==SPOTTING_TYPE_TRANS_FALSE)
+                    {
+                        if(instancesByScoreErase(bestSpot.id))
+                            initSize--;
+                        auto iter = classById.find(best.id);
+                        if (iter != classById.end())
+                        {
+                            if (iter->second)
+                            {
+                                iter->second=false;
+                                numberClassifiedFalse++;
+                                numberClassifiedTrue--;
+                            }
+                        }
+                        else
+                        {
+                            classById[bestSpot.id]=false;
+                            numberClassifiedFalse++;
+                        }
+                    }
+                    //else
+                    //{
+                    //    instancesByScoreInsert(bestSpot.id);
+                    //}
+    //debugState();
+    assert(instancesByScore.size()>= initSize);
                 }
                 else
                 {
-                    //allInstancesByScoreQbE.emplace(spotting.scoreQbE,spotting);
-                    //instancesToAddQbE.push_back(spotting);
-                    instancesToAddQbEByLocation.insert(spotting);
+                    //This is an unqueued QbE instance. Decide to replace
+                    pair<multiset<Spotting,tlComp>::iterator,multiset<Spotting,tlComp>::iterator> range = instancesToAddQbEByLocation.equal_range(best);
+                    for (multiset<Spotting,tlComp>::iterator iter=range.first; iter!=range.second; iter++)
+                        if (iter->id==best.id)
+                        {
+                            if (combScore<best.scoreQbE || best.scoreQbE!=best.scoreQbE)
+                            {
+                                //Keep original, just merge score.
+
+                                //iter->scoreQbE = combScore; wont compile
+                                //so hack
+                                Spotting hack=*iter;
+                                instancesToAddQbEByLocation.erase(iter);
+                                hack.scoreQbE = combScore;
+                                if (spotting.type==SPOTTING_TYPE_TRANS_FALSE || spotting.type==SPOTTING_TYPE_TRANS_TRUE)
+                                    hack.type = spotting.type;
+                                instancesToAddQbEByLocation.insert(hack);
+                            }
+                            else
+                            {
+                                //Replace the original one.
+                                instancesToAddQbEByLocation.erase(iter);
+                                spotting.scoreQbE = combScore;
+                                instancesToAddQbEByLocation.insert(spotting);
+                            }
+
+                            break;
+                        }
+
+
+    //debugState();
+    assert(instancesByScore.size()>= initSize);
                 }
-                //assert(spotting.pageId>=0);
-                //spotting.boxQbE=make_tuple(spotting.tlx, spotting.tly, spotting.brx, spotting.bry);
-                //instancesById[spotting.id]=spotting;
-                //instancesByScoreInsert(spotting.id);
-                //instancesByLocation.insert(&instancesById.at(spotting.id));
-                //tracer = instancesByScore.begin();
-#endif
+            }
+        }
+        else
+        {
+            //This is a new spotting.
+            if (useQbE)
+            {
+                instancesById[spotting.id]=spotting;
+                instancesByLocation.insert(instancesById.at(spotting.id));
+                allInstancesByScoreQbE.emplace(spotting.scoreQbE,spotting.id);
+                if (spotting.type==SPOTTING_TYPE_TRANS_TRUE)
+                {
+                    classById[spotting.id]=true;
+                    numberClassifiedTrue++;
+                }
+                else if (spotting.type==SPOTTING_TYPE_TRANS_FALSE)
+                {
+                    classById[spotting.id]=false;
+                    numberClassifiedFalse++;
+                }
+                else
+                {
+                    instancesByScoreInsert(spotting.id);
+                }
+    //debugState();
+    assert(instancesByScore.size()>= initSize);
+            }
+            else
+            {
+                instancesToAddQbEByLocation.insert(spotting);
             }
         }
 
     }
     bool check_didRemove=false;
+    //debugState();
     while (allInstancesByScoreQbE.size() > numSpottingsQbEMax)
     {
         auto worstIter = allInstancesByScoreQbE.end();
         worstIter--;
-        if (useQbE || instancesById.find(worstIter->second)!=instancesById.end())
+        unsigned long iid=worstIter->second;
+        if (useQbE || instancesById.find(iid)!=instancesById.end())
         {
-            instancesByScoreErase(worstIter->second);
-            instancesByLocationErase(worstIter->second);
-            instancesById.erase(worstIter->second);
+            instancesByScoreErase(iid);
+            instancesByLocationErase(iid);
+            instancesById.erase(iid);
             check_didRemove=true;
             if (!useQbE)
-                kickedOut.insert(worstIter->second);
+                kickedOut.insert(iid);
         }
-        allInstancesByScoreQbE.erase(worstIter);
+        auto check = allInstancesByScoreQbE.erase(worstIter);
+        assert(check == allInstancesByScoreQbE.end());
+        for (auto p : allInstancesByScoreQbE)
+            assert(p.second!=iid);
+
     }
+    auto worstIter = allInstancesByScoreQbE.end();
+    worstIter--;
+    maxScoreQbE=worstIter->first;
     delete spottings;
     if (useQbE)
     {
@@ -1869,6 +2100,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
     assert(instancesByScore.size()>= initSize || check_didRemove);
     return false;
 }
+#endif
 
 void SpottingResults::save(ofstream& out)
 {
