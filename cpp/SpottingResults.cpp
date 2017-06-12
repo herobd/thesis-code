@@ -190,6 +190,19 @@ void SpottingResults::debugState() const
             assert(range.first!=range.second);
         }
 
+        if (classById.find(p.first) == classById.end())
+        {
+            auto range = instancesByScore.equal_range(p.second.score(useQbE));
+            bool present=false;
+            for (auto iter=range.first; iter!=range.second; iter++)
+                if (iter->second == p.first)
+                {
+                    present=true;
+                    break;
+                }
+            assert(present || starts.find(p.first)!=starts.end());
+        }
+
     }
     //assert(maxS==maxScore() && minS==minScore());
 }
@@ -517,7 +530,7 @@ void SpottingResults::saveHistogram(float actualModelDif)
 SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need) {
     debugState();
 
-    if (!need && (numLeftInRange<12 && numLeftInRange>=0) && starts.size()>1)
+    if (!need && (numLeftInRange<12 && numLeftInRange>=0) && starts.size()>1 && !takeFromTail)
 #ifndef NO_NAN
         return NULL;
 #else
@@ -634,36 +647,42 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
     //check if done, that is we don't have spottings left between the thresholds
     if (instancesByScore.size()<=1)
         *done=true;
-    else if (instancesById.at(iterR->second).score(useQbE) > rejectThreshold)
+    else
     {
-        if (iterR==instancesByScore.begin())
-            *done=true;
-        else
+        if (instancesById.at(iterR->second).score(useQbE) > rejectThreshold)
         {
-            iterR--;
-            assert(instancesById.find(iterR->second) != instancesById.end());
-            if (instancesById.at(iterR->second).score(useQbE) < acceptThreshold)
+            if (iterR==instancesByScore.begin())
                 *done=true;
+            else
+            {
+                iterR--;
+                assert(instancesById.find(iterR->second) != instancesById.end());
+                if (instancesById.at(iterR->second).score(useQbE) < acceptThreshold)
+                    *done=true;
+            }
         }
-    }
-    else if (instancesById.at(iterR->second).score(useQbE) < acceptThreshold)
-    {
-        iterR++;
-        if (iterR==instancesByScore.end())
-            *done=true;
-        else
+        else if (instancesById.at(iterR->second).score(useQbE) < acceptThreshold)
         {
-            assert(instancesById.find(iterR->second) != instancesById.end());
-            if (instancesById.at(iterR->second).score(useQbE) > rejectThreshold)
+            iterR++;
+            if (iterR==instancesByScore.end())
                 *done=true;
+            else
+            {
+                assert(instancesById.find(iterR->second) != instancesById.end());
+                if (instancesById.at(iterR->second).score(useQbE) > rejectThreshold)
+                    *done=true;
+            }
         }
-    }
 
-    
-    if (batchesSinceChange++ > CHECK_IF_BAD_SPOTTING_START)
-    {
-        if (numberClassifiedTrue/(numberClassifiedTrue+numberClassifiedFalse+0.0) < CHECK_IF_BAD_SPOTTING_THRESH)
-            this->done=true;
+        
+        if (batchesSinceChange++ > CHECK_IF_BAD_SPOTTING_START)
+        {
+            if (numberClassifiedTrue/(numberClassifiedTrue+numberClassifiedFalse+0.0) < CHECK_IF_BAD_SPOTTING_THRESH)
+                this->done=true;
+        }
+        
+        if (takeFromTail && runningClassificationTrueAverage() > TAIL_CONTINUE_THRESH)
+            *done=false;//Just keep taking from the top until we aren't getting a lot of trues
     }
     
     if (*done)
@@ -687,6 +706,23 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
     return ret;
 }
 
+float SpottingResults::runningClassificationTrueAverage()
+{
+    float ret=0;
+    for (bool c : runningClassifications)
+        ret += c?1:0;
+    return ret/runningClassifications.size();
+}
+
+void SpottingResults::updateRunningClassifications(const vector<int>& newClassifications)
+{
+    for (int c : newClassifications)
+        if (c==0 || c==1)
+            runningClassifications.push_back((bool)c);
+    while (runningClassifications.size()>RUNNING_CLASSIFICATIONS_COUNT)
+        runningClassifications.pop_front();
+}
+
 vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long,string> >* retRemove)
 {
     debugState();
@@ -696,6 +732,7 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
         cout << ids[i]<<", ";
     }
     cout<<endl;*/
+    updateRunningClassifications(userClassifications);
     
     vector<Spotting>* ret = new vector<Spotting>();
     int swing=0;
@@ -924,9 +961,9 @@ bool SpottingResults::EMThresholds(int swing)
     vector<int> histogramGP(displayLen);
     vector<int> histogramGN(displayLen);
     //test
-    float actualModelDif;
+    float actualModelDif=-99999;
 #endif
-    trueFalseDivide=0;
+    trueFalseDivide=99999;
     
     if (init)
     {
@@ -954,13 +991,27 @@ bool SpottingResults::EMThresholds(int swing)
 
         //Do we have outliers on our tail?   ('tail' being the trailing low scores that positive instances should lie in).
 
-        tailEnd=-1.8; ///useQbE?2.5:-1.8;
-        tailEndScore=usedMean + usedStd*tailEnd;
+        float delta = (maxScore()-minScore())/1000;
+        tailEndScore=minScore();
+        while (1)
+        {
+            float density = PHI(tailEndScore,usedMean,usedStd)*usedValues.size();
+            if (density>TAIL_THRESH)
+            {
+                tailEndScore-=delta;
+                break;
+            }
+            tailEndScore+=delta;
+            assert(tailEndScore<maxScore());
+        }
+        tailEnd = (tailEndScore-usedMean)/usedStd;
+        //tailEnd=-1.8; ///useQbE?2.5:-1.8;
+        //tailEndScore=usedMean + usedStd*tailEnd;
         //hack
         //if (!useQbE)
         //{
-            tailEndScore = (0.7*tailEndScore+0.3*GOOD_TAIL_SCORE);//Lean towards a 'good' tail score to prevent grevious errors
-            tailEnd = (tailEndScore-usedMean)/usedStd;
+        //    tailEndScore = (0.7*tailEndScore+0.3*GOOD_TAIL_SCORE);//Lean towards a 'good' tail score to prevent grevious errors
+        //    tailEnd = (tailEndScore-usedMean)/usedStd;
         //}
         //if (useQbE)
         //    tailEndScore = expCvt(tailEndScore);
@@ -983,7 +1034,10 @@ bool SpottingResults::EMThresholds(int swing)
         float modelDensity = PHI(tailEnd);
 
         //If difference is above a threshold, we have a good True distribution
+#ifdef TEST_MODE 
         actualModelDif=actualDensity-modelDensity;
+        assert(actualModelDif==actualModelDif);
+#endif
         if (actualDensity-modelDensity > TAIL_DENSITY_TRUE_THRESHOLD)
         {
             takeFromTail=false;
@@ -1008,7 +1062,9 @@ bool SpottingResults::EMThresholds(int swing)
             
             
             double thresh = GlobalK::otsuThresh(histogram);
-            trueFalseDivide = (thresh/40)*(maxScore()-minScore())+minScore();
+            float trueFalseDivideCandidate = (thresh/40)*(maxScore()-minScore())+minScore();
+            //float estSplit = usedMean-1.6*usedStd;
+            trueFalseDivide = min(trueFalseDivideCandidate,tailEndScore);
             ///if (useQbE)
             ///    trueFalseDivide=logCvt(trueFalseDivide);
         }
@@ -1194,7 +1250,7 @@ bool SpottingResults::EMThresholds(int swing)
                     break;
                 }
                 x2+=delta;
-                assert(x1<maxScore());
+                assert(x2<maxScore());
             }
 
             acceptThreshold = x1;
@@ -1804,11 +1860,13 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                         {
                             classById[spotting.id]=true;
                             numberClassifiedTrue++;
+                            initSize--;
                         }
                         else if (spotting.type==SPOTTING_TYPE_TRANS_FALSE)
                         {
                             classById[spotting.id]=false;
                             numberClassifiedFalse++;
+                            initSize--;
                         }
                         else
                         {
@@ -1867,6 +1925,17 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                         classById.erase(best.id);
                         classById[spotting.id]=false;
                     }
+                    else
+                    {
+                        auto iter = classById.find(best.id);
+                        //assert(iter!=classById.end()); not true if currently sent to user
+                        if (iter!=classById.end())
+                        {
+                            classById[spotting.id]=iter->second;
+                            classById.erase(iter);
+                        }
+                    }
+
 
                     instancesById.erase(best.id);
     //debugState();
@@ -2080,7 +2149,6 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
     auto worstIter = allInstancesByScoreQbE.end();
     worstIter--;
     maxScoreQbE=worstIter->first;
-    delete spottings;
     if (useQbE)
     {
         bool allWereSent = allBatchesSent;
@@ -2098,6 +2166,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
         //All non-intersected old ones need to have their score not count anymore (but save in case of later resurrection)
     debugState();
     assert(instancesByScore.size()>= initSize || check_didRemove);
+    delete spottings;
     return false;
 }
 #endif

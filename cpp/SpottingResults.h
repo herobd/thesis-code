@@ -20,6 +20,7 @@
 #define GOOD_TAIL_SCORE -0.01 //Hueristic
 
 #define ACCEPT_THRESH 2 //number of false instances acceptable above accept threshold
+#define TAIL_THRESH 20 //approximate number of instances in the "tail"
 
 #define CVT_MARGIN 0.05
 
@@ -28,6 +29,10 @@
 
 #define CHECK_IF_BAD_SPOTTING_START 50
 #define CHECK_IF_BAD_SPOTTING_THRESH 0.035
+
+#define TAIL_CONTINUE_THRESH 0.5
+
+#define RUNNING_CLASSIFICATIONS_COUNT 25
 
 using namespace std;
 
@@ -332,6 +337,10 @@ private:
     //returns (and sets allBatchesSent) whether we are now done (all spottings lie outside the thresholds)
     //It uses an Otsu threshold to be used to estimate some initail parameters on the first run.
     bool EMThresholds(int swing=0);
+
+    list<bool> runningClassifications;
+    float runningClassificationTrueAverage();
+    void updateRunningClassifications(const vector<int>& newClassifications);
 
     float NPD(float x, float mean, float var); //normal probability distribution function
     float PHI(float x); //cumulative distribution function of normal distribution
