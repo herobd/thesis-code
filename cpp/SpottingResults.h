@@ -16,7 +16,7 @@
 #include "Global.h"
 #include "PageRef.h"
 
-#define TAIL_DENSITY_TRUE_THRESHOLD 0.025
+#define TAIL_DENSITY_TRUE_THRESHOLD 0.018
 #define GOOD_TAIL_SCORE -0.01 //Hueristic
 
 #define ACCEPT_THRESH 2 //number of false instances acceptable above accept threshold
@@ -32,7 +32,10 @@
 
 #define TAIL_CONTINUE_THRESH 0.5
 
-#define RUNNING_CLASSIFICATIONS_COUNT 25
+#define RUNNING_CLASSIFICATIONS_COUNT 15
+
+#define MAX_REJECT_THRESHOLD_FROM_FALSE 1.1
+#define MAX_ACCEPT_THRESHOLD_FROM_FALSE 1.6
 
 using namespace std;
 
@@ -174,7 +177,7 @@ public:
     bool checkIncomplete();
 
 #ifdef TEST_MODE
-    void setDebugInfo(SpottingsBatch* b);
+    int setDebugInfo(SpottingsBatch* b);
     void saveHistogram(float actualModelDif);
 #endif
     void debugState() const;
@@ -206,6 +209,10 @@ private:
     bool takeFromTail; //This means we don't have good enough spotting to try and auto approve any, and modelling the true distribution will be difficult
     float tailEnd;
     float tailEndScore;
+
+    double falseProbWeight;
+
+    int distCheckCounter;
 
     //float lastDifAcceptThreshold;
     //float lastDifRejectThreshold;
