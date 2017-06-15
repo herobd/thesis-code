@@ -2620,6 +2620,9 @@ void Knowledge::Corpus::recreateDatasetVectors(bool lockPages)
 vector<Spotting>* Knowledge::Corpus::runQuery(SpottingQuery* query)// const
 {
     vector<SpottingResult> res = spotter->runQuery(query);
+#ifdef TEST_MODE
+    cout<<"Spotting returned ("<<query->getNgram()<<")."<<endl;
+#endif
     vector<Spotting>* ret = new vector<Spotting>(res.size());
     for (int i=0; i<res.size(); i++)
     {

@@ -156,7 +156,6 @@ void Simulator::skipAndError(vector<int>& labels)
 
 vector<int> Simulator::spottings(string ngram, vector<Location> locs, vector<string> gt, string prevNgram)
 {
-    assert(ngram.length()==2);
     //int numSkip=0;
     //int numT=0;
     //int numF=0;

@@ -31,6 +31,9 @@
 #define USE_QBE 1
 #define NO_EXEMPLARS 1
 
+#define MIN_SPOTTING_AP -1
+#define IDEAL_COMB 0
+
 using namespace std;
 
 #define MAX_FLOAT numeric_limits<float>::max()
@@ -67,8 +70,8 @@ public:
 };
 #endif
 
-#define MIN_N 2
-#define MAX_N 2
+#define MIN_N 1
+#define MAX_N 1
 #define MAX_NGRAM_RANK 300
 class GlobalK
 {

@@ -435,15 +435,17 @@ bool GlobalK::ngramAt(string ngram, int pageId, int tlx, int tly, int brx, int b
 
     int bestOverlap = 0;
     const WordBound* best=NULL;
+    auto iterBest = iterL;
     while (iterL != iterU)
     {
         int overlap = ( min(iterL->brx, brx)-max(iterL->tlx,tlx) ) *
             ( min(iterL->bry, bry)-max(iterL->tly,tly) );
-        assert(overlap != bestOverlap || bestOverlap==0);
+        //assert(overlap != bestOverlap || bestOverlap==0); can occur with overlapping word images
         if (overlap > bestOverlap)
         {
             bestOverlap = overlap;
             best = &(*iterL);
+            iterBest = iterL;
         }
         iterL++;
     }

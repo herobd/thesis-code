@@ -193,6 +193,13 @@ void SpottingResults::debugState() const
         //    assert(range.first!=range.second);
         //}
 
+        unsigned long id = p.first;
+        while (updateMap.find(id)!=updateMap.end())
+        {
+            //unsigned long oldId=id;
+            id=updateMap.at(id);
+            //instancesById.erase(oldId);
+        }
         if (classById.find(p.first) == classById.end())
         {
             auto range = instancesByScore.equal_range(p.second.score(useQbE));
@@ -203,6 +210,22 @@ void SpottingResults::debugState() const
                     present=true;
                     break;
                 }
+            if (!present)
+                for (auto p : starts)
+                {
+                    unsigned long id = p.first;
+                    while (updateMap.find(id)!=updateMap.end())
+                    {
+                        id=updateMap.at(id);
+                    }
+                    if (id==p.first)
+                    {
+                        present=true;
+                        break;
+                    }
+                }
+
+
             assert(present || starts.find(p.first)!=starts.end());
         }
 
@@ -533,7 +556,7 @@ void SpottingResults::saveHistogram(float actualModelDif)
 #endif
 
 SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need) {
-    debugState();
+    //debugState();
 
     if (!need && (numLeftInRange<12 && numLeftInRange>=0) && starts.size()>1 && !takeFromTail)
 #ifndef NO_NAN
@@ -686,8 +709,13 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
                 this->done=true;
         }
         
-        if (takeFromTail && runningClassificationTrueAverage() > TAIL_CONTINUE_THRESH)
-            *done=false;//Just keep taking from the top until we aren't getting a lot of trues
+        if (!*done && takeFromTail && runningClassificationTrueAverage() > TAIL_CONTINUE_THRESH)
+        {
+            *done=false;//Just keep taking from the top until we aren't getting a lot of trues. This allows a bad thresholding to still work
+#ifdef TEST_MODE
+            cout<<"["<<ngram<<"] continuing past thresh due to running classification avg: "<<runningClassificationTrueAverage()<<endl;
+#endif
+        }
     }
     
     if (*done)
@@ -707,12 +735,14 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
     //sem_post(&mutexSem);
     //numBatches++;
     
-    debugState();
+    //debugState();
     return ret;
 }
 
 float SpottingResults::runningClassificationTrueAverage()
 {
+    if (runningClassifications.size()==0)
+        return 1;
     float ret=0;
     for (bool c : runningClassifications)
         ret += c?1:0;
@@ -730,7 +760,7 @@ void SpottingResults::updateRunningClassifications(const vector<int>& newClassif
 
 vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long,string> >* retRemove)
 {
-    debugState();
+    //debugState();
     /*cout << "fed: ";
     for (int i=0; i<ids.size(); i++)
     {   
@@ -899,7 +929,7 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
         cout<<"SpottingResults ["<<ngram<<"]: has more batches and will be re-enqueued"<<endl;
 #endif
     }
-    debugState();
+    //debugState();
     return ret;
 }
 
@@ -948,7 +978,7 @@ float SpottingResults::expCvt(float x)
 bool SpottingResults::EMThresholds(int swing)
 {
     
-    debugState();
+    //debugState();
     assert(instancesById.size()>1);
     assert(maxScore()!=-999999);
     bool init = acceptThreshold==-1 && rejectThreshold==-1;
@@ -967,6 +997,7 @@ bool SpottingResults::EMThresholds(int swing)
     vector<int> histogramGN(displayLen);
     //test
     float actualModelDif=-99999;
+    bool swaped=false;
 #endif
     trueFalseDivide=99999;
     distCheckCounter++;
@@ -1048,12 +1079,16 @@ bool SpottingResults::EMThresholds(int swing)
 #endif
         if (actualDensity-modelDensity > TAIL_DENSITY_TRUE_THRESHOLD)
         {
-            takeFromTail=false;
+            if (!init && takeFromTail)
+            {
 #ifdef TEST_MODE 
-            if (!init)
                 cout<<"["<<ngram<<"] swaped to two distrubution mode."<<endl;
+                swaped=true;
 #endif
-            init=true; //For the case of a correction at a check
+                init=true; //For the case of a correction at a check
+                
+            }
+            takeFromTail=false;
 
             //we initailize our split with Otsu, as we are assuming two distinct distributions.
             //make histogram
@@ -1083,11 +1118,15 @@ bool SpottingResults::EMThresholds(int swing)
         }
         else
         {
-            takeFromTail=true;
 #ifdef TEST_MODE 
-            if (!init)
+            if (!init && !takeFromTail)
+            {
                 cout<<"["<<ngram<<"] swaped to takeFromTail mode."<<endl;
+                swaped=true;
+            }
 #endif
+            init=true;
+            takeFromTail=true;
         }
         distCheckCounter=0;
     }
@@ -1166,7 +1205,7 @@ bool SpottingResults::EMThresholds(int swing)
             
             if (classById.find(id)!=classById.end())
             {
-                if (classById[id])
+                if (classById[id] && score<rejectThreshold+0.5*sqrt(falseVariance)) //Added thing to try and keep true meaa on low side
                 {
                     expectedTrue.push_back(score);
                     //expectedTrue.push_back(instancesById.at(id).score);
@@ -1223,14 +1262,14 @@ bool SpottingResults::EMThresholds(int swing)
                     falseProb /= normTerm;
                     trueProb /= normTerm;
 //DEBUG
-                    if (instancesById.at(id).gt >=0)
+                    /*if (instancesById.at(id).gt >=0)
                     {
                         if ((double)rand() / RAND_MAX > 0.5)
                         {
                             falseProb = instancesById.at(id).gt?0:1;
                             trueProb = instancesById.at(id).gt?1:0;
                         }
-                    }
+                    }*/
 //DEBUG
                     if ((double)rand() / RAND_MAX <= trueProb)
                     {
@@ -1312,7 +1351,7 @@ bool SpottingResults::EMThresholds(int swing)
             assert((newRejectT-falseMean)/falseStd < -1.0);
 
             acceptThreshold = newAcceptT;
-            rejectThreshold = newRejectT;
+            rejectThreshold = 0.45*newAcceptT + 0.55*newRejectT;//This is a hueristic, as it tends to poorly model the true distribution causing the reject threshold to be too large
 
             /*
 
@@ -1369,6 +1408,18 @@ bool SpottingResults::EMThresholds(int swing)
 #ifdef TEST_MODE
         if (init)
             saveHistogram(actualModelDif);
+#ifdef GRAPH_SPOTTING_RESULTS
+        if (swaped)
+        {
+            cv::Mat undoneW(1,undoneGraph.cols,CV_8UC3);
+            undoneW = cv::Scalar(155,155,155);
+            undoneGraph.push_back(undoneW);
+            cv::Mat fullW(1,fullGraph.cols,CV_8UC3);
+            fullW = cv::Scalar(155,155,155);
+            fullGraph.push_back(fullW);
+            setDebugInfo(NULL);
+        }
+#endif
 #endif //TEST_MODE
 
         /*if (!init)
@@ -1553,14 +1604,14 @@ for (int bin=0; bin<displayLen; bin++)
             iter++;
         } 
     }
-    debugState();
+    //debugState();
     return allBatchesSent;
 }
 
 
 bool SpottingResults::checkIncomplete()
 {
-    debugState();
+    //debugState();
     bool incomp=false;
     //cout <<"checkIncomplete, starts is "<<starts.size()<<endl;
     //vector<unsigned long> toRemove;
@@ -1601,7 +1652,7 @@ bool SpottingResults::checkIncomplete()
         allBatchesSent=false;
         return true;
     }
-    debugState();
+    //debugState();
     return false;
 }
 
@@ -1700,7 +1751,7 @@ void SpottingResults::updateSpottingTrueNoScore(const SpottingExemplar& spotting
 #ifdef GRAPH_SPOTTING_RESULTS
     fullInstancesByScore.clear();
 #endif
-    debugState();
+    //debugState();
     assert(spotting.tlx!=-1);
     assert(spotting.scoreQbE != spotting.scoreQbE);
     assert(spotting.scoreQbS != spotting.scoreQbS);
@@ -1741,7 +1792,7 @@ void SpottingResults::updateSpottingTrueNoScore(const SpottingExemplar& spotting
     {
         addTrueNoScore(spotting);
     }
-    debugState();
+    //debugState();
 }
 
 //combMin
@@ -1752,7 +1803,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
 #ifdef GRAPH_SPOTTING_RESULTS
     fullInstancesByScore.clear();
 #endif
-    debugState();
+    //debugState();
     if (++numComb>GlobalK::numCombThresh(ngram) && !useQbE)
     {
         fresh=true;
@@ -1801,7 +1852,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
         instancesToAddQbEByLocation.clear();
         //instancesToAddQbE.clear();
         tracer = instancesByScore.begin();
-    debugState();
+    //debugState();
 
         cvtMax = maxScoreQbE;
     }
@@ -1933,9 +1984,9 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
 
                         //cout<<"{} replaced false spotting "<<spotting.scoreQbE<<endl;
                         //best.type=SPOTTING_TYPE_NONE;
-                        if (classById.at(best.id))
-                            numberClassifiedTrue--;
-                        else
+                        //if (classById.at(best.id))
+                        //    numberClassifiedTrue--;
+                        //else
                             numberClassifiedFalse--;
 
                         classById.erase(best.id);
@@ -1957,24 +2008,32 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                     }
                     else if (spotting.type==SPOTTING_TYPE_TRANS_TRUE)
                     {
-                        //It's been classified, correct that classification if needed
-                        if (!classById.at(best.id))
+                        auto iter = classById.find(best.id);
+                        //If it's been classified, correct that classification if needed
+                        if (iter!=classById.end())
                         {
-                            numberClassifiedFalse--;
-                            numberClassifiedTrue++;
+                            if (!iter->second)
+                            {
+                                numberClassifiedFalse--;
+                                numberClassifiedTrue++;
+                            }
+                            classById.erase(iter);
                         }
-                        classById.erase(best.id);
                         classById[spotting.id]=true;
                     }
                     else if (spotting.type==SPOTTING_TYPE_TRANS_FALSE)
                     {
-                        //It's been classified, correct that classification if needed
-                        if (classById.at(best.id))
+                        auto iter = classById.find(best.id);
+                        //If it's been classified, correct that classification if needed
+                        if (iter!=classById.end())
                         {
-                            numberClassifiedTrue--;
-                            numberClassifiedFalse++;
+                            if (iter->second)
+                            {
+                                numberClassifiedFalse++;
+                                numberClassifiedTrue--;
+                            }
+                            classById.erase(iter);
                         }
-                        classById.erase(best.id);
                         classById[spotting.id]=false;
                     }
                     else
@@ -1990,7 +2049,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
 
 
                     instancesById.erase(best.id);
-    debugState();
+    //debugState();
     assert(instancesByScore.size()>= initSize);
                 }
                 else
@@ -2041,7 +2100,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                             }
                         }
                     }
-    debugState();
+    //debugState();
     assert(instancesByScore.size()>= initSize);
                 }
             }
@@ -2107,7 +2166,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                     //{
                     //    instancesByScoreInsert(bestSpot.id);
                     //}
-    debugState();
+    //debugState();
     assert(instancesByScore.size()>= initSize);
                 }
                 else
@@ -2142,7 +2201,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                         }
 
 
-    debugState();
+    //debugState();
     assert(instancesByScore.size()>= initSize);
                 }
             }
@@ -2169,7 +2228,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                 {
                     instancesByScoreInsert(spotting.id);
                 }
-    debugState();
+    //debugState();
     assert(instancesByScore.size()>= initSize);
             }
             else
@@ -2180,7 +2239,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
 
     }
     bool check_didRemove=false;
-    debugState();
+    //debugState();
     while (allInstancesByScoreQbE.size() > numSpottingsQbEMax)
     {
         auto worstIter = allInstancesByScoreQbE.end();
@@ -2193,8 +2252,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
             instancesById.erase(iid);
             classById.erase(iid);
             check_didRemove=true;
-            if (!useQbE)
-                kickedOut.insert(iid);
+            kickedOut.insert(iid);
         }
         auto check = allInstancesByScoreQbE.erase(worstIter);
         assert(check == allInstancesByScoreQbE.end());
@@ -2233,7 +2291,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
         //If intersection, use previous label and label it instantly, but use the given score, dont put in "queue" (byScores)
         //Else, add it in normally
         //All non-intersected old ones need to have their score not count anymore (but save in case of later resurrection)
-    debugState();
+    //debugState();
     assert(instancesByScore.size()>= initSize || check_didRemove);
     delete spottings;
     return false;
@@ -2242,7 +2300,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
 
 void SpottingResults::save(ofstream& out)
 {
-    debugState();
+    //debugState();
     out<<"SPOTTINGRESULTS"<<endl;
     out<<ngram<<"\n";
     out<<batchesSinceChange<<"\n";
@@ -2329,7 +2387,7 @@ void SpottingResults::save(ofstream& out)
     //skip updateMap as no feedback will be recieved.
     //skip tracer as we will just refind it
     out<<contextPad<<"\n";
-    debugState();
+    //debugState();
 }
 
 SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef) 
@@ -2453,6 +2511,6 @@ SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef)
     rtn=0;
     atn=0;
 #endif //TEST_MODE
-    debugState();
+    //debugState();
     
 }

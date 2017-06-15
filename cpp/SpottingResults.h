@@ -16,7 +16,7 @@
 #include "Global.h"
 #include "PageRef.h"
 
-#define TAIL_DENSITY_TRUE_THRESHOLD 0.018
+#define TAIL_DENSITY_TRUE_THRESHOLD 0.0139
 #define GOOD_TAIL_SCORE -0.01 //Hueristic
 
 #define ACCEPT_THRESH 2 //number of false instances acceptable above accept threshold
@@ -32,7 +32,7 @@
 
 #define TAIL_CONTINUE_THRESH 0.5
 
-#define RUNNING_CLASSIFICATIONS_COUNT 15
+#define RUNNING_CLASSIFICATIONS_COUNT 20
 
 #define MAX_REJECT_THRESHOLD_FROM_FALSE 1.1
 #define MAX_ACCEPT_THRESHOLD_FROM_FALSE 1.6
