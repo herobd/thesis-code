@@ -39,6 +39,7 @@ using namespace std;
 #define MAX_FLOAT numeric_limits<float>::max()
 #define MIN_FLOAT numeric_limits<float>::min()
 
+
 #if defined(TEST_MODE) || defined(NO_NAN)
 class WordBound
 {
@@ -179,6 +180,9 @@ class GlobalK
         map<int, multiset<WordBound,tlyComp> > wordBounds;//pageId -> set of words
         void addWordBound(string word, int pageId, int tlx, int tly, int brx, int bry, vector<int> startBounds, vector<int> endBounds);
 #endif
+        static int sgn(float val) {
+            return (0 < val) - (val < 0);
+        }
 };
 
 #endif

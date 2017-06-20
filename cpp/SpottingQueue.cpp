@@ -110,7 +110,14 @@ void SpottingQueue::spottingLoop()
         mutLock.unlock();
         if (query==NULL)
             break;
-        
+#if !USE_QBE
+        if (query->x1 != -1)
+        {
+            cout<<"QbS only, skipping query "<<query->getId()<<endl;
+            delete query;
+            continue;
+        }
+#endif        
 
         progLock[threadId].lock();
         inProgress[threadId]=query;

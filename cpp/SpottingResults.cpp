@@ -47,6 +47,8 @@ SpottingResults::SpottingResults(string ngram, int contextPad) :
     lastDifPullFromScore=0;
     batchesSinceChange=0;
 
+    badInARow=0;
+
     numSpottingsQbEMax=-1;
 
 #ifdef GRAPH_SPOTTING_RESULTS
@@ -741,7 +743,7 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
 
 float SpottingResults::runningClassificationTrueAverage()
 {
-    if (runningClassifications.size()==0)
+    if (runningClassifications.size()<RUNNING_CLASSIFICATIONS_COUNT)
         return 1;
     float ret=0;
     for (bool c : runningClassifications)
@@ -749,13 +751,31 @@ float SpottingResults::runningClassificationTrueAverage()
     return ret/runningClassifications.size();
 }
 
-void SpottingResults::updateRunningClassifications(const vector<int>& newClassifications)
+void SpottingResults::updateRunningClassifications(const vector<unsigned long>& ids, const vector<int>& newClassifications)
 {
-    for (int c : newClassifications)
-        if (c==0 || c==1)
-            runningClassifications.push_back((bool)c);
+    for (int i=0; i<newClassifications.size(); i++)
+    {
+        auto iter = dontAddToRunningClassifications.find(ids[i]);
+        if (iter == dontAddToRunningClassifications.end())
+        {
+            bool c = newClassifications[i];
+            if (c==0 || c==1)
+                runningClassifications.push_back((bool)c);
+        }
+        else
+        {
+            dontAddToRunningClassifications.erase(iter);
+        }
+    }
     while (runningClassifications.size()>RUNNING_CLASSIFICATIONS_COUNT)
         runningClassifications.pop_front();
+}
+
+void SpottingResults::resetRunningClassifications()
+{
+    for (auto p : starts)
+        dontAddToRunningClassifications.insert(p.first);
+    runningClassifications.clear();
 }
 
 vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long,string> >* retRemove)
@@ -767,13 +787,24 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
         cout << ids[i]<<", ";
     }
     cout<<endl;*/
-    updateRunningClassifications(userClassifications);
+    vector<unsigned long> sids;
+    for (string id : ids)
+        sids.push_back(stoul(id));
+    updateRunningClassifications(sids,userClassifications);
+    if (runningClassificationTrueAverage()<0.5)
+    {
+        badInARow++;
+    }
+    else
+    {
+        badInARow=0;
+    }
     
     vector<Spotting>* ret = new vector<Spotting>();
     int swing=0;
     for (unsigned int i=0; i< ids.size(); i++)
     {
-        unsigned long id = stoul(ids[i]);
+        unsigned long id = sids[i];
         int check = starts.erase(id);
         //assert(check==1 || resent);
 
@@ -875,7 +906,6 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
         int trueAutoRejected=0;
 #endif
         tracer = instancesByScore.begin();
-        assert(instancesById.find(tracer->second) != instancesById.end());
         while (tracer!=instancesByScore.end() && instancesById.at(tracer->second).score(useQbE) <= acceptThreshold)
         {
             assert(instancesById.find(tracer->second) != instancesById.end());
@@ -1001,134 +1031,156 @@ bool SpottingResults::EMThresholds(int swing)
 #endif
     trueFalseDivide=99999;
     distCheckCounter++;
+
+
+
     if (init || distCheckCounter%5==0)
     {
-        /*
-        */
-        float usedSum=0;
-        vector<float> usedValues;
-        vector<float> notFalseValues;
-        int allCount=0;
-        for (auto p : instancesById)
+        if (ngram.length()==1 || badInARow>2)
         {
-            if (p.second.score(useQbE)!=p.second.score(useQbE) || p.second.score(useQbE)==MAX_FLOAT)
-                continue;
-            float score = p.second.score(useQbE); ///useQbE?logCvt(p.second.score(useQbE)):p.second.score(useQbE);
-            allCount++;
-            if (classById.find(p.first)==classById.end() || classById.at(p.first))
-                notFalseValues.push_back(score);
-            if (classById.find(p.first)!=classById.end() && classById.at(p.first))
-                continue;//we've labeled it as true, so we can atleast prune this
-            usedSum += score;
-            usedValues.push_back(score);
-        }
-        usedMean = maxScore(); ///useQbE?usedSum/usedValues.size():maxScore(); //The QbS false distributions are always cut off, so we just assinge the max as the mean
-        usedStd=0;
-        for (float v : usedValues)
-            usedStd += pow(v-usedMean,2);
-        usedStd = sqrt(usedStd/usedValues.size());
-
-        //Do we have outliers on our tail?   ('tail' being the trailing low scores that positive instances should lie in).
-
-        float delta = (maxScore()-minScore())/1000;
-        tailEndScore=minScore();
-        while (1)
-        {
-            float density = PHI(tailEndScore,usedMean,usedStd)*usedValues.size();
-            if (density>TAIL_THRESH)
-            {
-                tailEndScore-=delta;
-                break;
-            }
-            tailEndScore+=delta;
-            assert(tailEndScore<maxScore());
-        }
-        tailEnd = (tailEndScore-usedMean)/usedStd;
-        //tailEnd=-1.8; ///useQbE?2.5:-1.8;
-        //tailEndScore=usedMean + usedStd*tailEnd;
-        //hack
-        //if (!useQbE)
-        //{
-        //    tailEndScore = (0.7*tailEndScore+0.3*GOOD_TAIL_SCORE);//Lean towards a 'good' tail score to prevent grevious errors
-        //    tailEnd = (tailEndScore-usedMean)/usedStd;
-        //}
-        //if (useQbE)
-        //    tailEndScore = expCvt(tailEndScore);
-        //Count instances in the tail
-        int countTail=0;
-        for (float v : notFalseValues)
-            if (v<tailEndScore) ///if ( (!useQbE&&v<tailEndScore) || (useQbE&&v>tailEndScore) )
-                countTail++;
-        //This represent the density that the model says should be after we have any examples. Given more examples (not threshing the spotting results) this would be in our data
-        float cutOffDensity = (1-PHI((maxScore()-usedMean)/usedStd)); ///useQbE?1:(1-PHI((maxScore()-usedMean)/usedStd));
-
-        //We then estimate how many instances we would have if this part wern't cut off
-        float estTotalCount = allCount + allCount*(1-cutOffDensity);
-        assert(estTotalCount >= allCount);
-
-        //We use this to compute what the density of the tail region is
-        float actualDensity = countTail/estTotalCount;
-
-        //Compute expected (model) density of tail
-        float modelDensity = PHI(tailEnd);
-
-        //If difference is above a threshold, we have a good True distribution
-#ifdef TEST_MODE 
-        actualModelDif=actualDensity-modelDensity;
-        assert(actualModelDif==actualModelDif);
-#endif
-        if (actualDensity-modelDensity > TAIL_DENSITY_TRUE_THRESHOLD)
-        {
-            if (!init && takeFromTail)
-            {
-#ifdef TEST_MODE 
-                cout<<"["<<ngram<<"] swaped to two distrubution mode."<<endl;
-                swaped=true;
-#endif
-                init=true; //For the case of a correction at a check
-                
-            }
-            takeFromTail=false;
-
-            //we initailize our split with Otsu, as we are assuming two distinct distributions.
-            //make histogram
-            vector<int> histogram(40);
-            //int total = 0;//instancesById.size();
-            for (auto p : instancesById)
-            {
-                if (p.second.score(useQbE)==p.second.score(useQbE) && p.second.score(useQbE)!=MAX_FLOAT)
-                {
-                    //total++;
-                    unsigned long id = p.first;
-                    
-                    int bin = 39*(instancesById.at(id).score(useQbE)-minScore())/(maxScore()-minScore());
-                    if (bin<0) bin=0;
-                    if (bin>histogram.size()-1) bin=histogram.size()-1;
-                    histogram[bin]++;
-                }
-            }
-            
-            
-            double thresh = GlobalK::otsuThresh(histogram);
-            float trueFalseDivideCandidate = (thresh/40)*(maxScore()-minScore())+minScore();
-            //float estSplit = usedMean-1.6*usedStd;
-            trueFalseDivide = min(trueFalseDivideCandidate,tailEndScore);
-            ///if (useQbE)
-            ///    trueFalseDivide=logCvt(trueFalseDivide);
+            if (!takeFromTail)
+                badInARow=0;
+            takeFromTail=true;//a hueristic, as unigram spotting is worse and doesn't usually have a pure true section.
         }
         else
         {
-#ifdef TEST_MODE 
-            if (!init && !takeFromTail)
+            /*
+            */
+            float usedSum=0;
+            vector<float> usedValues;
+            vector<float> notFalseValues;
+            int allCount=0;
+            for (auto p : instancesById)
             {
-                cout<<"["<<ngram<<"] swaped to takeFromTail mode."<<endl;
-                swaped=true;
+                if (p.second.score(useQbE)!=p.second.score(useQbE) || p.second.score(useQbE)==MAX_FLOAT)
+                    continue;
+                float score = p.second.score(useQbE); ///useQbE?logCvt(p.second.score(useQbE)):p.second.score(useQbE);
+                allCount++;
+                if (classById.find(p.first)==classById.end() || classById.at(p.first))
+                    notFalseValues.push_back(score);
+                if (classById.find(p.first)!=classById.end() && classById.at(p.first))
+                    continue;//we've labeled it as true, so we can atleast prune this
+                usedSum += score;
+                usedValues.push_back(score);
             }
+            usedMean = maxScore(); ///useQbE?usedSum/usedValues.size():maxScore(); //The QbS false distributions are always cut off, so we just assinge the max as the mean
+            usedStd=0;
+            for (float v : usedValues)
+                usedStd += pow(v-usedMean,2);
+            usedStd = sqrt(usedStd/usedValues.size());
+
+            //Do we have outliers on our tail?   ('tail' being the trailing low scores that positive instances should lie in).
+
+            float delta = (maxScore()-minScore())/1000;
+            tailEndScore=minScore();
+            while (1)
+            {
+                float density = PHI(tailEndScore,usedMean,usedStd)*usedValues.size();
+                if (density>TAIL_THRESH)
+                {
+                    tailEndScore-=delta;
+                    break;
+                }
+                tailEndScore+=delta;
+                assert(tailEndScore<maxScore());
+            }
+            tailEnd = (tailEndScore-usedMean)/usedStd;
+            //tailEnd=-1.8; ///useQbE?2.5:-1.8;
+            //tailEndScore=usedMean + usedStd*tailEnd;
+            //hack
+            //if (!useQbE)
+            //{
+            //    tailEndScore = (0.7*tailEndScore+0.3*GOOD_TAIL_SCORE);//Lean towards a 'good' tail score to prevent grevious errors
+            //    tailEnd = (tailEndScore-usedMean)/usedStd;
+            //}
+            //if (useQbE)
+            //    tailEndScore = expCvt(tailEndScore);
+            //Count instances in the tail
+            int countTail=0;
+            for (float v : notFalseValues)
+                if (v<tailEndScore) ///if ( (!useQbE&&v<tailEndScore) || (useQbE&&v>tailEndScore) )
+                    countTail++;
+            //This represent the density that the model says should be after we have any examples. Given more examples (not threshing the spotting results) this would be in our data
+            float cutOffDensity = (1-PHI((maxScore()-usedMean)/usedStd)); ///useQbE?1:(1-PHI((maxScore()-usedMean)/usedStd));
+
+            //We then estimate how many instances we would have if this part wern't cut off
+            float estTotalCount = allCount + allCount*(1-cutOffDensity);
+            assert(estTotalCount >= allCount);
+
+            //We use this to compute what the density of the tail region is
+            float actualDensity = countTail/estTotalCount;
+
+            //Compute expected (model) density of tail
+            float modelDensity = PHI(tailEnd);
+
+            //If difference is above a threshold, we have a good True distribution
+#ifdef TEST_MODE 
+            actualModelDif=actualDensity-modelDensity;
+            assert(actualModelDif==actualModelDif);
 #endif
-            init=true;
-            takeFromTail=true;
+            if (actualDensity-modelDensity > TAIL_DENSITY_TRUE_THRESHOLD)
+            {
+                if (!init && takeFromTail)
+                {
+#ifdef TEST_MODE 
+                    cout<<"["<<ngram<<"] swaped to two distrubution mode."<<endl;
+                    swaped=true;
+#endif
+                    init=true; //For the case of a correction at a check
+                    
+                }
+                if (takeFromTail)
+                {
+                    badInARow=0;
+                    resetRunningClassifications();
+                }
+                takeFromTail=false;
+
+                //we initailize our split with Otsu, as we are assuming two distinct distributions.
+                //make histogram
+                vector<int> histogram(40);
+                //int total = 0;//instancesById.size();
+                for (auto p : instancesById)
+                {
+                    if (p.second.score(useQbE)==p.second.score(useQbE) && p.second.score(useQbE)!=MAX_FLOAT)
+                    {
+                        //total++;
+                        unsigned long id = p.first;
+                        
+                        int bin = 39*(instancesById.at(id).score(useQbE)-minScore())/(maxScore()-minScore());
+                        if (bin<0) bin=0;
+                        if (bin>histogram.size()-1) bin=histogram.size()-1;
+                        histogram[bin]++;
+                    }
+                }
+                
+                
+                double thresh = GlobalK::otsuThresh(histogram);
+                float trueFalseDivideCandidate = (thresh/40)*(maxScore()-minScore())+minScore();
+                //float estSplit = usedMean-1.6*usedStd;
+                trueFalseDivide = min(trueFalseDivideCandidate,tailEndScore);
+                ///if (useQbE)
+                ///    trueFalseDivide=logCvt(trueFalseDivide);
+            }
+            else
+            {
+                if (!init && !takeFromTail)
+                {
+#ifdef TEST_MODE 
+                    cout<<"["<<ngram<<"] swaped to takeFromTail mode."<<endl;
+                    swaped=true;
+#endif
+                    init=true;
+                }
+                if (!takeFromTail)
+                {
+                    badInARow=0;
+                    resetRunningClassifications();
+                }
+                takeFromTail=true;
+            }
+            distCheckCounter=0;
         }
-        distCheckCounter=0;
     }
     /*else if (!takeFromTail && distCheckCounter%5==0)
     {
@@ -1181,7 +1233,7 @@ bool SpottingResults::EMThresholds(int swing)
 #endif        
         
         //map<unsigned long, bool> expected;
-        vector<float> expectedTrue;
+        multiset<float> expectedTrue;
         float sumTrue=0;
         vector<float> expectedFalse;
         float sumFalse=0;
@@ -1207,7 +1259,7 @@ bool SpottingResults::EMThresholds(int swing)
             {
                 if (classById[id] && score<rejectThreshold+0.5*sqrt(falseVariance)) //Added thing to try and keep true meaa on low side
                 {
-                    expectedTrue.push_back(score);
+                    expectedTrue.insert(score);
                     //expectedTrue.push_back(instancesById.at(id).score);
                     sumTrue+=1*score;
                     
@@ -1245,7 +1297,7 @@ bool SpottingResults::EMThresholds(int swing)
                     if (score<trueFalseDivide)
                     {
                         sumTrue+=score;
-                        expectedTrue.push_back(score);
+                        expectedTrue.insert(score);
                     }
                     else
                     {
@@ -1274,7 +1326,7 @@ bool SpottingResults::EMThresholds(int swing)
                     if ((double)rand() / RAND_MAX <= trueProb)
                     {
                         sumTrue+=score;
-                        expectedTrue.push_back(score);
+                        expectedTrue.insert(score);
                     }
                     else
                     {
@@ -1284,12 +1336,24 @@ bool SpottingResults::EMThresholds(int swing)
                 }
             }
         }
+
+        assert(expectedFalse.size()>0);
         
         //maximization
         if (expectedTrue.size()!=0)
-            trueMean=sumTrue/expectedTrue.size();
-        if (expectedFalse.size()!=0)
-            falseMean=maxScore(); ///useQbE?(sumFalse/expectedFalse.size()):maxScore();
+        {
+            float newTrueMean=sumTrue/expectedTrue.size();
+            while (newTrueMean > tailEndScore && expectedTrue.size()>1)
+            {
+                auto iter = expectedTrue.end();
+                sumTrue -= *(--iter);
+                expectedTrue.erase(iter);
+                newTrueMean=sumTrue/expectedTrue.size();
+            }
+            trueMean = min(newTrueMean, tailEndScore);
+        }
+        //if (expectedFalse.size()!=0)
+        falseMean=maxScore(); ///useQbE?(sumFalse/expectedFalse.size()):maxScore();
         trueVariance=0;
         for (float score : expectedTrue)
             trueVariance += (score-trueMean)*(score-trueMean);
@@ -1303,6 +1367,14 @@ bool SpottingResults::EMThresholds(int swing)
 
         falseProbWeight = expectedFalse.size()/(expectedTrue.size()+1);
 
+        /*if (badInARow>0)
+        {
+            trueMean *= 1.3*badInARow;
+            trueVariance *= 0.8*badInARow;
+            falseVariance *= 1.3*badInARow;
+        }*/
+
+
         float falseStd = sqrt(falseVariance);
         float trueStd = sqrt(trueVariance);
 
@@ -1315,11 +1387,16 @@ bool SpottingResults::EMThresholds(int swing)
             rejectThreshold = falseMean + falseStd*tailEnd;
             //if (useQbE)
             //    rejectThreshold=exp(rejectThreshold);
+            float shift = (0.5f-min(runningClassificationTrueAverage(),0.5f))/0.5f;
+            float minRejectThreshold = 0.9*minScore() + 0.1*rejectThreshold;
+            auto iterScore = instancesByScore.begin();
+
+            float rejectThreshold = (shift)*minRejectThreshold + (1-shift)*rejectThreshold;
         }
         else
         {
             //just take region of intersection between distribitons
-            float delta = (maxScore()-minScore())/1000;
+            float delta = (maxScore()-minScore())/200;
             float maxAcceptThreshold = falseMean-MAX_ACCEPT_THRESHOLD_FROM_FALSE*falseStd;
             float maxRejectThreshold = falseMean-MAX_REJECT_THRESHOLD_FROM_FALSE*falseStd;
             float newAcceptT=minScore();
@@ -1335,23 +1412,28 @@ bool SpottingResults::EMThresholds(int swing)
                 assert(newAcceptT<maxScore());
             }
             float newRejectT=newAcceptT+delta;
+            //phi_false(reject)-phi_false(accept) = phi_true(reject)-phi_true(accept) #the midpoint
             float constOverlap = PHI(newAcceptT,trueMean,trueStd)*expectedTrue.size() - PHI(newAcceptT,falseMean,falseStd)*expectedFalse.size();
+            float lastDif = PHI(newRejectT,falseMean,falseStd)*expectedFalse.size() - PHI(newRejectT,trueMean,trueStd)*expectedTrue.size() + constOverlap;//this allows us to have either dist be bigger
+            newRejectT+=delta;
             while (newRejectT < maxRejectThreshold)
             {
                 float dif = PHI(newRejectT,falseMean,falseStd)*expectedFalse.size() - PHI(newRejectT,trueMean,trueStd)*expectedTrue.size() + constOverlap;
-                if (dif > 0)
+                if (GlobalK::sgn(dif) != GlobalK::sgn(lastDif))
                 {
                     newRejectT-=delta;
                     break;
                 }
                 newRejectT+=delta;
                 assert(newRejectT<maxScore());
+                lastDif=dif;
             }
 
             assert((newRejectT-falseMean)/falseStd < -1.0);
 
             acceptThreshold = newAcceptT;
             rejectThreshold = 0.45*newAcceptT + 0.55*newRejectT;//This is a hueristic, as it tends to poorly model the true distribution causing the reject threshold to be too large
+            assert(rejectThreshold>acceptThreshold);
 
             /*
 
@@ -1401,10 +1483,16 @@ bool SpottingResults::EMThresholds(int swing)
               rejectThreshold=exp(rejectThreshold);
           }
             */
+            float shift = (0.5f-min(runningClassificationTrueAverage(),0.5f))/0.5f;
+            float newAcceptThreshold = (shift)*minScore() + (1-shift)*acceptThreshold;
+            rejectThreshold -= acceptThreshold-newAcceptThreshold;
+            acceptThreshold= newAcceptThreshold;
         }
 
 
+
         assert(rejectThreshold==rejectThreshold && acceptThreshold==acceptThreshold);
+        assert(rejectThreshold>acceptThreshold);
 #ifdef TEST_MODE
         if (init)
             saveHistogram(actualModelDif);
@@ -1952,7 +2040,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                     instancesByLocation.erase(bestIter); //erase by iterator
 
                     //remove the old one
-    assert(instancesByScore.size()>= initSize);
+    assert(((int)instancesByScore.size())>= initSize);
                     allInstancesByScoreQbEErase(best.id);
                     bool removed = instancesByScoreErase(best.id); 
                     if (removed)
@@ -1976,7 +2064,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                             instancesByScoreInsert(spotting.id);
                         }
                         tracer = instancesByScore.begin();
-    assert(instancesByScore.size()>= initSize);
+    assert(((int)instancesByScore.size())>= initSize);
                     }
                     else if (best.type==SPOTTING_TYPE_THRESHED && classById.at(best.id)==false)
                     {
@@ -2050,7 +2138,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
 
                     instancesById.erase(best.id);
     //debugState();
-    assert(instancesByScore.size()>= initSize);
+    assert(((int)instancesByScore.size())>= initSize);
                 }
                 else
                 {
@@ -2101,7 +2189,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                         }
                     }
     //debugState();
-    assert(instancesByScore.size()>= initSize);
+    assert(((int)instancesByScore.size())>= initSize);
                 }
             }
             else
@@ -2167,7 +2255,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                     //    instancesByScoreInsert(bestSpot.id);
                     //}
     //debugState();
-    assert(instancesByScore.size()>= initSize);
+    assert(((int)instancesByScore.size())>= initSize);
                 }
                 else
                 {
@@ -2202,7 +2290,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
 
 
     //debugState();
-    assert(instancesByScore.size()>= initSize);
+    assert(((int)instancesByScore.size())>= initSize);
                 }
             }
         }
@@ -2229,7 +2317,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
                     instancesByScoreInsert(spotting.id);
                 }
     //debugState();
-    assert(instancesByScore.size()>= initSize);
+    assert(((int)instancesByScore.size())>= initSize);
             }
             else
             {
@@ -2292,7 +2380,7 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
         //Else, add it in normally
         //All non-intersected old ones need to have their score not count anymore (but save in case of later resurrection)
     //debugState();
-    assert(instancesByScore.size()>= initSize || check_didRemove);
+    assert(((int)instancesByScore.size())>= initSize || check_didRemove);
     delete spottings;
     return false;
 }
@@ -2340,17 +2428,19 @@ void SpottingResults::save(ofstream& out)
         //unsigned long sid = s->id;
         if (instancesById.find(sid) == instancesById.end())
         {
-            if (updateMap.find(sid) != updateMap.end())
-                sid=updateMap.at(sid);
-            else
+            if (kickedOut.find(sid)!=kickedOut.end())
             {
-                //for (auto& p : instancesById)
-                //{
-                //    if (&(instancesById[p.first]) == s)
-                //        assert(false && "SpottingResults::save ran into non-existant spotting id, though pointer exists in instancesByScore.");
-                //}
-                assert(false && "SpottingResults::save ran into non-existant spotting id (in instancesByScore)");
+                out<<"k\n";
+                continue;
             }
+            while (updateMap.find(sid) != updateMap.end())
+                sid=updateMap.at(sid);
+            if (kickedOut.find(sid)!=kickedOut.end())
+            {
+                out<<"k\n";
+                continue;
+            }
+            assert(instancesById.find(sid) != instancesById.end());
         }
         out<<sid<<"\n";
         out.flush();
@@ -2360,10 +2450,19 @@ void SpottingResults::save(ofstream& out)
         unsigned long sid = p.first;
         if (instancesById.find(sid) == instancesById.end())
         {
-            if (updateMap.find(sid) != updateMap.end())
-                sid=updateMap.at(p.first);
-            else
-                assert(false && "SpottingResults::save ran into non-existant spotting id (in starts)");
+            if (kickedOut.find(sid)!=kickedOut.end())
+            {
+                out<<"k\n";
+                continue;
+            }
+            while (updateMap.find(sid) != updateMap.end())
+                sid=updateMap.at(sid);
+            if (kickedOut.find(sid)!=kickedOut.end())
+            {
+                out<<"k\n";
+                continue;
+            }
+            assert(instancesById.find(sid) != instancesById.end());
         }
         out<<sid<<"\n";
     }
@@ -2383,6 +2482,11 @@ void SpottingResults::save(ofstream& out)
         s.save(out);
     }
     out<<numSpottingsQbEMax<<endl;
+
+    out<<runningClassifications.size()<<endl;
+    for (bool c : runningClassifications)
+        out<<(c?"1":"0")<<endl;
+    out<<badInARow<<endl;
 
     //skip updateMap as no feedback will be recieved.
     //skip tracer as we will just refind it
@@ -2473,9 +2577,12 @@ SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef)
     for (int i=0; i<size; i++)
     {
         getline(in,line);
-        unsigned long sid = stoul(line);
-        if (!instancesByScoreContains(sid))
-            instancesByScoreInsert(sid);
+        if (line[0] != 'k')
+        {
+            unsigned long sid = stoul(line);
+            if (!instancesByScoreContains(sid))
+                instancesByScoreInsert(sid);
+        }
     }
     getline(in,line);
     size = stoi(line);
@@ -2499,6 +2606,16 @@ SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef)
     }
     getline(in,line);
     numSpottingsQbEMax = stoi(line);
+
+    getline(in,line);
+    size = stoi(line);
+    for (int i=0; i<size; i++)
+    {
+        getline(in,line);
+        runningClassifications.push_back(stoi(line));
+    }
+    getline(in,line);
+    badInARow = stoi(line);
 
     getline(in,line);
     contextPad = stoi(line);

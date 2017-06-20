@@ -346,8 +346,11 @@ private:
     bool EMThresholds(int swing=0);
 
     list<bool> runningClassifications;
+    set<unsigned long> dontAddToRunningClassifications;
+    int badInARow;
     float runningClassificationTrueAverage();
-    void updateRunningClassifications(const vector<int>& newClassifications);
+    void updateRunningClassifications(const vector<unsigned long>& ids, const vector<int>& newClassifications);
+    void resetRunningClassifications();
 
     float NPD(float x, float mean, float var); //normal probability distribution function
     float PHI(float x); //cumulative distribution function of normal distribution

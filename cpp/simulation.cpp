@@ -166,6 +166,7 @@ void threadLoop(CATTSS* cattss, Simulator* sim, atomic_bool* cont)
 int main(int argc, char** argv)
 {
     int numSimThreads=1;
+    set<int> nsOfInterest;
 
     string dataname="BENTHAM";
     string lexiconFile = "/home/brian/intel_index/data/wordsEnWithNames.txt";
@@ -182,6 +183,13 @@ int main(int argc, char** argv)
         GlobalK::knowledge()->setSimSave("save/simulationTracking_net_BENTHAM.csv");
     if (argc>3)
         numSimThreads=atoi(argv[3]);
+    if (argc>4)
+    {
+        for (int i=4; i<argc; i++)
+            nsOfInterest.insert(atoi(argv[i]));
+    }
+    else
+        nsOfInterest.insert(2);
 
 //#ifndef DEBUG_AUTO
     Simulator sim(dataname,charSegFile);
@@ -202,7 +210,6 @@ int main(int argc, char** argv)
     int height = 1000;
     int width = 2500;
     int milli = 7000;
-    set<int> nsOfInterest={1};
     CATTSS* cattss = new CATTSS(lexiconFile,
                         pageImageDir,
                         segmentationFile,

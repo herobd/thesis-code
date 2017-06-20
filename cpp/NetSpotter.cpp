@@ -13,6 +13,16 @@ vector<SpottingResult> NetSpotter::runQuery(SpottingQuery* query)
     vector< SubwordSpottingResult > res;
     float refinePortion=0.25;
     float refinePortionQbE=0.25;
+    if (query->getNgram().length()==1)
+    {
+        refinePortion=0.75;
+        refinePortionQbE=0.75;
+    }
+    else if (query->getNgram().length()>2)
+    {
+        refinePortion=0.15;
+        refinePortionQbE=0.15;
+    }
 #ifdef NO_NAN
     float ap, accumAP;
     int initAccumResSize = GlobalK::knowledge()->accumResFor(query->getNgram())->size();

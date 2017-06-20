@@ -433,9 +433,6 @@ SpottingsBatch* MasterQueue::getSpottingsBatch(unsigned int numberOfInstances, b
 #ifdef TEST_MODE
         cout<<"no spotting batch from MasterQueue, need:"<<need<<endl;
 #endif
-#if ROTATE
-        pthread_rwlock_unlock(&semRotate);
-#endif 
     }
 #ifdef TEST_MODE
     else //test
