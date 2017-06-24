@@ -100,7 +100,7 @@ CATTSS::CATTSS( string lexiconFile,
 
             UpdateTask burn(in); //we simply burn these as we don't save the appropriate data in other objects
             //taskQueue.push_back(new UpdateTask(in));
-            sem_post(&semLock);
+            //sem_post(&semLock);
         }
         getline(in,line);
         SpottingsBatch::setIdCounter(stoul(line));
@@ -447,6 +447,9 @@ void CATTSS::resetAllWords_()
 
 void CATTSS::threadLoop()
 {
+#ifdef TEST_MODE
+            cout<<"threadLoop start"<<endl;
+#endif
     UpdateTask* updateTask;
     while(1)
     {

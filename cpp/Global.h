@@ -34,6 +34,10 @@
 #define MIN_SPOTTING_AP -1
 #define IDEAL_COMB 0
 
+//SpottingResults, thresholding and batch sampling modes
+//all 0's means fancy with both distribution modes
+
+
 using namespace std;
 
 #define MAX_FLOAT numeric_limits<float>::max()
@@ -183,6 +187,12 @@ class GlobalK
         static int sgn(float val) {
             return (0 < val) - (val < 0);
         }
+        bool SR_THRESH_NONE;
+        bool SR_TAKE_FROM_TOP; 
+        bool SR_OTSU_FIXED; 
+        bool SR_FANCY_ONE;
+        bool SR_FANCY_TWO;
+        bool SR_GAUSSIAN_DRAW;
 };
 
 #endif

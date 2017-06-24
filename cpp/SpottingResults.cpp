@@ -582,16 +582,40 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
     setDebugInfo(ret);
 #endif
     set<float> scoresToDraw;
-    //normal_distribution<float> distribution(pullFromScore,((pullFromScore-acceptThreshold)+(rejectThreshold-pullFromScore))/4.0);
-    uniform_real_distribution<float> distribution(acceptThreshold,rejectThreshold);
-    for (int i=0; i<min(toRet,(unsigned int)instancesByScore.size()); i++)
+    if (GlobalK::knowledge()->SR_TAKE_FROM_TOP)
     {
-        float v = distribution(generator);
-        if (v<=acceptThreshold)
-            v=2*acceptThreshold-v;
-        if (v>=rejectThreshold)
-            v=2*rejectThreshold-v;
-        scoresToDraw.insert(v);
+        auto iterScore = instancesByScore.begin();
+        for (int i=0; i<min(toRet,(unsigned int)instancesByScore.size()); i++)
+        {
+            scoresToDraw.insert(iterScore->first);
+            iterScore++;
+        }
+    }
+    else if (GlobalK::knowledge()->SR_GAUSSIAN_DRAW)
+    {
+        normal_distribution<float> distribution(pullFromScore, takeStd);
+        for (int i=0; i<min(toRet,(unsigned int)instancesByScore.size()); i++)
+        {
+            float v = distribution(generator);
+            if (v<=acceptThreshold)
+                v=2*acceptThreshold-v;
+            if (v>=rejectThreshold)
+                v=2*rejectThreshold-v;
+            scoresToDraw.insert(v);
+        }
+    }
+    else
+    {
+        uniform_real_distribution<float> distribution(acceptThreshold,rejectThreshold);
+        for (int i=0; i<min(toRet,(unsigned int)instancesByScore.size()); i++)
+        {
+            float v = distribution(generator);
+            if (v<=acceptThreshold)
+                v=2*acceptThreshold-v;
+            if (v>=rejectThreshold)
+                v=2*rejectThreshold-v;
+            scoresToDraw.insert(v);
+        }
     }
 #ifdef TEST_MODE
     cout <<"\n["<<ngram<<"] getBatch, from: ";
@@ -1003,15 +1027,92 @@ float SpottingResults::expCvt(float x)
     return cvtMax-1*(exp(x)-CVT_MARGIN);
 }
 
-    
-
-bool SpottingResults::EMThresholds(int swing)
+void SpottingResults::EM_none()
 {
-    
-    //debugState();
-    assert(instancesById.size()>1);
-    assert(maxScore()!=-999999);
-    bool init = acceptThreshold==-1 && rejectThreshold==-1;
+    acceptThreshold=minScore();
+    rejectThreshold=maxScore();
+    pullFromScore = (acceptThreshold+rejectThreshold)/2.0;// -sqrt(trueVariance);
+}
+
+void SpottingResults::EM_top(bool init)
+{
+    acceptThreshold=minScore();
+    if (runningClassificationTrueAverage() > 0.3)
+    {
+        rejectThreshold=maxScore();
+    }
+    else
+    {
+        rejectThreshold=minScore();
+    }
+    pullFromScore = (acceptThreshold+rejectThreshold)/2.0;// -sqrt(trueVariance);
+}
+void SpottingResults::EM_otsuFixed(bool init)
+{
+    if (init)
+    {
+        //we initailize our split with Otsu, as we are assuming two distinct distributions.
+        //make histogram
+        vector<int> histogram(40);
+        //int total = 0;//instancesById.size();
+        for (auto p : instancesById)
+        {
+            if (p.second.score(useQbE)==p.second.score(useQbE) && p.second.score(useQbE)!=MAX_FLOAT)
+            {
+                //total++;
+                unsigned long id = p.first;
+                
+                int bin = 39*(instancesById.at(id).score(useQbE)-minScore())/(maxScore()-minScore());
+                if (bin<0) bin=0;
+                if (bin>histogram.size()-1) bin=histogram.size()-1;
+                histogram[bin]++;
+            }
+        }
+        
+        
+        double thresh = GlobalK::otsuThresh(histogram);
+        acceptThreshold=minScore();
+        rejectThreshold=thresh;
+    }
+}
+// void SpottingReuslts::EM_otsuAdapt(bool init)
+void SpottingResults::EM_takeGuass(bool init)
+{
+    if (init)
+    {
+        acceptThreshold=minScore();
+        //int oneQuarter = instancesByScore.size()/4;
+        //auto scoreIter = instanceByScore.begin();
+        //for (int i=0; i<oneQuarter; i++)
+        //    scoreIter++;
+        pullFromScore=minScore() + (maxScore()-minScore())*0.25;
+        //int half = instancesByScore.size()/2;
+        //for (int i=oneQuarter; i<half; i++)
+        //    scoreIter++;
+        rejectThreshold=minScore() + (maxScore()-minScore())*0.5;
+        takeStd = (pullFromScore-minScore())/2;
+    }
+
+    if (runningClassifications.size()==RUNNING_CLASSIFICATIONS_COUNT)
+    {
+        float shift = 0.5-runningClassificationTrueAverage();
+        if (shift<0)
+        {
+            shift*=-1;
+            pullFromScore = minScore() + (pullFromScore-minScore())*(1-shift);
+        }
+        else
+        {
+            pullFromScore = pullFromScore + (pullFromScore-minScore())*(shift/0.5);
+        }
+        takeStd = (pullFromScore-minScore())/2;
+        rejectThreshold = pullFromScore+2*takeStd;
+
+    }
+}
+
+void SpottingResults::EM_fancy(bool init)
+{
     float oldMidScore = acceptThreshold + (rejectThreshold-acceptThreshold)/2.0;
     /*This will likely predict very narrow and distinct distributions
      *initailly. This should be fine as we sample from the middle of
@@ -1019,12 +1120,6 @@ bool SpottingResults::EMThresholds(int swing)
      */
     
 #ifdef TEST_MODE 
-    //test
-    int displayLen=90;
-    vector<int> histogramCP(displayLen);
-    vector<int> histogramCN(displayLen);
-    vector<int> histogramGP(displayLen);
-    vector<int> histogramGN(displayLen);
     //test
     float actualModelDif=-99999;
     bool swaped=false;
@@ -1036,7 +1131,7 @@ bool SpottingResults::EMThresholds(int swing)
 
     if (init || distCheckCounter%5==0)
     {
-        if (ngram.length()==1 || badInARow>2)
+        if (badInARow>2 and !GlobalK::knowledge()->SR_FANCY_ONE and !GlobalK::knowledge()->SR_FANCY_TWO)
         {
             if (!takeFromTail)
                 badInARow=0;
@@ -1118,7 +1213,13 @@ bool SpottingResults::EMThresholds(int swing)
             actualModelDif=actualDensity-modelDensity;
             assert(actualModelDif==actualModelDif);
 #endif
-            if (actualDensity-modelDensity > TAIL_DENSITY_TRUE_THRESHOLD)
+            bool useTwoDist = actualDensity-modelDensity > TAIL_DENSITY_TRUE_THRESHOLD && ngram.length()!=1;
+            if (GlobalK::knowledge()->SR_FANCY_ONE)
+                useTwoDist=false;
+            else if (GlobalK::knowledge()->SR_FANCY_TWO)
+                useTwoDist=true;
+
+            if (useTwoDist)
             {
                 if (!init && takeFromTail)
                 {
@@ -1182,55 +1283,6 @@ bool SpottingResults::EMThresholds(int swing)
             distCheckCounter=0;
         }
     }
-    /*else if (!takeFromTail && distCheckCounter%5==0)
-    {
-        float maxRejectThreshold = falseMean-MAX_REJECT_THRESHOLD_FROM_FALSE*sqrt(falseVariance);
-       
-        //If the true distribution is getting swallowed by the false, we should switch to takeFromTail
-        if (falseProbWeight<1.0 || rejectThreshold >= maxRejectThreshold)
-        {
-            takeFromTail=true;
-#ifdef TEST_MODE 
-            init=true;
-            cout<<"["<<ngram<<"] swaped to takeFromTail mode.";
-            if (falseProbWeight<1.0)
-                cout<<" falseProbWeight: "<<falseProbWeight;
-            if (rejectThreshold >= maxRejectThreshold)
-                cout<<" rejectThreshold:"<<rejectThreshold<<" >= maxRejectThreshold:"<<maxRejectThreshold;
-            cout<<endl;
-#endif
-        }
-    
-    }*/
-    
-    //expectation
-
-    /*
-    bool strictPredict=classById.size()/(0.0+numLeftInRange)>0.1;
-#if defined(TEST_MODE) && defined(GRAPH_SPOTTING_RESULTS)
-    if (strictPredict && init)
-    {
-        cv::Mat undoneW(1,undoneGraph.cols,CV_8UC3);
-        undoneW = cv::Scalar(255,0,0);
-        undoneGraph.push_back(undoneW);
-        cv::Mat fullW(1,fullGraph.cols,CV_8UC3);
-        fullW = cv::Scalar(255,0,0);
-        fullGraph.push_back(fullW);
-    }
-#endif
-    */
-    //bool initV=init;
-    //while (1)//this terminates unless we are initailizing and strictPredict, in which case it will go again with strictPredict off
-    //{
-#ifdef TEST_MODE
-        for (int i=0; i<displayLen; i++)
-        {
-            histogramCP[i]=0;
-            histogramGP[i]=0;
-            histogramCN[i]=0;
-            histogramGN[i]=0;;
-        }
-#endif        
         
         //map<unsigned long, bool> expected;
         multiset<float> expectedTrue;
@@ -1388,8 +1440,8 @@ bool SpottingResults::EMThresholds(int swing)
             //if (useQbE)
             //    rejectThreshold=exp(rejectThreshold);
             float shift = (0.5f-min(runningClassificationTrueAverage(),0.5f))/0.5f;
-            float minRejectThreshold = 0.9*minScore() + 0.1*rejectThreshold;
-            auto iterScore = instancesByScore.begin();
+            float minRejectThreshold = 0.8*minScore() + 0.2*rejectThreshold;
+            //auto iterScore = instancesByScore.begin();
 
             float rejectThreshold = (shift)*minRejectThreshold + (1-shift)*rejectThreshold;
         }
@@ -1433,56 +1485,7 @@ bool SpottingResults::EMThresholds(int swing)
 
             acceptThreshold = newAcceptT;
             rejectThreshold = 0.45*newAcceptT + 0.55*newRejectT;//This is a hueristic, as it tends to poorly model the true distribution causing the reject threshold to be too large
-            assert(rejectThreshold>acceptThreshold);
-
-            /*
-
-            //set new thresholds
-            float numStdDevs = 1;// + ((1.0+min((int)instancesById.size(),50))/(1.0+min((int)classById.size(),50)));//Use less as more are classified, we are more confident. Capped to reduce effect of many returned instances bogging us down.
-            float acceptThreshold1 = falseMean-numStdDevs*falseStd;
-            float rejectThreshold1 = trueMean+numStdDevs*trueStd;
-            float acceptThreshold2 = trueMean-numStdDevs*trueStd;
-            float rejectThreshold2 = falseMean-numStdDevs*falseStd;
-            //float prevAcceptThreshold=acceptThreshold;
-            //float prevRejectThreshold=rejectThreshold;
-            if (falseVariance!=0 && trueVariance!=0)
-            {
-                acceptThreshold = max( min(acceptThreshold1,acceptThreshold2), (useQbE?logCvt(minScore()):minScore()));
-                //rejectThreshold = min( max(rejectThreshold1,rejectThreshold2), maxScore());
-                rejectThreshold = min( rejectThreshold2, (useQbE?logCvt(maxScore()):maxScore()));//This seems to work better
-            }
-            else if (falseVariance==0)
-            {
-                acceptThreshold = acceptThreshold2;
-                rejectThreshold = trueMean+2*numStdDevs*trueStd;
-            }
-            else
-            {
-                rejectThreshold = rejectThreshold2;
-                acceptThreshold = falseMean-2*numStdDevs*falseStd;
-            }
-#ifdef TEST_MODE
-            
-            if (rejectThreshold==rejectThreshold1)
-                rtn=1;
-            else if (rejectThreshold==rejectThreshold2)
-                rtn=2;
-            else
-                rtn=0;
-            
-            if (acceptThreshold==acceptThreshold1)
-                atn=1;
-            else if (acceptThreshold==acceptThreshold2)
-                atn=2;
-            else
-                atn=0;
-#endif //TEST_MODE
-            if (useQbE)
-          {
-              acceptThreshold=exp(acceptThreshold);
-              rejectThreshold=exp(rejectThreshold);
-          }
-            */
+            //assert(rejectThreshold>acceptThreshold);
             float shift = (0.5f-min(runningClassificationTrueAverage(),0.5f))/0.5f;
             float newAcceptThreshold = (shift)*minScore() + (1-shift)*acceptThreshold;
             rejectThreshold -= acceptThreshold-newAcceptThreshold;
@@ -1492,7 +1495,16 @@ bool SpottingResults::EMThresholds(int swing)
 
 
         assert(rejectThreshold==rejectThreshold && acceptThreshold==acceptThreshold);
-        assert(rejectThreshold>acceptThreshold);
+        if (rejectThreshold<=acceptThreshold)
+        {
+            acceptThreshold=minScore();
+            auto iterScore = instancesByScore.begin();
+            iterScore++;
+            for (int ii=1; ii<min(RUNNING_CLASSIFICATIONS_COUNT*10*runningClassificationTrueAverage(),(float)instancesByScore.size()); ii++)
+                iterScore++;
+            rejectThreshold = iterScore->first;
+        }
+        //assert(rejectThreshold>acceptThreshold);
 #ifdef TEST_MODE
         if (init)
             saveHistogram(actualModelDif);
@@ -1508,72 +1520,33 @@ bool SpottingResults::EMThresholds(int swing)
             setDebugInfo(NULL);
         }
 #endif
-#endif //TEST_MODE
-
-        /*if (!init)
-        {
-            float difAcceptThreshold = acceptThreshold-prevAcceptThreshold;
-            if ( (difAcceptThreshold>0 && lastDifAcceptThreshold>0) || (difAcceptThreshold<0 && lastDifAcceptThreshold<0) )
-            {
-                acceptThreshold+=momentum*lastDifAcceptThreshold;
-                difAcceptThreshold = acceptThreshold-prevAcceptThreshold;
-            }
-            lastDifAcceptThreshold=difAcceptThreshold;
-
-            float difRejectThreshold = rejectThreshold-prevRejectThreshold;
-            if ( (difRejectThreshold>0 && lastDifRejectThreshold>0) || (difRejectThreshold<0 && lastDifRejectThreshold<0) )
-            {
-                rejectThreshold+=momentum*lastDifRejectThreshold;
-                difRejectThreshold = rejectThreshold-prevRejectThreshold;
-            }
-            lastDifRejectThreshold=difRejectThreshold;
-        }*/
-#ifdef TEST_MODE
         cout <<"["<<ngram<<"]: adjusted threshs, now "<<acceptThreshold<<" <> "<<rejectThreshold<<"    computed with mean/std devs of: f:"<<falseMean<<"/"<<sqrt(falseVariance)<<", t:"<<trueMean<<"/"<<sqrt(trueVariance)<<endl;
 #endif        
-        /*if (!init || !initV)
-            break;
-        
-        if (fabs(pullFromScore-trueMean)<0.05)
-            break;
-        else
-            initV=false;
-        pullFromScore = trueMean;*/
-
-        //if (!init || !strictPredict)
-        //    break;
-        //strictPredict=false;
-    //}
     float prevPullFromScore = pullFromScore;
     pullFromScore = (acceptThreshold+rejectThreshold)/2.0;// -sqrt(trueVariance);
-    //pullFromScore = trueMean-sqrt(trueVariance);
-    /*if (!init)
-    {
-        float difPullFromScore = pullFromScore-prevPullFromScore;
-#ifdef TEST_MODE
-        cout<<"orig pull dif="<<difPullFromScore<<",  ";
-#endif
-        //if ( (pull>0 && lastDifPullFromScore>0) || (difPullFromScore<0 && lastDifPullFromScore<0) )
-        //{
-        //    pullFromScore+=momentum*lastDifPullFromScore;
-        //    difPullFromScore = pullFromScore-prevPullFromScore;
-        //}
-        if ((swing>0 && difPullFromScore<0) || (swing<0 && difPullFromScore>0))
-            pullFromScore=prevPullFromScore;
-        if ((swing>0 && lastDifPullFromScore>0) || (swing<0 && lastDifPullFromScore<0))
-        {
-            pullFromScore+=momentum*lastDifPullFromScore;
-        }
-        else 
-        {
-            pullFromScore+= (swing/10.0)*fabs(difPullFromScore+lastDifPullFromScore);
-        }
-        difPullFromScore = pullFromScore-prevPullFromScore;
-#ifdef TEST_MODE
-        cout<<"final pull="<<pullFromScore<<" dif="<<difPullFromScore<<",  swing="<<swing<<",  lastDif="<<lastDifPullFromScore<<endl;
-#endif
-        lastDifPullFromScore=difPullFromScore;
-    }*/
+}
+    
+
+bool SpottingResults::EMThresholds(int swing)
+{
+    
+    //debugState();
+    assert(instancesById.size()>1);
+    assert(maxScore()!=-999999);
+
+    bool init = acceptThreshold==-1 && rejectThreshold==-1;
+if (GlobalK::knowledge()->SR_THRESH_NONE)
+    EM_none();
+else if (GlobalK::knowledge()->SR_TAKE_FROM_TOP)
+    EM_top(init);
+else if (GlobalK::knowledge()->SR_OTSU_FIXED)
+    EM_otsuFixed(init);
+//else if (GlobalK::knowledge()->SR_OTSU_ADAPT)
+//    EM_otsuAdapt(init);
+else if (GlobalK::knowledge()->SR_GAUSSIAN_DRAW)
+    EM_takeGuass(init);
+else
+    EM_fancy(init);
 
     //safe gaurd
     if (pullFromScore>rejectThreshold)
@@ -1581,66 +1554,6 @@ bool SpottingResults::EMThresholds(int swing)
     else if (pullFromScore<acceptThreshold)
         pullFromScore=acceptThreshold;
 
-//cout <<"true mean "<<trueMean<<" true var "<<trueVariance<<endl;
-//cout <<"false mean "<<falseMean<<" false var "<<falseVariance<<endl;
-
-
-//cout <<"adjusted threshs, now "<<acceptThreshold<<" <> "<<rejectThreshold<<"    computed with std dev of: "<<numStdDevs<<endl;
-/*//a historgram visualization
-
-int falseMeanBin=(displayLen-1)*(falseMean-minScore())/(maxScore()-minScore());
-int falseVarianceBin1=(displayLen-1)*(falseMean-sqrt(falseVariance)-minScore())/(maxScore()-minScore());
-int falseVarianceBin2=(displayLen-1)*(falseMean+sqrt(falseVariance)-minScore())/(maxScore()-minScore());
-int trueMeanBin=(displayLen-1)*(trueMean-minScore())/(maxScore()-minScore());
-int trueVarianceBin1=(displayLen-1)*(trueMean-sqrt(trueVariance)-minScore())/(maxScore()-minScore());
-int trueVarianceBin2=(displayLen-1)*(trueMean+sqrt(trueVariance)-minScore())/(maxScore()-minScore());
-int acceptThresholdBin=(displayLen-1)*(acceptThreshold-minScore())/(maxScore()-minScore());
-int rejectThresholdBin=(displayLen-1)*(rejectThreshold-minScore())/(maxScore()-minScore());
-int pullFromScoreBin=(displayLen-1)*(pullFromScore-minScore())/(maxScore()-minScore());
-for (int bin=0; bin<displayLen; bin++)
-{
-    if (falseMeanBin==bin)
-        cout <<"F";
-    else
-        cout <<" ";
-    if (falseVarianceBin1==bin || falseVarianceBin2==bin)
-        cout <<"f";
-        else
-            cout <<" ";
-        if (trueMeanBin==bin)
-            cout <<"T";
-        else
-            cout <<" ";
-        if (trueVarianceBin1==bin || trueVarianceBin2==bin)
-            cout <<"t";
-        else
-            cout <<" ";
-        if (rejectThresholdBin==bin)
-            cout <<"R";
-        else
-            cout <<" ";
-        if (acceptThresholdBin==bin)
-            cout <<"A";
-        else
-            cout <<" ";
-        if (pullFromScoreBin==bin)
-            cout <<"P";
-        else
-            cout <<" ";
-        cout <<":";
-        for (int c=0; c<histogramCP[bin]; c++)
-            cout<<"#";
-        for (int c=0; c<histogramGP[bin]; c++)
-            cout<<"+";
-        for (int c=0; c<histogramCN[bin]; c++)
-            cout<<"=";
-        for (int c=0; c<histogramGN[bin]; c++)
-            cout<<"-";
-        cout<<endl;
-    }
-    cout <<"oooooooooooooooooooooooooooooooooooooooooo"<<endl;
-    //*/
-    
     
     if(acceptThreshold>rejectThreshold) {//This is the case where the distributions are so far apart they "don't overlap"
         if (instancesById.size()/3 < classById.size()){//Be sure we aren't hitting this too early
@@ -2408,7 +2321,7 @@ void SpottingResults::save(ofstream& out)
     out<<falseProbWeight<<endl;
     out<<distCheckCounter<<endl;
     out<<lastDifPullFromScore<<"\n"<<momentum<<"\n";
-    out<<pullFromScore<<"\n";
+    out<<pullFromScore<<"\n"<<takeStd<<"\n";
     out<<maxScoreQbE<<"\n"<<minScoreQbE<<"\n";
     out<<maxScoreQbS<<"\n"<<minScoreQbS<<"\n";
     out<<numLeftInRange<<"\n";
@@ -2550,6 +2463,8 @@ SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef)
     momentum = stod(line);
     getline(in,line);
     pullFromScore = stod(line);
+    getline(in,line);
+    takeStd = stod(line);
     getline(in,line);
     maxScoreQbE = stod(line);
     getline(in,line);
