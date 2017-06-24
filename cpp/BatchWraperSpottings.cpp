@@ -1,8 +1,10 @@
 #include "BatchWraperSpottings.h"
 BatchWraperSpottings::BatchWraperSpottings(SpottingsBatch* batch)
 {
+#ifndef NO_NAN
     base64::encoder E;
     vector<int> compression_params={CV_IMWRITE_PNG_COMPRESSION,9};
+#endif
     
 
     batchId=to_string(batch->batchId);
@@ -19,6 +21,7 @@ BatchWraperSpottings::BatchWraperSpottings(SpottingsBatch* batch)
     for (int index=0; index<batchSize; index++) 
     {
         retId[index]=to_string(batch->at(index).id);
+#ifndef NO_NAN
         vector<uchar> outBuf;
         //cout <<"encoding..."<<endl;
         //cv::imshow("batch im",batch->at(index).img());
@@ -31,6 +34,9 @@ BatchWraperSpottings::BatchWraperSpottings(SpottingsBatch* batch)
         E.encode(ss, encoded);
         string dataBase64 = encoded.str();
         retData[index]=dataBase64;
+#else
+        retData[index]="sim";
+#endif
 
         locations[index]=Location(  batch->at(index).pageId,
                                     batch->at(index).tlx,

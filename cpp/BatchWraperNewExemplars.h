@@ -4,11 +4,11 @@
 
 #ifndef NO_NAN
 #include <nan.h>
+#define BUFFERSIZE 65536
+#include <b64/encode.h>
 #endif
 #include <iostream>
 #include <assert.h>
-#define BUFFERSIZE 65536
-#include <b64/encode.h>
 #include "opencv2/highgui/highgui.hpp"
 #include "BatchWraper.h"
 #include "batches.h"

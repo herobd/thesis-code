@@ -3,6 +3,9 @@
 
 #include "opencv2/core/core.hpp"
 #include "opencv2/highgui/highgui.hpp"
+#ifndef OPENCV2
+#include <opencv2/imgcodecs.hpp>
+#endif
 #include "BatchWraper.h"
 #include "BatchWraperSpottings.h"
 #include "BatchWraperTranscription.h"

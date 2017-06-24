@@ -2,11 +2,14 @@
 #include "BatchWraperTranscription.h"
 BatchWraperTranscription::BatchWraperTranscription(TranscribeBatch* batch)
 {
+#ifndef NO_NAN
     base64::encoder E;
     vector<int> compression_params={CV_IMWRITE_PNG_COMPRESSION,9};
+#endif
     
     manual = batch->isManual();
     batchId=to_string(batch->getId());
+#ifndef NO_NAN
     vector<uchar> outBuf;
     cv::imencode(".png",batch->getImage(),outBuf,compression_params);
     stringstream ss;
@@ -15,6 +18,7 @@ BatchWraperTranscription::BatchWraperTranscription(TranscribeBatch* batch)
     E.encode(ss, encoded);
     string dataBase64 = encoded.str();
     wordImgStr=dataBase64;
+#endif
     /*outBuf.clear();
     cv::imencode(".png",batch->getTextImage(),outBuf,compression_params);
     stringstream ss2;

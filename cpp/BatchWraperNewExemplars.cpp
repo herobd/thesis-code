@@ -2,8 +2,10 @@
 #include "BatchWraperNewExemplars.h"
 BatchWraperNewExemplars::BatchWraperNewExemplars(NewExemplarsBatch* newExemplars)
 {
+#ifndef NO_NAN
     base64::encoder E;
     vector<int> compression_params={CV_IMWRITE_PNG_COMPRESSION,9};
+#endif
     
 
     batchId=to_string(newExemplars->getId());
@@ -18,6 +20,7 @@ BatchWraperNewExemplars::BatchWraperNewExemplars(NewExemplarsBatch* newExemplars
     for (int index=0; index<batchSize; index++) 
     {
         retNgram[index]=newExemplars->at(index).ngram;
+#ifndef NO_NAN
         vector<uchar> outBuf;
         cv::imencode(".png",newExemplars->at(index).ngramImg(),outBuf,compression_params);//or should we have them look at the ngram image?
         stringstream ss;
@@ -26,6 +29,7 @@ BatchWraperNewExemplars::BatchWraperNewExemplars(NewExemplarsBatch* newExemplars
         E.encode(ss, encoded);
         string dataBase64 = encoded.str();
         retData[index]=dataBase64;
+#endif
 
         locations[index]=Location(  newExemplars->at(index).pageId,
                                     newExemplars->at(index).tlx,
