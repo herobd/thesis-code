@@ -30,7 +30,7 @@
 #define CHECK_IF_BAD_SPOTTING_START 50
 #define CHECK_IF_BAD_SPOTTING_THRESH 0.035
 
-#define TAIL_CONTINUE_THRESH 0.5
+#define TAIL_CONTINUE_THRESH 0.4
 
 #define RUNNING_CLASSIFICATIONS_COUNT 20
 
@@ -219,7 +219,8 @@ private:
     float lastDifPullFromScore; //The delta for the monentum
     float momentum;
     
-    float pullFromScore; //The choosen score from which batches are pulled (around the score, alternatively grt than and less than).
+    float pullFromScore; //used only in guassian draw mode, mean of where instances are sampled from
+    float takeStd; //used onlu in guassian draw mode, std of where instances are sampled from
     
     float maxScoreQbE, maxScoreQbS;
     float minScoreQbE, minScoreQbS;
@@ -344,6 +345,11 @@ private:
     //returns (and sets allBatchesSent) whether we are now done (all spottings lie outside the thresholds)
     //It uses an Otsu threshold to be used to estimate some initail parameters on the first run.
     bool EMThresholds(int swing=0);
+    void EM_none();
+    void EM_top(bool init);
+    void EM_otsuFixed(bool init);
+    void EM_takeGuass(bool init);
+    void EM_fancy(bool init);
 
     list<bool> runningClassifications;
     set<unsigned long> dontAddToRunningClassifications;

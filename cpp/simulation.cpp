@@ -175,6 +175,13 @@ int main(int argc, char** argv)
     string charSegFile = "/home/brian/intel_index/data/bentham/manual_segmentations.csv";
     string spottingModelPrefix = "/home/brian/intel_index/data/bentham/network/phocnet_msf";//"model/CATTSS_BENTHAM";
     string savePrefix = "save/sim_net_BENTHAM";
+    string SR_mode="fancy";
+    if (argc==1)
+    {
+        cout<<"usage: "<<argv[0]<<" savePrefix simSave.csv numSimThreads [fancy,take_from_top,otsu_fixed,none_take_from_top,none,gaussian_draw,fancy_one,fancy_two] lexiconFile.txt pageImageDir segmentationFile.gtp charSegFile.csv spottingModelPrefix (ngram list)"<<endl;
+        return 0;
+    }
+
     if (argc>1)
         savePrefix=argv[1];
     if (argc>2)
@@ -184,12 +191,61 @@ int main(int argc, char** argv)
     if (argc>3)
         numSimThreads=atoi(argv[3]);
     if (argc>4)
+        SR_mode=argv[4];
+    if (argc>5)
+        lexiconFile=argv[5];
+    if (argc>6)
+        pageImageDir=argv[6];
+    if (argc>7)
+        segmentationFile=argv[7];
+    if (argc>8)
+        charSegFile=argv[8];
+    if (argc>9)
+        spottingModelPrefix=argv[9];
+
+    if (argc>10)
     {
-        for (int i=4; i<argc; i++)
+        for (int i=10; i<argc; i++)
             nsOfInterest.insert(atoi(argv[i]));
     }
     else
         nsOfInterest.insert(2);
+
+    if (SR_mode.compare("take_from_top")==0)
+    {
+        GlobalK::knowledge()->SR_TAKE_FROM_TOP=true;
+    }
+    else if (SR_mode.compare("otsu_fixed")==0)
+    {
+        GlobalK::knowledge()->SR_OTSU_FIXED=true;
+    }
+    else if (SR_mode.compare("none_take_from_top")==0)
+    {
+        GlobalK::knowledge()->SR_TAKE_FROM_TOP=true;
+        GlobalK::knowledge()->SR_THRESH_NONE=true;
+    }
+    else if (SR_mode.compare("none")==0)
+    {
+        GlobalK::knowledge()->SR_THRESH_NONE=true;
+    }
+    else if (SR_mode.compare("gaussian_draw")==0)
+    {
+        GlobalK::knowledge()->SR_GAUSSIAN_DRAW=true;
+    }
+    else if (SR_mode.compare("fancy_one")==0)
+    {
+        GlobalK::knowledge()->SR_FANCY_ONE=true;
+    }
+    else if (SR_mode.compare("fancy_two")==0)
+    {
+        GlobalK::knowledge()->SR_FANCY_TWO=true;
+    }
+    else if (SR_mode.compare("fancy")!=0)
+    {
+        cout<<"Error, unknown SpottingResults mode: "<<SR_mode<<endl;
+        return 0;
+    }
+
 
 //#ifndef DEBUG_AUTO
     Simulator sim(dataname,charSegFile);

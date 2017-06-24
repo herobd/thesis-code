@@ -23,6 +23,12 @@ GlobalK::GlobalK()
     xLock.lock();
 #endif
     badPrunes=transBadBatch=transBadNgram=transSent=spotSent=spotAccept=spotReject=spotAutoAccept=spotAutoReject=newExemplarSpotted=0;
+    SR_THRESH_NONE=false;
+    SR_TAKE_FROM_TOP=false; 
+    SR_OTSU_FIXED=false; 
+    SR_FANCY_ONE=false;
+    SR_FANCY_TWO=false;
+    SR_GAUSSIAN_DRAW=false;
 }
 
 GlobalK::~GlobalK()
