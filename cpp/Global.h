@@ -31,11 +31,9 @@
 #define USE_QBE 1
 #define NO_EXEMPLARS 1
 
-#define MIN_SPOTTING_AP -1
-#define IDEAL_COMB 0
+#define MIN_SPOTTING_AP .8
+#define IDEAL_COMB 1
 
-//SpottingResults, thresholding and batch sampling modes
-//all 0's means fancy with both distribution modes
 
 
 using namespace std;
