@@ -41,7 +41,9 @@ void showSleeper(CATTSS* cattss, MasterQueue* q, Knowledge::Corpus* c, int heigh
         this_thread::sleep_for(chrono::milliseconds(milli));
         if (!q->kill.load() && cattss->getCont())
         {
+#if SHOW_PROGRESS
             c->showProgress(height,width);
+#endif
 #ifdef NO_NAN
             if (count++ % 5==0) //every 20 seconds
             {

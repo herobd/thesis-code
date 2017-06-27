@@ -6,7 +6,7 @@ CXX_FLAGS =  $(CXX_FLAGS_NO_G) -O3 #-g
 LIBS += -lpthread
 
 LIBS += -lopencv_core -lopencv_highgui -lopencv_imgproc -fopenmp -lopencv_imgcodecs
-LIBS += -lb64 -pthread 
+LIBS += -pthread 
 #LIBS += -L/home/brian/intel_index/EmbAttSpotter -lembattspotter -larmadillo
 #LIBS += -L/home/brian/intel_index/EmbAttSpotter/vlfeat-0.9.20/bin/glnxa64/ -l:libvl.so
 #INCLUDE +=-I. -I/home/brian/intel_index/EmbAttSpotter
@@ -14,7 +14,7 @@ LIBS += -lb64 -pthread
 LIBS += -L ../../caffe/scripts/cnnspp_spotter -lcnnspp_spotter
 INCLUDE += -I ../../caffe/scripts/cnnspp_spotter
 LIBS += -L ../../caffe/build/lib
-LIBS += -lcaffe -l boost_system
+LIBS += -lcaffe -l:libboost_system.so.1.59.0 -lglog
 INCLUDE +=-I ../../caffe/include
 PROGRAM_NAME = test
 

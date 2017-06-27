@@ -27,6 +27,8 @@
 #define SIDE_NOT_INCLUDED_THRESH 0.80
 #endif
 
+#define SHOW_PROGRESS 0 
+
 #define TRANS_DONT_WAIT 0
 #define USE_QBE 1
 #define NO_EXEMPLARS 1

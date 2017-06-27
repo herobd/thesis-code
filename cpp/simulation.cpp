@@ -36,7 +36,7 @@ void controlLoop(CATTSS* cattss, atomic_bool* cont)
     }
 }
 
-void threadLoop(CATTSS* cattss, Simulator* sim, atomic_bool* cont)
+void threadLoop(CATTSS* cattss, Simulator* sim, atomic_bool* cont, bool noManual)
 {
     string prevNgram="";
     int slept=0;
@@ -137,8 +137,17 @@ void threadLoop(CATTSS* cattss, Simulator* sim, atomic_bool* cont)
             //this_thread::sleep_for(chrono::minutes(15));
             //slept+=15;
             prevNgram="_";
-            cout<<"ran out, so manual finish."<<endl;
-            cattss->misc("manualFinish");
+            if (noManual)
+            {
+                cout<<"manual hit, finishing"<<endl;
+                cattss->misc("stopSpotting");
+                cont->store(false);
+            }
+            else
+            {
+                cout<<"ran out, so manual finish."<<endl;
+                cattss->misc("manualFinish");
+            }
         }
         else
         {
@@ -288,11 +297,16 @@ int main(int argc, char** argv)
     cout<<"SIMULATION STARTED"<<endl;
     for (int i=0; i<numSimThreads; i++)
     {
-        taskThreads[i] = new thread(threadLoop,cattss,&sim,&cont);
+        taskThreads[i] = new thread(threadLoop,cattss,&sim,&cont,false);
         taskThreads[i]->detach();
         
     }
-    controlLoop(cattss,&cont);
+    if (numSimThreads==0)
+    {
+        threadLoop(cattss,&sim,&cont,true);
+    }
+    else
+        controlLoop(cattss,&cont);
 
     cout<<"---DONE---"<<endl;
     //delete cattss;
