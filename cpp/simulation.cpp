@@ -206,7 +206,18 @@ int main(int argc, char** argv)
     if (argc>10)
     {
         for (int i=10; i<argc; i++)
-            nsOfInterest.insert(atoi(argv[i]));
+        {
+            if (argv[i][0]=='i')
+            {
+                GlobalK::knowledge()->IDEAL_COMB=true;
+            }
+            else if (argv[i][0]=='0' || argv[i][0]=='.')
+            {
+                GlobalK::knowledge()->MIN_SPOTTING_AP=atof(argv[i]);
+            }
+            else
+                nsOfInterest.insert(atoi(argv[i]));
+        }
     }
     else
         nsOfInterest.insert(2);

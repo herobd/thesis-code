@@ -31,8 +31,6 @@
 #define USE_QBE 1
 #define NO_EXEMPLARS 1
 
-#define MIN_SPOTTING_AP .8
-#define IDEAL_COMB 1
 
 
 
@@ -191,6 +189,9 @@ class GlobalK
         bool SR_FANCY_ONE;
         bool SR_FANCY_TWO;
         bool SR_GAUSSIAN_DRAW;
+
+        float MIN_SPOTTING_AP;
+        bool IDEAL_COMB;
 };
 
 #endif
