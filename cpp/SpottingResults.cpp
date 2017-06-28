@@ -1481,7 +1481,8 @@ void SpottingResults::EM_fancy(bool init)
                 lastDif=dif;
             }
 
-            assert((newRejectT-falseMean)/falseStd < -1.0);
+            if ((newRejectT-falseMean)/falseStd > -1.0)
+                newRejectT = falseMean-falseStd;
 
             acceptThreshold = newAcceptT;
             rejectThreshold = 0.45*newAcceptT + 0.55*newRejectT;//This is a hueristic, as it tends to poorly model the true distribution causing the reject threshold to be too large
