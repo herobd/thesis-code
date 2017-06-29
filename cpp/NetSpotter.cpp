@@ -83,15 +83,20 @@ vector<SpottingResult> NetSpotter::runQuery(SpottingQuery* query)
         GlobalK::knowledge()->storeSpottingOther(query->getNgram(),ap);
 #endif
 
-    vector <SpottingResult> ret(res.size());
-    for (int i=0; i<res.size(); i++)
+    vector <SpottingResult> ret;
+    //for (int i=0; i<res.size(); i++)
+    for (auto r : res)
     {
-        assert(res[i].endX-res[i].startX>0);
-        ret[i] = SpottingResult(res[i].imIdx,
-                                res[i].score,
-                                res[i].startX,
-                                res[i].endX
-                               );
+        //cout<<"s:"<<i<<", "<<res.size()<<endl;
+        //cout<<((i<res.size())?"true":"false")<<endl;
+        //assert(i<res.size());
+        if (r.endX-r.startX>0)
+            ret.emplace_back(r.imIdx,
+                             r.score,
+                             r.startX,
+                             r.endX
+                            );
+        //cout<<"e:"<<i<<endl;
     }
     return ret;
 }

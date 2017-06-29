@@ -1,21 +1,30 @@
 CXX = g++
 LINK = g++
-CXX_FLAGS_NO_G =  -std=c++11 -pthread -DNO_NAN -DNO_EXEMPLARS #-DTEST_MODE #-DGRAPH_SPOTTING_RESULTS #-DDEBUG_AUTO#-ansi -fexceptions -fPIC -fno-omit-frame-pointer -pthread
-CXX_FLAGS =  $(CXX_FLAGS_NO_G) -O3 #-g
+CXX_FLAGS_NO_G =  -std=c++11 -pthread -DNO_NAN -DNO_EXEMPLARS -DOPENCV2 #-DTEST_MODE #-DGRAPH_SPOTTING_RESULTS #-DDEBUG_AUTO#-ansi -fexceptions -fPIC -fno-omit-frame-pointer -pthread
+CXX_FLAGS =  $(CXX_FLAGS_NO_G) -g#-O3 #-g
 
 LIBS += -lpthread
 
-LIBS += -lopencv_core -lopencv_highgui -lopencv_imgproc -fopenmp -lopencv_imgcodecs
+LIBS += -lopencv_core -lopencv_highgui -lopencv_imgproc -fopenmp
+#LIBS += -lopencv_imgcodecs
 LIBS += -pthread 
+
 #LIBS += -L/home/brian/intel_index/EmbAttSpotter -lembattspotter -larmadillo
 #LIBS += -L/home/brian/intel_index/EmbAttSpotter/vlfeat-0.9.20/bin/glnxa64/ -l:libvl.so
 #INCLUDE +=-I. -I/home/brian/intel_index/EmbAttSpotter
 
-LIBS += -L ../../caffe/scripts/cnnspp_spotter -lcnnspp_spotter
-INCLUDE += -I ../../caffe/scripts/cnnspp_spotter
-LIBS += -L ../../caffe/build/lib
-LIBS += -lcaffe -l:libboost_system.so.1.59.0 -lglog
-INCLUDE +=-I ../../caffe/include
+LIBS += -L ../../brian_caffe/scripts/cnnspp_spotter -lcnnspp_spotter
+INCLUDE += -I ../../brian_caffe/scripts/cnnspp_spotter
+LIBS += -L ../../brian_caffe/build/lib
+INCLUDE +=-I ../../brian_caffe/include
+LIBS += -lcaffe -lboost_system
+
+#LIBS += -L ../../caffe/scripts/cnnspp_spotter -lcnnspp_spotter
+#INCLUDE += -I ../../caffe/scripts/cnnspp_spotter
+#LIBS += -L ../../caffe/build/lib
+#INCLUDE +=-I ../../caffe/include
+#LIBS += -lcaffe -l:libboost_system.so.1.59.0 -lglog
+
 PROGRAM_NAME = test
 
 OBJECTS = obj/Global.o \
