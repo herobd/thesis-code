@@ -162,10 +162,11 @@ public:
 
     //For use when creating SpottingResult Adds a spotting which is a new exemplar. We just want to prevent a future redundant classification of it.
     void addTrueNoScore(const SpottingExemplar& spotting);
-
+#if USE_QBE
     //This will either replace the spottings or add new ones if it can't find any close enough. spottings is consumed.
     //The return value merely indicates whether this needs "resurrected" (Put back into the MasterQueue).
     bool updateSpottings(vector<Spotting>* spottings);
+#endif
     
     //This accpets a spotting which is a new exemplar. We just want to prevent a future redundant classification of it.
     void updateSpottingTrueNoScore(const SpottingExemplar& spotting);

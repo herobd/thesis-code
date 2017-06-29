@@ -111,7 +111,7 @@ void SpottingQueue::spottingLoop()
         if (query==NULL)
             break;
 #if !USE_QBE
-        if (query->x1 != -1)
+        if (query->getX1() != -1)
         {
             cout<<"QbS only, skipping query "<<query->getId()<<endl;
             delete query;
@@ -171,6 +171,7 @@ void SpottingQueue::spottingLoop()
     
 void SpottingQueue::addQueries(vector<SpottingExemplar*>& exemplars)
 {
+#if USE_QBE
     //int setId = ++_setId;
     mutLock.lock();
     for (SpottingExemplar* exemplar : exemplars)
@@ -183,9 +184,11 @@ void SpottingQueue::addQueries(vector<SpottingExemplar*>& exemplars)
         }
     }
     mutLock.unlock();
+#endif
 }
 void SpottingQueue::addQueries(vector<Spotting*>& exemplars)
 {
+#if USE_QBE
     //int setId = ++_setId;
     mutLock.lock();
     for (Spotting* exemplar : exemplars)
@@ -198,9 +201,11 @@ void SpottingQueue::addQueries(vector<Spotting*>& exemplars)
         }
     }
     mutLock.unlock();
+#endif
 }
 void SpottingQueue::addQueries(vector<Spotting>& exemplars)
 {
+#if USE_QBE
     //int setId = ++_setId;
     mutLock.lock();
     for (Spotting& exemplar : exemplars)
@@ -213,6 +218,7 @@ void SpottingQueue::addQueries(vector<Spotting>& exemplars)
         }
     }
     mutLock.unlock();
+#endif
 }
 void SpottingQueue::addQueries(vector<string>& ngrams)
 {
@@ -228,6 +234,7 @@ void SpottingQueue::addQueries(vector<string>& ngrams)
 
 void SpottingQueue::removeQueries(vector<pair<unsigned long,string> >* toRemove)
 {
+#if USE_QBE
     if (toRemove->size()==0)
         return;
 #ifdef TEST_MODE
@@ -316,6 +323,7 @@ void SpottingQueue::removeQueries(vector<pair<unsigned long,string> >* toRemove)
         }
     }
     mutLock.unlock();
+#endif
 }
 
 
