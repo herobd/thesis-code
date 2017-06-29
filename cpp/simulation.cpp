@@ -165,9 +165,7 @@ void threadLoop(CATTSS* cattss, Simulator* sim, atomic_bool* cont, bool noManual
         else
         {
             cout<<"Blank batch given to sim"<<endl;
-            this_thread::sleep_for(chrono::minutes(5));
-            slept+=5;
-            if (prevNgram.compare("-")==0)
+            if (prevNgram.compare("-----")==0)
             {
                 cattss->misc("stopSpotting");
                 cont->store(false);
@@ -185,8 +183,16 @@ void threadLoop(CATTSS* cattss, Simulator* sim, atomic_bool* cont, bool noManual
                                             accTrans_IV,pWordsTrans_IV, pWords80_100_IV, pWords60_80_IV, pWords40_60_IV, pWords20_40_IV, pWords0_20_IV, pWords0_IV, misTrans_IV);
                 GlobalK::knowledge()->writeTrack();
             }
+            else
+            {
+                this_thread::sleep_for(chrono::minutes(1));
+                slept+=1;
+                if (prevNgram[0]=='-')
+                    prevNgram+="-";
+                else
+                    prevNgram="-";
+            }
 
-            prevNgram="-";
         }
 
         delete batch;
