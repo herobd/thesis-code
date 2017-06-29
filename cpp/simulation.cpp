@@ -142,6 +142,19 @@ void threadLoop(CATTSS* cattss, Simulator* sim, atomic_bool* cont, bool noManual
                 cout<<"manual hit, finishing"<<endl;
                 cattss->misc("stopSpotting");
                 cont->store(false);
+
+                string misTrans;
+                float accTrans,pWordsTrans;
+                float pWords80_100, pWords60_80, pWords40_60, pWords20_40, pWords0_20, pWords0;
+                string misTrans_IV;
+                float accTrans_IV,pWordsTrans_IV;
+                float pWords80_100_IV, pWords60_80_IV, pWords40_60_IV, pWords20_40_IV, pWords0_20_IV, pWords0_IV;
+                cattss->getStats(&accTrans,&pWordsTrans, &pWords80_100, &pWords60_80, &pWords40_60, &pWords20_40, &pWords0_20, &pWords0, &misTrans,
+                            &accTrans_IV,&pWordsTrans_IV, &pWords80_100_IV, &pWords60_80_IV, &pWords40_60_IV, &pWords20_40_IV, &pWords0_20_IV, &pWords0_IV, &misTrans_IV);
+                misTrans="[FINAL/MANUAL] "+misTrans;
+                GlobalK::knowledge()->saveTrack(accTrans,pWordsTrans, pWords80_100, pWords60_80, pWords40_60, pWords20_40, pWords0_20, pWords0, misTrans,
+                                            accTrans_IV,pWordsTrans_IV, pWords80_100_IV, pWords60_80_IV, pWords40_60_IV, pWords20_40_IV, pWords0_20_IV, pWords0_IV, misTrans_IV);
+                GlobalK::knowledge()->writeTrack();
             }
             else
             {
@@ -158,6 +171,19 @@ void threadLoop(CATTSS* cattss, Simulator* sim, atomic_bool* cont, bool noManual
             {
                 cattss->misc("stopSpotting");
                 cont->store(false);
+
+                string misTrans;
+                float accTrans,pWordsTrans;
+                float pWords80_100, pWords60_80, pWords40_60, pWords20_40, pWords0_20, pWords0;
+                string misTrans_IV;
+                float accTrans_IV,pWordsTrans_IV;
+                float pWords80_100_IV, pWords60_80_IV, pWords40_60_IV, pWords20_40_IV, pWords0_20_IV, pWords0_IV;
+                cattss->getStats(&accTrans,&pWordsTrans, &pWords80_100, &pWords60_80, &pWords40_60, &pWords20_40, &pWords0_20, &pWords0, &misTrans,
+                            &accTrans_IV,&pWordsTrans_IV, &pWords80_100_IV, &pWords60_80_IV, &pWords40_60_IV, &pWords20_40_IV, &pWords0_20_IV, &pWords0_IV, &misTrans_IV);
+                misTrans="[FINAL/BLANK DONE] "+misTrans;
+                GlobalK::knowledge()->saveTrack(accTrans,pWordsTrans, pWords80_100, pWords60_80, pWords40_60, pWords20_40, pWords0_20, pWords0, misTrans,
+                                            accTrans_IV,pWordsTrans_IV, pWords80_100_IV, pWords60_80_IV, pWords40_60_IV, pWords20_40_IV, pWords0_20_IV, pWords0_IV, misTrans_IV);
+                GlobalK::knowledge()->writeTrack();
             }
 
             prevNgram="-";
@@ -298,7 +324,8 @@ int main(int argc, char** argv)
                         height,
                         width,
                         milli,
-                        0//pad
+                        0,//pad
+                        numSimThreads==0
                         );
     atomic_bool cont(true);
     vector<thread*> taskThreads(numSimThreads);
@@ -314,6 +341,7 @@ int main(int argc, char** argv)
     }
     if (numSimThreads==0)
     {
+        cout<<"Non-interactive mode. Will terminate on manual."<<endl;
         threadLoop(cattss,&sim,&cont,true);
     }
     else

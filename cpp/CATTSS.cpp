@@ -75,7 +75,8 @@ CATTSS::CATTSS( string lexiconFile,
                 int showHeight,
                 int showWidth,
                 int showMilli,
-                int contextPad ) : savePrefix(savePrefix), nsOfInterest(nsOfInterest)
+                int contextPad,
+                bool noManual) : savePrefix(savePrefix), nsOfInterest(nsOfInterest), noManual(noManual)
 {
     cont.store(1);
     sem_init(&semLock, 0, 0);
@@ -297,7 +298,7 @@ BatchWraper* CATTSS::getBatch(int num, int width, int color, string prevNgram)
 
         }
         BatchWraper* ret= masterQueue->getBatch(num,hard,width,color,prevNgram);
-        if (ret==NULL)
+        if (ret==NULL && !noManual)
         {
             TranscribeBatch* bat = corpus->getManualBatch(width);
             if (bat!=NULL)
@@ -309,7 +310,9 @@ BatchWraper* CATTSS::getBatch(int num, int width, int color, string prevNgram)
         if (ret!=NULL)
             return ret;
         else
+        {
             return new BatchWraperBlank();
+        }
 #if !defined(TEST_MODE) && !defined(NO_NAN)
     }
     catch (exception& e)
