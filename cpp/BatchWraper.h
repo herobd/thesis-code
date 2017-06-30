@@ -72,7 +72,7 @@ class BatchWraperBlank : public BatchWraper
 class BatchWraperRanOut : public BatchWraper
 {
     public:
-        virtual int getType(){return 4;}
+        virtual int getType(){return RAN_OUT;}
         
 };
 #endif
