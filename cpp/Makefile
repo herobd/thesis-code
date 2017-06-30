@@ -135,8 +135,8 @@ $(PROGRAM_NAME):  obj/test.o $(OBJECTS)
 simulation: $(OBJECTS) simulation.cpp
 	$(LINK) $(CXX_FLAGS) -o simulation simulation.cpp $(INCLUDE) $(OBJECTS) $(LIBS)
 
-simulation2: $(OBJECTS2) simulation.cpp
-	$(LINK) $(CXX_FLAGS) -o simulation2 simulation.cpp $(INCLUDE) $(OBJECTS2) $(LIBS)
+simulation2: $(OBJECTS) simulation.cpp
+	$(LINK) $(CXX_FLAGS) -o simulation2 simulation.cpp $(INCLUDE) $(OBJECTS) $(LIBS)
 
 train: $(OBJECTS)
 	$(LINK) $(CXX_FLAGS) -o train train.cpp $(INCLUDE) $(OBJECTS) $(LIBS)

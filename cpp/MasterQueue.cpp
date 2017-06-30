@@ -641,6 +641,7 @@ unsigned long MasterQueue::updateSpottingResults(vector<Spotting>* spottings, un
 #ifdef TEST_MODE
     //cout<<"updateSpottingResults called from MasterQueue. "<<spottings->front().ngram<<endl;
 #endif
+#if USE_QBE
     pthread_rwlock_rdlock(&semResults);
     if (id>0)
     {
@@ -694,6 +695,14 @@ unsigned long MasterQueue::updateSpottingResults(vector<Spotting>* spottings, un
             
         }
     }
+#else
+    assert(id<=0);
+    pthread_rwlock_wrlock(&semResults);
+    for (auto p : results)
+    {
+        assert(p.second.second->ngram.compare(spottings->front().ngram) != 0);
+    }
+#endif
         
     //if no id, no matching ngram, or if somethign goes wrong
 #ifdef TEST_MODE
