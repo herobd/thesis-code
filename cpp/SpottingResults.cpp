@@ -1389,7 +1389,15 @@ void SpottingResults::EM_fancy(bool init)
             }
         }
 
-        assert(expectedFalse.size()>0);
+        if (expectedFalse.size()==0) //something is off. Esimate using all false, and use takeFromTail
+        {
+            assert(expectedTrue.size()>0);
+            takeFromTail=true;
+            sumFalse=sumTrue;
+            sumTrue=0;
+            expectedFalse=expectedTrue;
+            expectedTrue.clear();
+        }
         
         //maximization
         if (expectedTrue.size()!=0)
@@ -1461,7 +1469,15 @@ void SpottingResults::EM_fancy(bool init)
                     break;
                 }
                 newAcceptT+=delta;
-                assert(newAcceptT<maxScore());
+                if (newAcceptT>maxScore() && instancesByScore.size()>0)
+                {
+                    int counter=0;
+                    auto scoreIter = instancesByScore.begin();
+                    while (scoreIter != instancesByScore.end() && counter++<25)
+                    {
+                        newAcceptT=scoreIter.first;
+                    }
+                }
             }
             float newRejectT=newAcceptT+delta;
             //phi_false(reject)-phi_false(accept) = phi_true(reject)-phi_true(accept) #the midpoint
