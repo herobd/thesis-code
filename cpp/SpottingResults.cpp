@@ -1395,7 +1395,7 @@ void SpottingResults::EM_fancy(bool init)
             takeFromTail=true;
             sumFalse=sumTrue;
             sumTrue=0;
-            expectedFalse=expectedTrue;
+            expectedFalse.insert(expectedFalse.end(),expectedTrue.begin(),expectedTrue.end());
             expectedTrue.clear();
         }
         
@@ -1475,7 +1475,7 @@ void SpottingResults::EM_fancy(bool init)
                     auto scoreIter = instancesByScore.begin();
                     while (scoreIter != instancesByScore.end() && counter++<25)
                     {
-                        newAcceptT=scoreIter.first;
+                        newAcceptT=scoreIter->first;
                     }
                 }
             }
