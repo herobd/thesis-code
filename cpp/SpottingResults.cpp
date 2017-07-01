@@ -1475,7 +1475,7 @@ void SpottingResults::EM_fancy(bool init)
                     auto scoreIter = instancesByScore.begin();
                     while (scoreIter != instancesByScore.end() && counter++<25)
                     {
-                        newAcceptT=scoreIter.first;
+                        newAcceptT=scoreIter->first;
                     }
                 }
             }
