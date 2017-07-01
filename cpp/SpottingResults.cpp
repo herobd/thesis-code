@@ -1395,7 +1395,7 @@ void SpottingResults::EM_fancy(bool init)
             takeFromTail=true;
             sumFalse=sumTrue;
             sumTrue=0;
-            expectedFalse=expectedTrue;
+            expectedFalse.insert(expectedFalse.end(),expectedTrue.begin(),expectedTrue.end());
             expectedTrue.clear();
         }
         
