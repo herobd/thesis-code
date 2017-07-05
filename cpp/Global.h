@@ -29,7 +29,7 @@
 
 #define SHOW_PROGRESS 0 
 
-#define TRANS_DONT_WAIT 0
+#define TRANS_DONT_WAIT 1
 #define USE_QBE 1
 #define NO_EXEMPLARS 1
 
