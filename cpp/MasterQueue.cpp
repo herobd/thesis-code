@@ -360,6 +360,7 @@ SpottingsBatch* MasterQueue::getSpottingsBatch(unsigned int numberOfInstances, b
     }
 
     auto iterStart=iter;
+    int startIndexHolder=indexHolder;
     do
     {
         
@@ -388,13 +389,14 @@ SpottingsBatch* MasterQueue::getSpottingsBatch(unsigned int numberOfInstances, b
             //cout << "getBatch   prev:"<<prevNgram<<endl;
             batch = res->getBatch(&done,numberOfInstances,hard,maxWidth,color,prevNgram,need);
            
-            unsigned long id = res->getId(); 
+            //unsigned long id = res->getId(); 
             sem_post(sem);
             if (done)
             {   //cout <<"done in queue "<<endl;
                 
                 pthread_rwlock_wrlock(&semResultsQueue);
-                resultsQueue.erase(id);
+                //resultsQueue.erase(id);
+                resultsQueue.erase(iter);
                 
                 pthread_rwlock_unlock(&semResultsQueue);
                 
@@ -411,7 +413,9 @@ SpottingsBatch* MasterQueue::getSpottingsBatch(unsigned int numberOfInstances, b
                 iter=resultsQueue.begin();
                 for (int i=0; i<std::min(indexHolder,(int)resultsQueue.size()); i++)
                     iter++;
-                iterStart = iter;
+                iterStart = resultsQueue.begin();
+                for (int i=0; i<std::min(startIndexHolder,(int)resultsQueue.size()); i++)
+                    iterStart++;
             }
             
         }
