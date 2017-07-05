@@ -33,6 +33,7 @@
 #define USE_QBE 1
 #define NO_EXEMPLARS 1
 
+#define MANUAL_ONLY 0
 
 
 

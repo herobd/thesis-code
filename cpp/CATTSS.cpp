@@ -291,6 +291,15 @@ BatchWraper* CATTSS::getBatch(int num, int width, int color, string prevNgram)
 #else
         //cout<<"getBatch, color:"<<color<<", prev:"<<prevNgram<<endl;
 #endif
+
+#if MANUAL_ONLY
+        TranscribeBatch* batSp = corpus->getManualBatch(width);
+        if (batSp!=NULL)
+            return new BatchWraperTranscription(batSp);
+        else
+            return new BatchWraperBlank();
+#endif
+
         bool hard=true;
         if (num==-1) {
             num=5;
