@@ -29,7 +29,7 @@
 
 #define SHOW_PROGRESS 0 
 
-#define TRANS_DONT_WAIT 1
+#define TRANS_DONT_WAIT 0
 #define USE_QBE 1
 #define NO_EXEMPLARS 1
 
@@ -194,6 +194,8 @@ class GlobalK
 
         float MIN_SPOTTING_AP;
         bool IDEAL_COMB;
+
+        bool PHOC_TRANS;
 };
 
 #endif

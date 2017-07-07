@@ -130,7 +130,11 @@ class CATTSS
             delete t;
         for (UpdateTask* t : taskQueue)
             delete t;
-    } 
+    }
+   //this is aux for extracting data from save file 
+    CATTSS(     string save,
+                string outCompleted,
+                string outIncomplete);
     void save();
 
     BatchWraper* getBatch(int num, int width, int color, string prevNgram);

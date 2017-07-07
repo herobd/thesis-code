@@ -61,6 +61,11 @@ public:
     void load(ifstream& in);
     void save(ofstream& out);
 
+    const vector<string>& get(string field="")
+    {
+        return fields.at(field);
+    }
+
 private:
     Lexicon()
     {

@@ -42,6 +42,30 @@ vector<TranscribeBatch*> Knowledge::Corpus::addSpotting(Spotting s,vector<Spotti
     
     return ret;
 }
+
+vector<TranscribeBatch*> Knowledge::Corpus::phocTrans()
+{
+    spotter->addLexicon(Lexicon::instance()->get());
+    vector< multimap<float,string> > trans = spotter->transcribeCorpus();
+    vector<TranscribeBatch*> ret(size());
+    for (int i=0; i<size(); i++)
+    {
+        multimap<float,string> words;
+        auto iter=trans.at(i).begin();
+        for (int j=0; j<THRESH_SCORING_COUNT; j++)
+        {
+            words.emplace(iter->first,iter->second);
+        }
+        int tlx,tly,brx,bry;
+        string gt;
+        bool toss;
+        getWord(i)->getBoundsAndDoneAndGT(&tlx,&tly,&brx,&bry,&toss,&gt);
+        TranscribeBatch* newBatch = new TranscribeBatch(getWord(i),words,getWord(i)->getPage(),NULL,tlx,tly,brx,bry,gt);
+        ret.at(i) = newBatch;
+    }
+    return ret;
+}
+
 vector<TranscribeBatch*> Knowledge::Corpus::updateSpottings(vector<Spotting>* spottings, vector<pair<unsigned long,string> >* removeSpottings, vector<unsigned long>* toRemoveBatches, vector<Spotting*>* newExemplars, vector<pair<unsigned long, string> >* toRemoveExemplars)
 {
     //cout <<"addSpottings"<<endl;
@@ -2599,7 +2623,10 @@ void Knowledge::Corpus::recreateDatasetVectors(bool lockPages)
                 //_wordImgs.push_back(word->getImg());
                 //_gt.push_back(word->getGT());
                 _words[word->getId()]=word;
+
+#ifndef DONT_LOAD
                 _wordImgs[word->getId()]=word->getImg();
+#endif
                 //_gt[word->getId()]=word->getGT();
 
             }
@@ -2883,8 +2910,10 @@ Knowledge::Page::Page(ifstream& in, const Spotter* const* spotter, float* averag
     getline(in,line);
     int sizeLines = stoi(line);
     getline(in,pageImgLoc);
+#ifndef DONT_LOAD
     pageImg = cv::imread(pageImgLoc);
     assert(pageImg.cols*pageImg.rows > 1);
+#endif
     _lines.resize(sizeLines);
     for (int i=0; i<sizeLines; i++)
     {
@@ -3035,7 +3064,9 @@ Knowledge::Word::Word(ifstream& in, const cv::Mat* pagePnt, const Spotter* const
         }
     }
 #ifdef NO_NAN
+#ifndef DONT_LOAD
     assert(gt.compare(GlobalK::knowledge()->getSegWord(id))==0);
+#endif
 #endif
 }
 

@@ -292,6 +292,10 @@ int main(int argc, char** argv)
     {
         GlobalK::knowledge()->SR_FANCY_TWO=true;
     }
+    else if (SR_mode.compare("phoc_trans")==0)
+    {
+        GlobalK::knowledge()->PHOC_TRANS=true;
+    }
     else if (SR_mode.compare("fancy")!=0)
     {
         cout<<"Error, unknown SpottingResults mode: "<<SR_mode<<endl;

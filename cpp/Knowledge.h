@@ -476,6 +476,7 @@ private:
 
     map<unsigned long, vector<Word*> > spottingsToWords;
     Spotter* spotter;
+    Transcriber* transcriber;
     TranscribeBatchQueue manQueue;
     TranscribeBatch* makeManualBatch(int maxWidth, bool noSpottings);
 
@@ -503,6 +504,7 @@ public:
         pthread_rwlock_destroy(&spottingsMapLock);
     }
     void loadSpotter(string modelPrefix, set<int> nsOfInterest);
+    vector<TranscribeBatch*> phocTrans();
     vector<TranscribeBatch*> addSpotting(Spotting s,vector<Spotting*>* newExemplars);
     //vector<TranscribeBatch*> addSpottings(vector<Spotting> spottings);
     vector<TranscribeBatch*> updateSpottings(vector<Spotting>* spottings, vector<pair<unsigned long, string> >* removeSpottings, vector<unsigned long>* toRemoveBatches,vector<Spotting*>* newExemplars, vector< pair<unsigned long, string> >* toRemoveExemplars);
