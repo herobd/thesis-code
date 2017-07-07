@@ -26,6 +26,8 @@ class NetSpotter : public Spotter
     float score(string text, const cv::Mat& image) const;
     float score(string text, int wordIndex) const;
     //double getAverageCharWidth() const { return spotter->getAverageCharWidth(); }
+    void addLexicon(const vector<string>& lexicon);
+    vector< multimap<float,string> > transcribeCorpus();
 };
 
 #endif

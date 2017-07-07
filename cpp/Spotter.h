@@ -27,5 +27,7 @@ class Spotter
     virtual float score(string text, int wordIndex) const =0;
     //virtual double getAverageCharWidth() const =0;
     virtual ~Spotter() {}
+    virtual void addLexicon(const vector<string>& lexicon) =0;
+    virtual vector< multimap<float,string> > transcribeCorpus() =0;
 };
 #endif

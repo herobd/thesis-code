@@ -116,3 +116,12 @@ float NetSpotter::score(string text, int wordIndex) const
 {
     return spotter->compare(text,wordIndex);
 }
+
+void NetSpotter::addLexicon(const vector<string>& lexicon)
+{
+    spotter->addLexicon(lexicon);
+}
+vector< multimap<float,string> > NetSpotter::transcribeCorpus()
+{
+    return spotter->transcribeCorpus();
+}

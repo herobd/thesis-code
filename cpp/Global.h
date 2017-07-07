@@ -195,6 +195,8 @@ class GlobalK
 
         float MIN_SPOTTING_AP;
         bool IDEAL_COMB;
+
+        bool PHOC_TRANS;
 };
 
 #endif
