@@ -1,6 +1,6 @@
 CXX = g++
 LINK = g++
-CXX_FLAGS_NO_G =  -std=c++11 -pthread -DNO_NAN -DNO_EXEMPLARS #-DTEST_MODE #-DGRAPH_SPOTTING_RESULTS #-DDEBUG_AUTO#-ansi -fexceptions -fPIC -fno-omit-frame-pointer -pthread
+CXX_FLAGS_NO_G =  -std=c++11 -pthread -DNO_NAN #-DTEST_MODE #-DGRAPH_SPOTTING_RESULTS #-DDEBUG_AUTO#-ansi -fexceptions -fPIC -fno-omit-frame-pointer -pthread
 CXX_FLAGS =  $(CXX_FLAGS_NO_G) -O3 #-g
 
 LIBS += -lpthread
@@ -100,6 +100,7 @@ data: makeData
 sim: simulation
 sim2: simulation2
 sim3: simulationNoWait
+sim4: simulationExemplars
 pp: $(PREPROCESSEDS)
 expand: removeinc addinc simulation2
 addinc: $(PREPROCESSEDS)
@@ -141,6 +142,9 @@ simulation2: $(OBJECTS) simulation.cpp
 
 simulationNoWait: $(OBJECTS) simulation.cpp
 	$(LINK) $(CXX_FLAGS) -o simulationNoWait simulation.cpp $(INCLUDE) $(OBJECTS) $(LIBS)
+
+simulationExemplars: $(OBJECTS) simulation.cpp
+	$(LINK) $(CXX_FLAGS) -o simulationExemplars simulation.cpp $(INCLUDE) $(OBJECTS) $(LIBS)
 
 train: $(OBJECTS)
 	$(LINK) $(CXX_FLAGS) -o train train.cpp $(INCLUDE) $(OBJECTS) $(LIBS)
