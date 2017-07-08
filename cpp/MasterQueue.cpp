@@ -30,7 +30,10 @@ void MasterQueue::checkIncomplete()
 
 MasterQueue::MasterQueue(int contextPad) : contextPad(contextPad)
 {
-    finish.store(false);
+    if (GlobalK::knowledge()->PHOC_TRANS || GlobalK::knowledge()->NPV_TRANS)
+        finish.store(true);
+    else
+        finish.store(false);
     //sem_init(&semResultsQueue,false,1);
     //sem_init(&semResults,false,1);
     pthread_rwlock_init(&semResultsQueue,NULL);
@@ -231,7 +234,7 @@ BatchWraper* MasterQueue::getBatch(unsigned int numberOfInstances, bool hard, un
     pthread_rwlock_rdlock(&semResultsQueue);
     ngramQueueCount=resultsQueue.size();
     pthread_rwlock_unlock(&semResultsQueue);
-    if (ngramQueueCount==0)
+    if (ngramQueueCount==0 && !finish.load())
         return NULL;
 
     //for setting up, just do some spottings

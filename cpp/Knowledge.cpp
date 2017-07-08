@@ -43,10 +43,46 @@ vector<TranscribeBatch*> Knowledge::Corpus::addSpotting(Spotting s,vector<Spotti
     return ret;
 }
 
-vector<TranscribeBatch*> Knowledge::Corpus::phocTrans()
+vector<TranscribeBatch*> Knowledge::Corpus::phocTrans(float keep)
 {
     spotter->addLexicon(Lexicon::instance()->get());
     vector< multimap<float,string> > trans = spotter->transcribeCorpus();
+    map<float, multimap<float,string>* > transByAvgScore;
+    for (int i=0; i<size(); i++)
+    {
+        float sum=0;
+        auto iter=trans.at(i).begin();
+        for (int j=0; j<THRESH_SCORING_COUNT; j++)
+        {
+            sum += iter->first;
+        }
+        transByAvgScore[sum/THRESH_SCORING_COUNT] = &(trans.at(i));
+    }
+    vector<TranscribeBatch*> ret(size()*keep);
+    auto transIter = transByAvgScore.begin();
+    for (int i=0; i<(int)(size()*keep); i++, transIter++)
+    {
+        multimap<float,string> words;
+        auto iter=(transIter->second)->begin();
+        for (int j=0; j<THRESH_SCORING_COUNT; j++)
+        {
+            words.emplace(iter->first,iter->second);
+        }
+        int tlx,tly,brx,bry;
+        string gt;
+        bool toss;
+        getWord(i)->getBoundsAndDoneAndGT(&tlx,&tly,&brx,&bry,&toss,&gt);
+        TranscribeBatch* newBatch = new TranscribeBatch(getWord(i),words,getWord(i)->getPage(),NULL,tlx,tly,brx,bry,gt);
+        ret.at(i) = newBatch;
+    }
+    return ret;
+}
+
+vector<TranscribeBatch*> Knowledge::Corpus::npvTrans(const vector<string>& ngrams)
+{
+    //TODO
+    //words, r:ngram, c:x position
+    /*vector< Mat > trans = spotter->corpusToNPV(ngrams);
     vector<TranscribeBatch*> ret(size());
     for (int i=0; i<size(); i++)
     {
@@ -63,7 +99,7 @@ vector<TranscribeBatch*> Knowledge::Corpus::phocTrans()
         TranscribeBatch* newBatch = new TranscribeBatch(getWord(i),words,getWord(i)->getPage(),NULL,tlx,tly,brx,bry,gt);
         ret.at(i) = newBatch;
     }
-    return ret;
+    return ret;*/
 }
 
 vector<TranscribeBatch*> Knowledge::Corpus::updateSpottings(vector<Spotting>* spottings, vector<pair<unsigned long,string> >* removeSpottings, vector<unsigned long>* toRemoveBatches, vector<Spotting*>* newExemplars, vector<pair<unsigned long, string> >* toRemoveExemplars)

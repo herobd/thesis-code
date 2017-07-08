@@ -206,6 +206,7 @@ void threadLoop(CATTSS* cattss, Simulator* sim, atomic_bool* cont, bool noManual
 
 int main(int argc, char** argv)
 {
+    int numSpottingThreads = 1;//CNNSPPSpotter will use the same network object
     int numSimThreads=1;
     set<int> nsOfInterest;
 
@@ -292,9 +293,19 @@ int main(int argc, char** argv)
     {
         GlobalK::knowledge()->SR_FANCY_TWO=true;
     }
-    else if (SR_mode.compare("phoc_trans")==0)
+    else if (SR_mode.substr(0,10).compare("phoc_trans")==0)
     {
         GlobalK::knowledge()->PHOC_TRANS=true;
+        numSpottingThreads = 100;
+        if (SR_mode.length()>10)
+        {
+            numSpottingThreads = stoi(SR_mode.substr(10));
+            cout<<"trans top "<<numSpottingThreads<<"%"<<endl;
+        }
+    }
+    else if (SR_mode.compare("npv_trans")==0)
+    {
+        GlobalK::knowledge()->NPV_TRANS=true;
     }
     else if (SR_mode.compare("fancy")!=0)
     {
@@ -317,7 +328,6 @@ int main(int argc, char** argv)
         avgCharWidth=38;
     assert(avgCharWidth>0);
 
-    int numSpottingThreads = 1;//CNNSPPSpotter will use the same network object
     int numTaskThreads = 3;
     int height = 1000;
     int width = 2500;

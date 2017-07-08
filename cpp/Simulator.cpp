@@ -362,7 +362,7 @@ string Simulator::transcription(int wordIndex, vector<SpottingPoint> spottings, 
 
         if (ret.length()==0)
         {
-            if (RAND_PROB < transErrorProbNotAvail)
+            if (spottings.size()>0 && RAND_PROB < transErrorProbNotAvail)
                 ret="$REMOVE:"+spottings.front().getId()+"$";//If a user-error is made, I'm just removing a spottings. Not sure what actually should happen
             else
                 ret="$ERROR$";

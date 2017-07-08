@@ -504,7 +504,8 @@ public:
         pthread_rwlock_destroy(&spottingsMapLock);
     }
     void loadSpotter(string modelPrefix, set<int> nsOfInterest);
-    vector<TranscribeBatch*> phocTrans();
+    vector<TranscribeBatch*> phocTrans(float keep);
+    vector<TranscribeBatch*> npvTrans(const vector<string>& ngrams);
     vector<TranscribeBatch*> addSpotting(Spotting s,vector<Spotting*>* newExemplars);
     //vector<TranscribeBatch*> addSpottings(vector<Spotting> spottings);
     vector<TranscribeBatch*> updateSpottings(vector<Spotting>* spottings, vector<pair<unsigned long, string> >* removeSpottings, vector<unsigned long>* toRemoveBatches,vector<Spotting*>* newExemplars, vector< pair<unsigned long, string> >* toRemoveExemplars);

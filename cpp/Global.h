@@ -197,6 +197,7 @@ class GlobalK
         bool IDEAL_COMB;
 
         bool PHOC_TRANS;
+        bool NPV_TRANS;
 };
 
 #endif
