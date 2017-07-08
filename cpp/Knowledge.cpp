@@ -60,7 +60,7 @@ vector<TranscribeBatch*> Knowledge::Corpus::phocTrans(float keep)
     }
     vector<TranscribeBatch*> ret(size()*keep);
     auto transIter = transByAvgScore.begin();
-    for (int i=0; i<size()*keep; i++, transIter++)
+    for (int i=0; i<(int)(size()*keep); i++, transIter++)
     {
         multimap<float,string> words;
         auto iter=(transIter->second)->begin();
