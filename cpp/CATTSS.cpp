@@ -213,7 +213,14 @@ CATTSS::CATTSS( string lexiconFile,
 
             if (GlobalK::knowledge()->NPV_TRANS)
             {
-                vector<TranscribeBatch*> newBatches = corpus->npvTrans(ngramsToVectorize);
+                vector<TranscribeBatch*> newBatches;
+                assert(false);
+                /*
+                if (regex)
+                   newBatches = corpus->npvTransRegex(ngramsToVectorize);
+                else
+                   newBatches = corpus->npvTransDirect(ngramsToVectorize);
+                   */
                 masterQueue->enqueueTranscriptionBatches(newBatches,NULL);
             }
         }
