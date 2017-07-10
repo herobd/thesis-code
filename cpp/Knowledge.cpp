@@ -52,7 +52,7 @@ vector<TranscribeBatch*> Knowledge::Corpus::phocTrans(float keep)
     {
         float sum=0;
         auto iter=trans.at(i).begin();
-        for (int j=0; j<THRESH_SCORING_COUNT; j++)
+        for (int j=0; j<THRESH_SCORING_COUNT; j++, iter++)
         {
             sum += iter->first;
         }
@@ -64,7 +64,7 @@ vector<TranscribeBatch*> Knowledge::Corpus::phocTrans(float keep)
     {
         multimap<float,string> words;
         auto iter=(transIter->second)->begin();
-        for (int j=0; j<THRESH_SCORING_COUNT; j++)
+        for (int j=0; j<THRESH_SCORING_COUNT; j++, iter++)
         {
             words.emplace(iter->first,iter->second);
         }
