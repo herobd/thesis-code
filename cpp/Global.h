@@ -35,6 +35,8 @@
 
 #define MANUAL_ONLY 0
 
+#define PHOC_TRANS_TOP 10
+
 
 
 using namespace std;

@@ -52,11 +52,11 @@ vector<TranscribeBatch*> Knowledge::Corpus::phocTrans(float keep)
     {
         float sum=0;
         auto iter=trans.at(i).begin();
-        for (int j=0; j<10; j++, iter++)
+        for (int j=0; j<PHOC_TRANS_TOP; j++, iter++)
         {
             sum += iter->first;
         }
-        transByAvgScore.emplace(sum/10, make_pair(i,&(trans.at(i))));
+        transByAvgScore.emplace(sum/PHOC_TRANS_TOP, make_pair(i,&(trans.at(i))));
     }
     vector<TranscribeBatch*> ret(size()*keep);
     auto transIter = transByAvgScore.begin();
@@ -65,7 +65,7 @@ vector<TranscribeBatch*> Knowledge::Corpus::phocTrans(float keep)
         multimap<float,string> words;
         int i = (transIter->second).first;
         auto iter=(transIter->second).second->begin();
-        for (int jj=0; jj<10; jj++, iter++)
+        for (int jj=0; jj<PHOC_TRANS_TOP; jj++, iter++)
         {
             words.emplace(iter->first,iter->second);
         }
@@ -143,8 +143,8 @@ vector<TranscribeBatch*> Knowledge::Corpus::npvTransDirect(const vector< Mat >* 
         TranscribeBatch* newBatch = new TranscribeBatch(getWord(i),words,getWord(i)->getPage(),NULL,tlx,tly,brx,bry,gt);
         ret.at(i) = newBatch;
     }
-}
-*/
+}*/
+
 
 vector<TranscribeBatch*> Knowledge::Corpus::updateSpottings(vector<Spotting>* spottings, vector<pair<unsigned long,string> >* removeSpottings, vector<unsigned long>* toRemoveBatches, vector<Spotting*>* newExemplars, vector<pair<unsigned long, string> >* toRemoveExemplars)
 {
@@ -809,6 +809,7 @@ string Knowledge::Word::generateQuery()
     string ret = "";
     while (spot != spottings.end())
     {
+        string addToEnd="";
         int dif = spot->second.tlx-pos;
         float numChars = dif/(0.0+*averageCharWidth);
         //cout <<"pos: "<<pos<<" str: "<<spot->second.tlx<<endl;
@@ -842,11 +843,12 @@ string Knowledge::Word::generateQuery()
             //we allow both
 
             //check for overlap starting at full overlap
-            for (int overlap=spot->second.ngram.length(); overlap>0; overlap--)
+            for (unsigned int overlap=std::min(spot->second.ngram.length()+(int)floor(0.5-1*numChars),ret.length()); overlap>0; overlap--)
             {
                 bool isOverlap=true;
-                for (int placeO=0; placeO<overlap; placeO++)
+                for (int placeO=0; placeO<overlap && placeO<spot->second.ngram.length(); placeO++)
                 {
+                    assert((overlap-placeO)<=ret.length());
                     if (ret[ret.length()-(overlap-placeO)] != spot->second.ngram[placeO])
                     {
                         isOverlap=false;
@@ -856,7 +858,15 @@ string Knowledge::Word::generateQuery()
                 if (isOverlap)
                 {
                     //set a ? around the overlapping region to allow for double or overlap
-                    ret = ret.substr(0,ret.length()-overlap) + "(" + ret.substr(ret.length()-overlap,overlap) + ")?";
+                    if (spot->second.ngram.length()-overlap < 0)
+                    {
+                        assert(ret.length()-overlap+spot->second.ngram.length() < ret.length());
+                        addToEnd = ret.substr(ret.length()-overlap+spot->second.ngram.length());
+                    }
+                    assert(0+ret.length()-overlap<=ret.length());
+                    assert(ret.length()-overlap<ret.length());
+                    assert(ret.length()-overlap + std::min(overlap,(unsigned int) (spot->second.ngram.length())) <=ret.length());
+                    ret = ret.substr(0,ret.length()-overlap) + "(" + ret.substr(ret.length()-overlap,std::min(overlap,(unsigned int) (spot->second.ngram.length()))) + ")?";
                     break;
                 }
             }
@@ -867,7 +877,7 @@ string Knowledge::Word::generateQuery()
         }
 
         //Add the spotting
-        ret += spot->second.ngram;
+        ret += spot->second.ngram+addToEnd;
 
         //Move the currrent position to the end of the spotting
         pos = spot->second.brx;
@@ -2241,7 +2251,7 @@ void Knowledge::Corpus::show()
                             cv::cvtColor(*word->getPage(),draw[word->getPage()],CV_GRAY2BGR);
                         }
                     }
-                    cv::putText(draw[word->getPage()],word->getTranscription(),cv::Point(tlx+(brx-tlx)/2,tly+(bry-tly)/2),cv::FONT_HERSHEY_TRIPLEX,4.0,cv::Scalar(50,50,255));
+                    cv::putText(draw[word->getPage()],word->getTranscription(),cv::Point(tlx+(brx-tlx)/2,tly+(bry-tly)/2),cv::FONT_HERSHEY_TRIPLEX,2.0,cv::Scalar(50,50,255));
                 }
                 //else
                 //    cout<<"word not done at "<<tlx<<", "<<tly<<endl;
@@ -2346,7 +2356,7 @@ void Knowledge::Corpus::showInteractive(int pageId)
             word->getBoundsAndDone(&tlx, &tly, &brx, &bry, &done);
             if (done)
             {
-                cv::putText(draw,word->getTranscription(),cv::Point(tlx+(brx-tlx)/2,tly+(bry-tly)/2),cv::FONT_HERSHEY_TRIPLEX,4.0,cv::Scalar(50,50,255));
+                cv::putText(draw,word->getTranscription(),cv::Point(tlx+(brx-tlx)/2,tly+(bry-tly)/2),cv::FONT_HERSHEY_COMPLEX_SMALL,4.0,cv::Scalar(50,50,255));
             }
             //else
             //    cout<<"word not done at "<<tlx<<", "<<tly<<endl;
@@ -3145,7 +3155,7 @@ Knowledge::Word::Word(ifstream& in, const cv::Mat* pagePnt, const Spotter* const
     }
 #ifdef NO_NAN
 #ifndef DONT_LOAD
-    assert(gt.compare(GlobalK::knowledge()->getSegWord(id))==0);
+    //assert(gt.compare(GlobalK::knowledge()->getSegWord(id))==0);
 #endif
 #endif
 }

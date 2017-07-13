@@ -78,20 +78,23 @@ CATTSS::CATTSS(
         corpus = new Knowledge::Corpus(in);
         in.close();
 
-        ofstream oC(outCompleted);
-        ofstream oI(outIncomplete);
-        for (int i=0; i<corpus->size(); i++)
+        if (outCompleted.length()>0 && outIncomplete.length()>0)
         {
-            bool done;
-            string gt, toss;
-            corpus->getWord(i)->getDoneAndGTAndQuery(&done, &gt, &toss);
-            if (done)
-                oC<<i<<","<<gt<<endl;
-            else
-                oI<<i<<","<<gt<<endl;
+            ofstream oC(outCompleted);
+            ofstream oI(outIncomplete);
+            for (int i=0; i<corpus->size(); i++)
+            {
+                bool done;
+                string gt, toss;
+                corpus->getWord(i)->getDoneAndGTAndQuery(&done, &gt, &toss);
+                if (done)
+                    oC<<i<<","<<gt<<endl;
+                else
+                    oI<<i<<","<<gt<<endl;
+            }
+            oC.close();
+            oI.close();
         }
-        oC.close();
-        oI.close();
     }
     else
         cout<<"error, could not read "<<save<<endl;

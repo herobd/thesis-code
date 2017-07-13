@@ -310,6 +310,7 @@ int main(int argc, char** argv)
     else if (SR_mode.compare("fancy")!=0)
     {
         cout<<"Error, unknown SpottingResults mode: "<<SR_mode<<endl;
+        cout<<SR_mode.substr(0,10)<<endl;
         return 0;
     }
 
