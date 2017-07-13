@@ -133,8 +133,8 @@ class CATTSS
     }
    //this is aux for extracting data from save file 
     CATTSS(     string save,
-                string outCompleted,
-                string outIncomplete);
+                string outCompleted="",
+                string outIncomplete="");
     void save();
 
     BatchWraper* getBatch(int num, int width, int color, string prevNgram);
