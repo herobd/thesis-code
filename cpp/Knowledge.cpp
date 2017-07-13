@@ -52,11 +52,11 @@ vector<TranscribeBatch*> Knowledge::Corpus::phocTrans(float keep)
     {
         float sum=0;
         auto iter=trans.at(i).begin();
-        for (int j=0; j<THRESH_SCORING_COUNT; j++, iter++)
+        for (int j=0; j<10; j++, iter++)
         {
             sum += iter->first;
         }
-        transByAvgScore.emplace(sum/THRESH_SCORING_COUNT, make_pair(i,&(trans.at(i))));
+        transByAvgScore.emplace(sum/10, make_pair(i,&(trans.at(i))));
     }
     vector<TranscribeBatch*> ret(size()*keep);
     auto transIter = transByAvgScore.begin();
@@ -65,7 +65,7 @@ vector<TranscribeBatch*> Knowledge::Corpus::phocTrans(float keep)
         multimap<float,string> words;
         int i = (transIter->second).first;
         auto iter=(transIter->second).second->begin();
-        for (int j=0; j<THRESH_SCORING_COUNT; j++, iter++)
+        for (int jj=0; jj<10; jj++, iter++)
         {
             words.emplace(iter->first,iter->second);
         }
@@ -74,7 +74,7 @@ vector<TranscribeBatch*> Knowledge::Corpus::phocTrans(float keep)
         bool toss;
         getWord(i)->getBoundsAndDoneAndGT(&tlx,&tly,&brx,&bry,&toss,&gt);
         TranscribeBatch* newBatch = new TranscribeBatch(getWord(i),words,getWord(i)->getPage(),NULL,tlx,tly,brx,bry,gt);
-        ret.at(i) = newBatch;
+        ret.at(j) = newBatch;
     }
     return ret;
 }
