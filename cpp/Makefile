@@ -14,6 +14,11 @@ LIBS += -pthread
 #LIBS += -L/home/brian/intel_index/EmbAttSpotter/vlfeat-0.9.20/bin/glnxa64/ -l:libvl.so
 #INCLUDE +=-I. -I/home/brian/intel_index/EmbAttSpotter
 
+
+CXX_FLAGS += -DCTC
+LIBS += -L ../../warp-ctc/build -lwarpctc
+INCLUDE += -I ../../warp-ctc/include
+
 LIBS += -L ../../brian_caffe/scripts/cnnspp_spotter -lcnnspp_spotter
 INCLUDE += -I ../../brian_caffe/scripts/cnnspp_spotter
 LIBS += -L ../../brian_caffe/build/lib
@@ -45,12 +50,32 @@ OBJECTS = obj/Global.o \
           obj/BatchWraperSpottings.o \
           obj/BatchWraperTranscription.o \
           obj/Simulator.o \
-          obj/NetSpotter.o
+          obj/NetSpotter.o \
+          obj/CTCWrapper.o
           #obj/AlmazanSpotter.o \
           #obj/AlmazanDataset.o \
 #          obj/test.o 
           #obj/FacadeSpotter.o \
           #obj/TestQueue.o 
+OBJECTSDONTLOAD = obj/Global.o \
+          obj/CATTSS.o \
+          obj/MasterQueue.o \
+          obj/TranscribeBatchQueue.o \
+          obj/NewExemplarsBatchQueue.o \
+          obj/SpottingResults.o \
+          obj/KnowledgeDONT_LOAD.o \
+          obj/Lexicon.o \
+          obj/maxflow.o \
+          obj/graph.o \
+          obj/SpottingQueue.o \
+          obj/batches.o \
+          obj/tester.o \
+          obj/BatchWraperNewExemplars.o \
+          obj/BatchWraperSpottings.o \
+          obj/BatchWraperTranscription.o \
+          obj/Simulator.o \
+          obj/NetSpotter.o \
+          obj/CTCWrapper.o
 OBJECTS2 = obj/TranscribeBatchQueue2.o \
           obj/NewExemplarsBatchQueue2.o \
           obj/Global2.o \
@@ -99,6 +124,7 @@ all: $(PROGRAM_NAME) simulation
 tr: train
 data: makeData
 getDone: getDone
+#viewer: viewer
 sim: simulation
 sim2: simulation2
 sim3: simulationNoWait
@@ -127,6 +153,7 @@ clean:
 	- rm  simulation
 	- rm  obj/*.o
 	- rm  getDone
+	- rm  viewer
 
 cleanex:
 	- rm  simulation2
@@ -148,8 +175,11 @@ simulationNoWait: $(OBJECTS) simulation.cpp
 train: $(OBJECTS)
 	$(LINK) $(CXX_FLAGS) -o train train.cpp $(INCLUDE) $(OBJECTS) $(LIBS)
 
-getDone: $(OBJECTS)
-	$(LINK) $(CXX_FLAGS) -o getDone getDone.cpp $(INCLUDE) $(OBJECTS) $(LIBS)
+getDone: $(OBJECTSDONTLOAD) getDone.cpp
+	$(LINK) $(CXX_FLAGS) -DDONT_LOAD -o getDone getDone.cpp $(INCLUDE) $(OBJECTSDONTLOAD) $(LIBS)
+	
+viewer: $(OBJECTS) viewer.cpp
+	$(LINK) $(CXX_FLAGS) -o viewer viewer.cpp $(INCLUDE) $(OBJECTS) $(LIBS)
 	
 makeData: $(OBJECTS)
 	$(LINK) $(CXX_FLAGS) -o makeData makeData.cpp $(INCLUDE) $(OBJECTS) $(LIBS)
@@ -194,7 +224,7 @@ obj/batches.o: batches.h batches.cpp WordBackPointer.h
 #	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/SpottingQuery.o SpottingQuery.cpp $(LIBS)
 
 
-obj/MasterQueue.o: MasterQueue.h MasterQueue.cpp SpottingResults.h
+obj/MasterQueue.o: MasterQueue.h MasterQueue.cpp SpottingResults.h Global.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/MasterQueue.o MasterQueue.cpp $(LIBS)
 
 obj/SpottingResults.o: SpottingResults.h SpottingResults.cpp 
@@ -206,8 +236,14 @@ obj/TestQueue.o: TestQueue.h TestQueue.cpp SpottingResults.h
 obj/Knowledge.o: Knowledge.h Knowledge.cpp Lexicon.h Global.h CorpusRef.h PageRef.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/Knowledge.o Knowledge.cpp $(LIBS)
 	
+obj/KnowledgeDONT_LOAD.o: Knowledge.h Knowledge.cpp Lexicon.h Global.h CorpusRef.h PageRef.h
+	$(CXX) -c $(CXX_FLAGS) -DDONT_LOAD $(INCLUDE) -o obj/KnowledgeDONT_LOAD.o Knowledge.cpp $(LIBS)
+	
 obj/Lexicon.o: Lexicon.h Lexicon.cpp
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/Lexicon.o Lexicon.cpp $(LIBS)
+
+obj/CTCWrapper.o: CTCWrapper.h CTCWrapper.cpp
+	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/CTCWrapper.o CTCWrapper.cpp $(LIBS)
 
 obj/Spotter.o: Spotter.h Spotter.cpp MasterQueue.h Knowledge.h 
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/Spotter.o Spotter.cpp $(LIBS)

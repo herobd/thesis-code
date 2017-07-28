@@ -28,6 +28,8 @@ class NetSpotter : public Spotter
     //double getAverageCharWidth() const { return spotter->getAverageCharWidth(); }
     void addLexicon(const vector<string>& lexicon);
     vector< multimap<float,string> > transcribeCorpus();
+    void setNgrams(const vector<string>& ngrams) {spotter->cpvPrep(ngrams);}
+    Mat cpv(int wordIndex) {return spotter->cpv(wordIndex);}
 };
 
 #endif

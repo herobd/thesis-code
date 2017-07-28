@@ -186,6 +186,7 @@ public:
     int ngramRank;
 
     int wordId, wordX0;
+    bool overlap;//for use when generating (and re-generating) queries
 
 protected:
     static atomic_ulong _id;

@@ -303,9 +303,15 @@ int main(int argc, char** argv)
             cout<<"trans top "<<numSpottingThreads<<"%"<<endl;
         }
     }
-    else if (SR_mode.compare("npv_trans")==0)
+    else if (SR_mode.substr(0,9).compare("cpv_trans")==0)
     {
-        GlobalK::knowledge()->NPV_TRANS=true;
+        GlobalK::knowledge()->CPV_TRANS=true;
+        numSpottingThreads = 100;
+        if (SR_mode.length()>9)
+        {
+            numSpottingThreads = stoi(SR_mode.substr(9));
+            cout<<"trans top "<<numSpottingThreads<<"%"<<endl;
+        }
     }
     else if (SR_mode.compare("fancy")!=0)
     {

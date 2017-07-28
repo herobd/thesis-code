@@ -12,6 +12,8 @@ Knowledge::Corpus::Corpus(int contextPad, int averageCharWidth)
     countCharWidth=0;
     threshScoring= 1.0;
     manQueue.setContextPad(contextPad);
+    minWordImageLen=99999;
+    maxWordImageLen=0;
 }
 void Knowledge::Corpus::loadSpotter(string modelPrefix, set<int> nsOfInterest)
 {
@@ -78,6 +80,100 @@ vector<TranscribeBatch*> Knowledge::Corpus::phocTrans(float keep)
     }
     return ret;
 }
+
+#ifdef CTC
+vector<TranscribeBatch*> Knowledge::Corpus::cpvTransCTC(float keep, const vector<string>& ngrams)
+{
+    spotter->setNgrams(ngrams);
+    //join
+    int maxFeatureLen=1+maxWordImageLen/4;
+    int maxLexLen=0;
+    vector<string> lex = Lexicon::instance()->get();
+    for (const string& word : lex)
+        if (word.length() > maxLexLen)
+            maxLexLen=word.length();
+
+    CTCWrapper ctcWrapper(maxFeatureLen, maxLexLen);
+    multimap<float, pair<int,multimap<float,string> > > byAvgScore;
+    for (int i=0; i<size(); i++)
+    {
+        Mat cpv = spotter->cpv(i);
+        multimap<float,string> topMatches;// = Lexicon::instance()->ctc(cpv,THRESH_SCORING_COUNT);
+        //multimap<float,string> ret;
+        for (string word : lex)
+        {
+            float loss = ctcWrapper.loss(cpv,word);
+            topMatches.emplace(loss,word);
+        }
+
+        auto iter = topMatches.begin();
+        for (int i=0; i<THRESH_SCORING_COUNT; i++)
+            iter++;
+        topMatches.erase(iter,topMatches.end());
+        //return ret;
+        
+        float weight=1.0;
+        float score=0;
+        for (auto p : topMatches)
+        {
+            score+=weight*p.first;
+            weight*=0.5;
+        }
+        //score /= topMatches.size();
+        byAvgScore.emplace(score, make_pair(i,topMatches));
+    }
+    vector<TranscribeBatch*> ret(size()*keep);
+    auto transIter = byAvgScore.begin();
+    for (int i=0; i<(int)(size()*keep); i++, transIter++)
+    {
+        int wordIdx = transIter->second.first;
+        multimap<float,string>& words = transIter->second.second;
+        int tlx,tly,brx,bry;
+        string gt;
+        bool toss;
+        getWord(wordIdx)->getBoundsAndDoneAndGT(&tlx,&tly,&brx,&bry,&toss,&gt);
+        TranscribeBatch* newBatch = new TranscribeBatch(getWord(wordIdx),words,getWord(wordIdx)->getPage(),NULL,tlx,tly,brx,bry,gt);
+        ret.at(i) = newBatch;
+    }
+    return ret;
+}
+#endif
+/*
+vector<TranscribeBatch*> Knowledge::Corpus::phocNgramTrans(float keep)
+{
+    spotter->addLexicon(Lexicon::instance()->get());
+    vector< multimap<float,string> > trans = spotter->transcribeCorpusNgram();
+    multimap<float, pair<int, multimap<float,string>*> > transByAvgScore;
+    for (int i=0; i<size(); i++)
+    {
+        float sum=0;
+        auto iter=trans.at(i).begin();
+        for (int j=0; j<THRESH_SCORING_COUNT; j++, iter++)
+        {
+            sum += iter->first;
+        }
+        transByAvgScore.emplace(sum/THRESH_SCORING_COUNT, make_pair(i,&(trans.at(i))));
+    }
+    vector<TranscribeBatch*> ret(size()*keep);
+    auto transIter = transByAvgScore.begin();
+    for (int j=0; j<(int)(size()*keep); j++, transIter++)
+    {
+        multimap<float,string> words;
+        int i = (transIter->second).first;
+        auto iter=(transIter->second).second->begin();
+        for (int jj=0; jj<THRESH_SCORING_COUNT; jj++, iter++)
+        {
+            words.emplace(iter->first,iter->second);
+        }
+        int tlx,tly,brx,bry;
+        string gt;
+        bool toss;
+        getWord(i)->getBoundsAndDoneAndGT(&tlx,&tly,&brx,&bry,&toss,&gt);
+        TranscribeBatch* newBatch = new TranscribeBatch(getWord(i),words,getWord(i)->getPage(),NULL,tlx,tly,brx,bry,gt);
+        ret.at(j) = newBatch;
+    }
+    return ret;
+}*/
 /*
 vector<TranscribeBatch*> Knowledge::Corpus::npvTransRegex(const vector<string>& ngrams)
 {
@@ -507,7 +603,8 @@ TranscribeBatch* Knowledge::Word::queryForBatch(vector<Spotting*>* newExemplars)
 {
     //if (sentBatchId!=0)
     //    return NULL;
-    string newQuery = generateQuery();
+    string newQuery = generateQuery(spottings.end());
+    set<unsigned long> removedSpottings;
     TranscribeBatch* ret=NULL;
     if (query.compare(newQuery) !=0)
     {
@@ -517,6 +614,57 @@ TranscribeBatch* Knowledge::Word::queryForBatch(vector<Spotting*>* newExemplars)
 #else
         vector<string> matches = Lexicon::instance()->search(query,meta);
 #endif
+        if (matches.size() == 0)
+        {
+            //First see if removing non-overlapping spottings helps
+            for (auto iter=spottings.begin(); iter!=spottings.end(); iter++)
+            {
+                if (!iter->second.overlap)
+                {
+                    string removedQuery = generateQuery(iter);
+                    if (query.compare(removedQuery) !=0)
+                    {
+#if TRANS_DONT_WAIT
+                        vector<string> matchesR = Lexicon::instance()->search(removedQuery,meta,rejectedTrans);
+#else
+                        vector<string> matchesR = Lexicon::instance()->search(removedQuery,meta);
+#endif
+                        if (matchesR.size()>0)
+                        {
+                            removedSpottings.insert(iter->second.id);
+                            matches.insert(matches.begin(),matchesR.begin(),matchesR.end());
+                        }
+                    }
+                }
+
+            }
+
+            if (matches.size() == 0)
+            {
+                //Then see if removing the other spottings helps
+                for (auto iter=spottings.begin(); iter!=spottings.end(); iter++)
+                {
+                    if (iter->second.overlap)
+                    {
+                        string removedQuery = generateQuery(iter);
+                        if (query.compare(removedQuery) !=0)
+                        {
+#if TRANS_DONT_WAIT
+                            vector<string> matchesR = Lexicon::instance()->search(removedQuery,meta,rejectedTrans);
+#else
+                            vector<string> matchesR = Lexicon::instance()->search(removedQuery,meta);
+#endif
+                            if (matchesR.size()>0)
+                            {
+                                removedSpottings.insert(iter->second.id);
+                                matches.insert(matches.begin(),matchesR.begin(),matchesR.end());
+                            }
+                        }
+                    }
+
+                }
+            }
+        }
         /*
 #if TRANS_DONT_WAIT
         //filter out matches we've previously rejected
@@ -561,6 +709,7 @@ TranscribeBatch* Knowledge::Word::queryForBatch(vector<Spotting*>* newExemplars)
             {
                 //ret= createBatch(scored);
                 ret = new TranscribeBatch(this,scored,pagePnt,&spottings,tlx,tly,brx,bry,gt,sentBatchId);
+                removeSpottings(removedSpottings);
             }
 #endif
         }
@@ -571,7 +720,7 @@ TranscribeBatch* Knowledge::Word::queryForBatch(vector<Spotting*>* newExemplars)
                 loose=true;
                 return queryForBatch(newExemplars);
             }
-            else
+            /*else removed this as the new remove-and-check method is a more exhaustive way to this
             {
                 bool removedSpotting = removeWorstSpotting();
                 if (removedSpotting)
@@ -579,7 +728,7 @@ TranscribeBatch* Knowledge::Word::queryForBatch(vector<Spotting*>* newExemplars)
                 //OoV or something is wrong. Return as manual batch.
                 //But we'll do it later to keep the state of the Corpus's queue good.
                 //ret= new TranscribeBatch(this,vector<string>(),pagePnt,&spottings,tlx,tly,brx,bry,sentBatchId);
-            }
+            }*/
         }
     }
     if (ret!=NULL)
@@ -667,13 +816,30 @@ bool Knowledge::Word::removeWorstSpotting(unsigned long batchId)
     return true;
 }
 
+void Knowledge::Word::removeSpottings(const set<unsigned long>& toRemove)
+{
+    auto iter = spottings.begin();
+    while (iter!=spottings.end())
+    {
+        if (toRemove.find(iter->second.id) != toRemove.end())
+        {
+            //I dont think we need to readd
+            //removedSpottings[batchId].push_back(iter->second);
+            iter=spottings.erase(iter);
+        }
+        else
+            iter++;
+    }
+}
+
+
 vector<string> Knowledge::Word::getRestrictedLexicon(int max)
 {
 #ifdef TEST_MODE
         //cout<<"[read] "<<gt<<" ("<<tlx<<","<<tly<<") getRestrictedLexicon"<<endl;
 #endif
     pthread_rwlock_rdlock(&lock);
-    string newQuery = generateQuery();
+    string newQuery = generateQuery(spottings.end());
     pthread_rwlock_unlock(&lock);
 #ifdef TEST_MODE
         //cout<<"[unlock] "<<gt<<" ("<<tlx<<","<<tly<<") getRestrictedLexicon"<<endl;
@@ -802,6 +968,366 @@ multimap<float,string> Knowledge::Word::scoreAndThresh(vector<string> match) con
     return new TranscribeBatch(pos,cv::Mat(),cv::Mat());
 }*/
 
+/*
+bool getOverlap(int overlap, string ret, string& ngramToAdd)
+{
+    //recursive
+    if (placeO>=overlap || placeO>=ngramToAdd.length())
+    {
+        //We remove overlapping characters, this removes duplicates
+        if (setOverlap)
+        {
+            (--spot)->second.overlap=true;//prev spotting
+            (++spot)->second.overlap=true;//back to current
+        }
+
+
+        if (overlap==1)
+            ret+="?";//condition the matching character
+        else if (overlap>=ngramToAdd.length())
+            ngramToAdd="";
+        else
+            ngramToAdd=ngramToAdd.substr(overlap);
+        return true;
+    }
+
+    assert((overlap-placeO)<=ret.length());
+    if ((placeO-overlap)+1<0 && ret[ret.length()-(overlap-placeO)+1]=='?')
+    {
+        //dont skip
+        string ngramToAddInclude(ngramToAdd);
+        string retInclude = ret.substr(0,ret.length()-(overlap-placeO)+1)+ret.substr(ret.length()-(overlap-placeO)+2);
+        bool included = getOverlap(placeO, retInclude, ngramToAddInclude, setOverlap);
+        if (included)
+        {
+            ret=retInclude;
+            ngramToAdd=ngramToAddInclude;
+            return true;
+        }
+
+        //skip
+        string ngramToAddSkip(ngramToAdd);
+        string retSkip = ret.substr(0,ret.length()-(overlap-placeO))+ret.substr(ret.length()-(overlap-placeO)+2);
+        bool skipped = getOverlap(placeO, retSkip, ngramToAddSkip, setOverlap);
+        if (skipped)
+        {
+            ret=retSkip;
+            ngramToAdd=ngramToAddSkip;
+            return true;
+        }
+
+    }
+    else
+    {
+        if (ret[ret.length()-(overlap-placeO)] != ngramToAdd[placeO])
+        {
+            return false;
+        }
+        return getOverlap(placeO+1, ret, ngramToAdd, setOverlap);
+    }
+}*/
+
+void Knowledge::Word::getPossibleStrings(string s, set<string>& ret)
+{
+    bool found=false;
+    for (int i=0; i<s.length(); i++)
+    {
+        if (s[i]=='?')
+        {
+            getPossibleStrings(s.substr(0,i-1)+s.substr(i+1));//remove char
+            getPossibleStrings(s.substr(0,i)+s.substr(i+1));//keep char
+            found=true;
+        }
+    }
+    if (!found)
+        ret.insert(s);
+
+}
+
+set<string> Knowledge::Word::getPossibleStrings(string s)
+{
+    set<string> ret;
+    getPossibleStrings(s,ret);
+    return ret;
+}
+
+/*
+string Knowledge::Word::generateQuery(multimap<int,Spotting>::iterator skip)
+{
+    bool setOverlap = skip==spottings.end();
+    auto spot = spottings.begin();
+    int pos = tlx;
+    string ret = "";
+    float estTotalChars = (brx-tlx)/(0.0+*averageCharWidth);
+    while (spot != spottings.end())
+    {
+        if (spot == skip)
+        {
+            spot++;
+            continue;//SKIP!
+        }
+        
+        if (skip==spottings.end())
+            spot->second.overlap=false;
+        string addToEnd="";
+        int dif = spot->second.tlx-pos;
+        float numChars = dif/(0.0+*averageCharWidth);
+        //cout <<"pos: "<<pos<<" str: "<<spot->second.tlx<<endl;
+        //cout <<"num chars: "<<numChars<<endl;
+        string ngramToAdd = spot->second.ngram;
+        
+        
+        if (numChars>0) //There are probably chars between the spottings
+        {
+            int least = floor(numChars);
+            int most = ceil(numChars);
+            
+            if (numChars-least < THRESH_UNKNOWN_EST)
+                least-=1;
+            if (most-numChars < THRESH_UNKNOWN_EST && spot!=spottings.begin())
+                most+=1;
+
+            if (spot==spottings.begin()) //This character (particularly capitol) is often larger
+            {
+                least-=1;
+                most = std::max(0,(int)ceil(numChars - 0.5*std::min(1.0f,1.0f/estTotalChars)));
+            }
+            if (loose)
+            {
+                least-=1;
+                most+=1;
+            }
+
+            least = max(0,least);
+            if (numChars<0.5 && ret.length()>0 && ret[ret.length()-1]==ngramToAdd[0])//as we always put "?" at the end of the previous char, this works (we don't compare to "?")
+            {
+                if (setOverlap)
+                {
+                    (--spot)->second.overlap=true;//prev spotting
+                    (++spot)->second.overlap=true;//back to current
+                }
+                if (ngramToAdd[0]=='l' || ngramToAdd[0]=='s' || ngramToAdd[0]=='e')
+                    ret+="?";//condition the matching character
+                else
+                    ngramToAdd=ngramToAdd.substr(1);
+            }
+            else if (most>0)
+                ret += "[a-zA-Z0-9]{"+to_string(least)+","+to_string(most)+"}";
+        }
+        else
+        {
+            set<string> rets = getPossibleStrings(ret);
+            for (int overlap=std::min((int)ceil(-1*numChars)+1,(int)ret.length()); overlap>0; overlap--) //The "+1" is a safety
+            {
+                for (string retPoss : rets)
+                {
+                    bool didOverlap = true;//getOverlap(overlap, retPoss, ngramToAdd);
+                    for (int placeO=0; placeO<overlap && placeO<ngramToAdd.length(); placeO++)
+                    {
+                        assert((overlap-placeO)<=ret.length());
+                        if (ret[ret.length()-(overlap-placeO)] != ngramToAdd[placeO])
+                        {
+                            didOverlap=false;
+                            break;
+                        }
+                    }
+                    if (didOverlap)
+                    {
+                        if (setOverlap)
+                        {
+                            (--spot)->second.overlap=true;//prev spotting
+                            (++spot)->second.overlap=true;//back to current
+                        }
+                        ret=retPoss;
+                        if (overlap==1 && (ngramToAdd[0]=='l' || ngramToAdd[0]=='s' || ngramToAdd[0]=='e')) //l,s,e most common doubles
+                            ret+="?";//condition the matching character
+                        else if (overlap>=ngramToAdd.length())
+                            ngramToAdd="";
+                        else
+                            ngramToAdd=ngramToAdd.substr(overlap);
+                        overlap=0;
+                        break;
+                    }
+                }
+            }
+
+
+            //Because spottings often are large, we allow a character to occur between overlaping ones
+            //if (-1*numChars<THRESH_UNKNOWN_EST/2.0 || loose)
+            //    ret += "[a-zA-Z0-9]?";
+        }
+
+        //Add the spotting
+        ret += ngramToAdd+addToEnd;
+
+        //Move the currrent position to the end of the furthest spotting processed
+        pos = std::max(pos,spot->second.brx);
+        spot++;
+    }
+    
+    int dif = brx-pos;
+    float numChars = dif/(0.0+*averageCharWidth);
+    //cout <<"pos: "<<pos<<" end: "<<brx<<endl;
+    //cout <<"E num chars: "<<numChars<<endl;
+    if (numChars>0)
+    {
+        int least = floor(numChars);
+        int most = std::max(0,(int)ceil(numChars - 0.5*std::min(1.0f,1.0f/estTotalChars)));
+        
+        if (numChars-least < THRESH_UNKNOWN_EST)
+            least-=1;
+        //if (most-numChars < THRESH_UNKNOWN_EST)
+        //    most+=1;
+
+        //The last character sometimes has a trail making it larger
+        least-=1;
+        if (loose)
+        {
+            least-=1;
+            most+=1;
+        }
+        least = max(0,least);
+        if(most!=0)
+            ret += "[a-zA-Z0-9]{"+to_string(least)+","+to_string(most)+"}";
+    }
+    //cout << "query : "<<ret<<endl;
+    return ret;
+}*/
+
+string Knowledge::Word::generateQuery(multimap<int,Spotting>::iterator skip)
+{
+    auto spot = spottings.begin();
+    int pos = tlx;
+    string ret = "";
+    float estTotalChars = (brx-tlx)/(0.0+*averageCharWidth);
+    while (spot != spottings.end())
+    {
+        if (spot == skip)
+        {
+            spot++;
+            continue;//SKIP!
+        }
+        
+        if (skip==spottings.end())
+            spot->second.overlap=false;
+        string addToEnd="";
+        int dif = spot->second.tlx-pos;
+        float numChars = dif/(0.0+*averageCharWidth);
+        //cout <<"pos: "<<pos<<" str: "<<spot->second.tlx<<endl;
+        //cout <<"num chars: "<<numChars<<endl;
+        string ngramToAdd = spot->second.ngram;
+        
+        
+        if (numChars>0) //There are probably chars between the spottings
+        {
+            int least = floor(numChars);
+            int most = ceil(numChars);
+            
+            if (numChars-least < THRESH_UNKNOWN_EST)
+                least-=1;
+            if (most-numChars < THRESH_UNKNOWN_EST && spot!=spottings.begin())
+                most+=1;
+
+            if (spot==spottings.begin()) //This character (particularly capitol) is often larger
+            {
+                least-=1;
+                most = std::max(0,(int)ceil(numChars - 0.5*std::min(1.0f,1.0f/estTotalChars)));
+            }
+            if (loose)
+            {
+                least-=1;
+                most+=1;
+            }
+
+            least = max(0,least);
+            if (numChars<0.5 && ret.length()>0 && ret[ret.length()-1]==ngramToAdd[0])
+            {
+                if (skip==spottings.end())
+                {
+                    (--spot)->second.overlap=true;//prev spotting
+                    (++spot)->second.overlap=true;//back to current
+                }
+                
+                ngramToAdd=ngramToAdd.substr(1);
+            }
+            else if (most>0)
+                ret += "[a-zA-Z0-9]{"+to_string(least)+","+to_string(most)+"}";
+        }
+        else
+        {
+            for (unsigned int overlap=std::min((int)ceil(-1*numChars)+1,(int)ret.length()); overlap>0; overlap--) //The "+1" is a safety
+            {
+                bool isOverlap=true;
+                for (int placeO=0; placeO<overlap && placeO<ngramToAdd.length(); placeO++)
+                {
+                    assert((overlap-placeO)<=ret.length());
+                    if (ret[ret.length()-(overlap-placeO)] != ngramToAdd[placeO])
+                    {
+                        isOverlap=false;
+                        break;
+                    }
+                }
+                if (isOverlap)
+                {
+                    //We remove overlapping characters, this removes duplicates
+                    if (skip==spottings.end())
+                    {
+                        (--spot)->second.overlap=true;//prev spotting
+                        (++spot)->second.overlap=true;//back to current
+                    }
+
+                    if (overlap>=ngramToAdd.length())
+                        ngramToAdd="";
+                    else
+                        ngramToAdd=ngramToAdd.substr(overlap);
+
+                    break;
+                }
+            }
+
+
+            //Because spottings often are large, we allow a character to occur between overlaping ones
+            //if (-1*numChars<THRESH_UNKNOWN_EST/2.0 || loose)
+            //    ret += "[a-zA-Z0-9]?";
+        }
+
+        //Add the spotting
+        ret += ngramToAdd+addToEnd;
+
+        //Move the currrent position to the end of the furthest spotting processed
+        pos = std::max(pos,spot->second.brx);
+        spot++;
+    }
+    
+    int dif = brx-pos;
+    float numChars = dif/(0.0+*averageCharWidth);
+    //cout <<"pos: "<<pos<<" end: "<<brx<<endl;
+    //cout <<"E num chars: "<<numChars<<endl;
+    if (numChars>0)
+    {
+        int least = floor(numChars);
+        int most = std::max(0,(int)ceil(numChars - 0.5*std::min(1.0f,1.0f/estTotalChars)));
+        
+        if (numChars-least < THRESH_UNKNOWN_EST)
+            least-=1;
+        //if (most-numChars < THRESH_UNKNOWN_EST)
+        //    most+=1;
+
+        //The last character sometimes has a trail making it larger
+        least-=1;
+        if (loose)
+        {
+            least-=1;
+            most+=1;
+        }
+        least = max(0,least);
+        if(most!=0)
+            ret += "[a-zA-Z0-9]{"+to_string(least)+","+to_string(most)+"}";
+    }
+    return ret;
+}
+
+/*
 string Knowledge::Word::generateQuery()
 {
     auto spot = spottings.begin();
@@ -879,8 +1405,8 @@ string Knowledge::Word::generateQuery()
         //Add the spotting
         ret += spot->second.ngram+addToEnd;
 
-        //Move the currrent position to the end of the spotting
-        pos = spot->second.brx;
+        //Move the currrent position to the end of the furthest spotting processed
+        pos = std::max(pos,spot->second.brx);
         spot++;
     }
     
@@ -908,14 +1434,9 @@ string Knowledge::Word::generateQuery()
         least = max(0,least);
         ret += "[a-zA-Z0-9]{"+to_string(least)+","+to_string(most)+"}";
     }
-    /*else
-    {
-        if (-1*numChars<THRESH_UNKNOWN_EST/2)
-            ret += "[a-zA-Z0-9]?";
-    }*/
     //cout << "query : "<<ret<<endl;
     return ret;
-}
+}*/
 
 const cv::Mat Knowledge::Word::getWordImg() const
 {
@@ -2351,12 +2872,23 @@ void Knowledge::Corpus::showInteractive(int pageId)
                     cv::cvtColor(*word->getPage(),draw,CV_GRAY2BGR);
                 }
             }
+            vector<Spotting> sps = word->getSpottings();
+            for (Spotting& s : sps)
+            {
+                int color = (s.ngram.length()-1)%3;
+                for (int x=s.tlx; x<=s.brx; x++)
+                    for (int y=s.tly; y<=s.bry; y++)
+                    {
+                        assert(x<draw.cols && y<draw.rows);
+                        draw.at<cv::Vec3b>(y,x)[color] = ((x==s.tlx || x==s.brx || y==s.tly || y==s.bry)?0:0.8)*draw.at<cv::Vec3b>(y,x)[color];
+                    }
+            }
             int tlx,tly,brx,bry;
             bool done;
             word->getBoundsAndDone(&tlx, &tly, &brx, &bry, &done);
             if (done)
             {
-                cv::putText(draw,word->getTranscription(),cv::Point(tlx+(brx-tlx)/2,tly+(bry-tly)/2),cv::FONT_HERSHEY_COMPLEX_SMALL,4.0,cv::Scalar(50,50,255));
+                cv::putText(draw,word->getTranscription(),cv::Point(tlx+(brx-tlx)/2,tly+(bry-tly)/2),cv::FONT_HERSHEY_COMPLEX_SMALL,1.0,cv::Scalar(50,50,255));
             }
             //else
             //    cout<<"word not done at "<<tlx<<", "<<tly<<endl;
@@ -2575,6 +3107,12 @@ void Knowledge::Corpus::addWordSegmentaionAndGT(string imageLoc, string queriesF
             page->addWord(tlx,tly,brx,bry,gt);
         }
         numWordsReadIn++;
+
+        int len = brx-tlx+1;
+        if (len<minWordImageLen)
+            minWordImageLen=len;
+        if (len>maxWordImageLen)
+            maxWordImageLen=len;
     }
     
     /*double heightAvg=0;
@@ -2847,6 +3385,7 @@ void Knowledge::Corpus::save(ofstream& out)
     out<<"CORPUS"<<endl;
     out<<averageCharWidth<<"\n"<<countCharWidth<<"\n"<<threshScoring<<"\n";
     pthread_rwlock_rdlock(&pagesLock);
+    out<<"minmax\n"<<minWordImageLen<<"\n"<<maxWordImageLen<<endl;
     out<<pages.size()<<"\n";
     for (auto p : pages)
     {
@@ -2902,7 +3441,21 @@ Knowledge::Corpus::Corpus(ifstream& in)
     countCharWidth = stoi(line);
     getline(in,line);
     threshScoring = stof(line);
+
+    minWordImageLen=99999;
+    maxWordImageLen=0;
+
     getline(in,line);
+
+    if (line[0]=='m')
+    {
+        getline(in,line);
+        minWordImageLen = stoi(line);
+        getline(in,line);
+        maxWordImageLen = stoi(line);
+        getline(in,line);
+    }
+
     int pagesSize = stoi(line);
     for (int i=0; i<pagesSize; i++)
     {
@@ -2943,6 +3496,7 @@ Knowledge::Corpus::Corpus(ifstream& in)
     CorpusRef* cr = getCorpusRef();
     manQueue.load(in,cr);
     delete cr;
+
     //in.close();
 }
 

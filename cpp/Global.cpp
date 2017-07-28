@@ -32,6 +32,9 @@ GlobalK::GlobalK()
 
     MIN_SPOTTING_AP=-1;
     IDEAL_COMB=false;
+
+    PHOC_TRANS=false;
+    CPV_TRANS=false;
 }
 
 GlobalK::~GlobalK()

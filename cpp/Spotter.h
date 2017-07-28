@@ -29,5 +29,7 @@ class Spotter
     virtual ~Spotter() {}
     virtual void addLexicon(const vector<string>& lexicon) =0;
     virtual vector< multimap<float,string> > transcribeCorpus() =0;
+    virtual void setNgrams(const vector<string>& ngrams) =0;
+    virtual cv::Mat cpv(int wordIndex) =0;
 };
 #endif

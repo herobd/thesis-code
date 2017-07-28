@@ -30,7 +30,7 @@ void MasterQueue::checkIncomplete()
 
 MasterQueue::MasterQueue(int contextPad) : contextPad(contextPad)
 {
-    if (GlobalK::knowledge()->PHOC_TRANS || GlobalK::knowledge()->NPV_TRANS)
+    if (GlobalK::knowledge()->PHOC_TRANS || GlobalK::knowledge()->CPV_TRANS)
         finish.store(true);
     else
         finish.store(false);
