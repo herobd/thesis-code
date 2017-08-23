@@ -16,8 +16,10 @@ LIBS += -pthread
 
 
 CXX_FLAGS += -DCTC
-LIBS += -L ../../warp-ctc/build -lwarpctc
-INCLUDE += -I ../../warp-ctc/include
+#LIBS += -L ../../warp-ctc/build -lwarpctc
+#INCLUDE += -I ../../warp-ctc/include
+LIBS += -L/home/brian/robert_stuff/documentproject/lib -ldtwarp
+INCLUDE += -I/home/brian/robert_stuff/documentproject/src
 
 LIBS += -L ../../brian_caffe/scripts/cnnspp_spotter -lcnnspp_spotter
 INCLUDE += -I ../../brian_caffe/scripts/cnnspp_spotter

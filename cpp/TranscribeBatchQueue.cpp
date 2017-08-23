@@ -126,7 +126,7 @@ TranscribeBatch* TranscribeBatchQueue::dequeue(unsigned int maxWidth, bool need)
     return ret;
 }
 
-void TranscribeBatchQueue::feedbackProcess(unsigned long id, string transcription, vector<pair<unsigned long, string> >* toRemoveExemplars, WordBackPointer* backPointer, bool resend, deque<TranscribeBatch*>& queue, map<unsigned long, TranscribeBatch*>& returnMap, map<unsigned long, chrono::system_clock::time_point>& timeMap, map<unsigned long, WordBackPointer*>& doneMap, vector<Spotting*>* newNgramExemplars)
+void TranscribeBatchQueue::feedbackProcess(unsigned long id, string transcription, vector<pair<unsigned long, string> >* toRemoveExemplars, WordBackPointer* backPointer, bool resend, deque<TranscribeBatch*>& queue, map<unsigned long, TranscribeBatch*>& returnMap, map<unsigned long, chrono::system_clock::time_point>& timeMap, map<unsigned long, WordBackPointer*>& doneMap, vector<Spotting*>* newNgramExemplars, unsigned long* badSpotting)
 {
     if ((transcription[0]=='$' && transcription[transcription.length()-1]=='$') || transcription.length()==0)
     {
@@ -152,6 +152,8 @@ void TranscribeBatchQueue::feedbackProcess(unsigned long id, string transcriptio
                 sid= stoul(transcription.substr(8,transcription.length()-9));
 
                 TranscribeBatch* newBatch = backPointer->removeSpotting(sid,id,resend,newNgramExemplars,toRemoveExemplars);
+                if (badSpotting!=NULL)
+                    *badSpotting=sid;
                 if (newBatch!=NULL)
                     queue.push_back(newBatch);
             //}
@@ -198,7 +200,7 @@ void TranscribeBatchQueue::feedbackProcess(unsigned long id, string transcriptio
     }
 }
 
-vector<Spotting*> TranscribeBatchQueue::feedback(unsigned long id, string transcription, vector<pair<unsigned long, string> >* toRemoveExemplars)
+vector<Spotting*> TranscribeBatchQueue::feedback(unsigned long id, string transcription, vector<pair<unsigned long, string> >* toRemoveExemplars, unsigned long* badSpotting)
 {
     vector<Spotting*> newNgramExemplars;
     lock();
@@ -219,7 +221,7 @@ vector<Spotting*> TranscribeBatchQueue::feedback(unsigned long id, string transc
 
     if (backPointer!=NULL)
     {
-        feedbackProcess(id,transcription,toRemoveExemplars, backPointer, resend, queue, returnMap, timeMap, doneMap, &newNgramExemplars);
+        feedbackProcess(id,transcription,toRemoveExemplars, backPointer, resend, queue, returnMap, timeMap, doneMap, &newNgramExemplars, badSpotting);
     }
 #if TRANS_DONT_WAIT
     else
@@ -239,7 +241,7 @@ vector<Spotting*> TranscribeBatchQueue::feedback(unsigned long id, string transc
 
         if (backPointer!=NULL)
         {
-            feedbackProcess(id,transcription,toRemoveExemplars, backPointer, resend, lowQueue, lowReturnMap, lowTimeMap, lowDoneMap, &newNgramExemplars);
+            feedbackProcess(id,transcription,toRemoveExemplars, backPointer, resend, lowQueue, lowReturnMap, lowTimeMap, lowDoneMap, &newNgramExemplars, badSpotting);
         }
         else
         {

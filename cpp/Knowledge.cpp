@@ -82,6 +82,46 @@ vector<TranscribeBatch*> Knowledge::Corpus::phocTrans(float keep)
 }
 
 #ifdef CTC
+Mat drawCPV(Mat cpv, Mat image, float netScale)
+{
+    double minV, maxV;
+    minMaxLoc(cpv,&minV,&maxV);
+    //cout<<"min: "<<minV<<"  max: "<<maxV<<endl;
+
+    float meanV = mean(cpv)[0];
+    //float newMaxV = 0.9*minV+0.1*meanV;
+
+    int letterSize=40;
+
+    Mat draw = Mat::zeros(image.rows+26*letterSize,letterSize+std::max((int)image.cols,(int)(cpv.cols/netScale)),CV_8UC3);
+    image.copyTo(draw(Rect(std::max(0.0f,letterSize-(image.cols-(cpv.cols/netScale))/2),0,image.cols,image.rows)));
+    for (int i=0; i<cpv.rows; i++)
+    {
+        string letter=" ";
+        letter[0]=i+'a';
+
+        cv::putText(draw,letter,cv::Point(1,image.rows+i*letterSize+15),cv::FONT_HERSHEY_COMPLEX_SMALL,0.75,cv::Scalar(250,250,255));
+        for (int c=0; c<cpv.cols; c++)
+        {
+            float v = cpv.at<float>(i,c);
+            float height = (letterSize-1)*(v-minV)/(maxV-minV);
+            //float height = (letterSize-1)*(1-(std::min(newMaxV,v)-minV)/(newMaxV-minV));
+            //float color = 510-510*(v+10)/11;
+            float color = (510)*(v-minV)/(maxV-minV);
+            color = std::min(510.0f,std::max(0.0f,color));
+            Vec3b colorP(0,(color<255?color:255),(color<255?255:510-color));
+            if (v==(float)maxV)
+                colorP=Vec3b(255,0,0);
+            for (int h=0; h<height; h++)
+                for (int cc=c/netScale; cc<(c+1)/netScale; cc++)
+                    draw.at<Vec3b>(image.rows+letterSize*i+(letterSize-1)-h,letterSize+cc)=colorP;
+        }
+    }
+    return draw;
+    //imwrite(outFileName+"/"+to_string(wordIndex)+"_"+word+".png",draw);
+}
+
+
 vector<TranscribeBatch*> Knowledge::Corpus::cpvTransCTC(float keep, const vector<string>& ngrams)
 {
     spotter->setNgrams(ngrams);
@@ -94,21 +134,46 @@ vector<TranscribeBatch*> Knowledge::Corpus::cpvTransCTC(float keep, const vector
             maxLexLen=word.length();
 
     CTCWrapper ctcWrapper(maxFeatureLen, maxLexLen);
+    float top5Acc=0;
     multimap<float, pair<int,multimap<float,string> > > byAvgScore;
     for (int i=0; i<size(); i++)
     {
+        int tlx,tly,brx,bry;
+        string gt;
+        bool toss;
+        getWord(i)->getBoundsAndDoneAndGT(&tlx,&tly,&brx,&bry,&toss,&gt);
+        int imLen = brx-tlx +1;
+        int minWordLen = round(0.6*imLen/(0.0+averageCharWidth));
+        int maxWordLen = round(1.4*imLen/(0.0+averageCharWidth));
         Mat cpv = spotter->cpv(i);
+        /*
+        int pad = 0.25*averageCharWidth;
+        Mat cpv = Mat::zeros(26,gt.length()*pad,CV_32F) + 0.0001;
+        for (int c=0; c<gt.length(); c++)
+        {
+            for (int ii=0; ii<pad; ii++)
+                cpv.at<float>(gt[c]-'a',pad*c+ii) = 1-26*0.0001;
+        }
+        */
+        //Mat draw = drawCPV(cpv,getWord(i)->getImg(),0.25);
+        //imshow("cpv",draw);
         multimap<float,string> topMatches;// = Lexicon::instance()->ctc(cpv,THRESH_SCORING_COUNT);
         //multimap<float,string> ret;
         for (string word : lex)
         {
+            if (word.length()<minWordLen || word.length()>maxWordLen)
+                continue;
             float loss = ctcWrapper.loss(cpv,word);
             topMatches.emplace(loss,word);
         }
 
         auto iter = topMatches.begin();
         for (int i=0; i<THRESH_SCORING_COUNT; i++)
+        {
+            if (iter->second.compare(gt)==0)
+                top5Acc+=1;
             iter++;
+        }
         topMatches.erase(iter,topMatches.end());
         //return ret;
         
@@ -121,7 +186,20 @@ vector<TranscribeBatch*> Knowledge::Corpus::cpvTransCTC(float keep, const vector
         }
         //score /= topMatches.size();
         byAvgScore.emplace(score, make_pair(i,topMatches));
+
+        ///debug
+        /*
+        cout<<"GT: "<<gt<<endl;
+        for (auto p : topMatches)
+        {
+            cout<<p.second<<" : "<<p.first<<endl;
+        }
+        waitKey();
+        //*/
+        ///////
     }
+    top5Acc /= size();
+    cout<<"Top 5 acc for CTC trans: "<<top5Acc<<endl;
     vector<TranscribeBatch*> ret(size()*keep);
     auto transIter = byAvgScore.begin();
     for (int i=0; i<(int)(size()*keep); i++, transIter++)

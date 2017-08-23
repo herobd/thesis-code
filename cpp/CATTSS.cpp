@@ -186,7 +186,7 @@ CATTSS::CATTSS( string lexiconFile,
             {
                 //vector<string> top100Trigrams={"the","and","ing","ion","tio","ent","ati","for","her","ter","hat","tha","ere","ate","his","con","res","ver","all","ons","nce","men","ith","ted","ers","pro","thi","wit","are","ess","not","ive","was","ect","rea","com","eve","per","int","est","sta","cti","ica","ist","ear","ain","one","our","iti","rat","nte","tin","ine","der","ome","man","pre","rom","tra","whi","ave","str","act","ill","ure","ide","ove","cal","ble","out","sti","tic","oun","enc","ore","ant","ity","fro","art","tur","par","red","oth","eri","hic","ies","ste","ght","ich","igh","und","you","ort","era","wer","nti","oul","nde","ind","tho"};
                 vector<string> top300Trigrams={"the","and","ing","ion","tio","ent","ati","for","her","ter","hat","tha","ere","ate","his","con","res","ver","all","ons","nce","men","ith","ted","ers","pro","thi","wit","are","ess","not","ive","was","ect","rea","com","eve","per","int","est","sta","cti","ica","ist","ear","ain","one","our","iti","rat","nte","tin","ine","der","ome","man","pre","rom","tra","whi","ave","str","act","ill","ure","ide","ove","cal","ble","out","sti","tic","oun","enc","ore","ant","ity","fro","art","tur","par","red","oth","eri","hic","ies","ste","ght","ich","igh","und","you","ort","era","wer","nti","oul","nde","ind","tho","hou","nal","but","hav","uld","use","han","hin","een","ces","cou","lat","tor","ese","age","ame","rin","anc","ten","hen","min","eas","can","lit","cha","ous","eat","end","ssi","ial","les","ren","tiv","nts","whe","tat","abl","dis","ran","wor","rou","lin","had","sed","ont","ple","ugh","inc","sio","din","ral","ust","tan","nat","ins","ass","pla","ven","ell","she","ose","ite","lly","rec","lan","ard","hey","rie","pos","eme","mor","den","oug","tte","ned","rit","ime","sin","ast","any","orm","ndi","ona","spe","ene","hei","ric","ice","ord","omp","nes","sen","tim","tri","ern","tes","por","app","lar","ntr","eir","sho","son","cat","lle","ner","hes","who","mat","ase","kin","ost","ber","its","nin","lea","ina","mpl","sto","ari","pri","own","ali","ree","ish","des","ead","nst","sit","ses","ans","has","gre","ong","als","fic","ual","ien","gen","ser","unt","eco","nta","ace","chi","fer","tal","low","ach","ire","ang","sse","gra","mon","ffe","rac","sel","uni","ake","ary","wil","led","ded","som","owe","har","ini","ope","nge","uch","rel","che","ade","att","cia","exp","mer","lic","hem","ery","nsi","ond","rti","duc","how","ert","see","now","imp","abo","pec","cen","ris","mar","ens","tai","ely","omm","sur","hea"};
-                if (GlobalK::knowledge()->CPV_TRANS)
+                if (GlobalK::knowledge()->CPV_TRANS || GlobalK::knowledge()->WEB_TRANS)
                 {
                     ngramsToVectorize.insert(ngramsToVectorize.begin(),top300Trigrams.begin(),top300Trigrams.end());
                 }
@@ -196,7 +196,7 @@ CATTSS::CATTSS( string lexiconFile,
             if (nsOfInterest.find(2)!=nsOfInterest.end())
             {
                 vector<string> top100Bigrams={"th","he","in","er","an","re","on","at","en","nd","ti","es","or","te","of","ed","is","it","al","ar","st","to","nt","ng","se","ha","as","ou","io","le","ve","co","me","de","hi","ri","ro","ic","ne","ea","ra","ce","li","ch","ll","be","ma","si","om","ur","ca","el","ta","la","ns","di","fo","ho","pe","ec","pr","no","ct","us","ac","ot","il","tr","ly","nc","et","ut","ss","so","rs","un","lo","wa","ge","ie","wh","ee","wi","em","ad","ol","rt","po","we","na","ul","ni","ts","mo","ow","pa","im","mi","ai","sh"};
-                if (GlobalK::knowledge()->CPV_TRANS)
+                if (GlobalK::knowledge()->CPV_TRANS || GlobalK::knowledge()->WEB_TRANS)
                 {
                     ngramsToVectorize.insert(ngramsToVectorize.begin(),top100Bigrams.begin(),top100Bigrams.end());
                 }
@@ -206,7 +206,7 @@ CATTSS::CATTSS( string lexiconFile,
             if (nsOfInterest.find(1)!=nsOfInterest.end())
             {
                 vector<string> orderedAlpha={"e","t","a","o","i","n","s","h","r","d","l","c","u","m","w","f","g","y","p","b","v","k","j","x","q","z"};
-                if (GlobalK::knowledge()->CPV_TRANS)
+                if (GlobalK::knowledge()->CPV_TRANS || GlobalK::knowledge()->WEB_TRANS)
                 {
                     ngramsToVectorize.insert(ngramsToVectorize.begin(),orderedAlpha.begin(),orderedAlpha.end());
                 }
@@ -223,7 +223,7 @@ CATTSS::CATTSS( string lexiconFile,
                 cout<<"Finished CPV-CTC transcription."<<endl;
                 masterQueue->enqueueTranscriptionBatches(newBatches,NULL);
 #else
-                assert(false && "CTC flag not set");
+                assert(false && "CTC comp flag not set");
 #endif
                 /*
                 if (regex)
@@ -231,6 +231,20 @@ CATTSS::CATTSS( string lexiconFile,
                 else
                    newBatches = corpus->npvTransDirect(ngramsToVectorize);
                    */
+            }
+            if (GlobalK::knowledge()->WEB_TRANS)
+            {
+#ifdef WEB_TRANS
+                //float transKeep = numSpottingThreads/100.0;
+                cout<<"Commencing WEB transcription."<<endl;
+                vector<Spotting>* toAdd = web->start(ngramsToVectorize);
+                vector<TranscribeBatch*> newBatches = corpus->updateSpottings(toAdd,NULL,NULL,NULL,NULL);
+                cout<<"Finished WEB transcription."<<endl;
+                masterQueue->enqueueTranscriptionBatches(newBatches,NULL);
+                //orderedTranscribeQueue->enqueue(newBatches);
+#else
+                assert(false && "WEB_TRANS comp flag not set");
+#endif
             }
         }
 
@@ -553,10 +567,26 @@ void CATTSS::threadLoop()
                         masterQueue->enqueueNewExemplars(newExemplars,&toRemoveExemplars);
                     }
                     else
+#ifdef WEB_TRANS
+                    {
+                        unsigned long badSpotting=0;
+                        masterQueue->transcriptionFeedback(stoul(updateTask->id),updateTask->strings.front(),&toRemoveExemplars,&badSpotting);
+                        if (badSpotting!=0)
+                        {
+                            vector<pair<unsigned long,string> > toRemoveSpottings;
+                            vector<Spotting> toAdd;
+                            web->badSpotting(badSpotting,&toAdd,&toRemoveSpottings);
+                            vector<unsigned long> toRemoveBatches;
+                            vector<TranscribeBatch*> newBatches = corpus->updateSpottings(&toAdd,&toRemoveSpottings,&toRemoveBatches,NULL,NULL);
+                            masterQueue->enqueueTranscriptionBatches(newBatches,&toRemoveBatches);
+                        }
+                    }
+#else
                     {
                         masterQueue->transcriptionFeedback(stoul(updateTask->id),updateTask->strings.front(),&toRemoveExemplars);
                     }
                     spottingQueue->removeQueries(&toRemoveExemplars);
+#endif
 #ifdef TEST_MODE
                     //t = clock() - t;
                     //cout<<"END TranscriptionTask: ["<<updateTask->id<<"], took: "<<((float)t)/CLOCKS_PER_SEC<<" secs"<<endl;
@@ -647,7 +677,7 @@ void CATTSS::save()
 
         string saveName = savePrefix+"_CATTSS.sav";
         //In the event of a crash while saveing, keep a backup of the last save
-        rename( saveName.c_str() , (saveName+".bck").c_str() );
+id       rename( saveName.c_str() , (saveName+".bck").c_str() );
 
         ofstream out (saveName);
 
