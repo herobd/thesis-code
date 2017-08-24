@@ -41,6 +41,7 @@ public:
     vector<pair<unsigned long,string> > badSpotting(unsigned long sid);
 
 private:
+    list<string> ngrams;
     GraphType* graph;
     map<string,map<unsigned long,pair<arc*,arc*> > > arcMap;
 
