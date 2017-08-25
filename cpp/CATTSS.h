@@ -7,6 +7,7 @@
 #include "spotting.h"
 #include "Lexicon.h"
 #include "BatchWraper.h"
+#include "Web.h"
 #include "opencv2/core/core.hpp"
 #include <exception>
 #include <pthread.h>
@@ -83,6 +84,7 @@ class CATTSS
     MasterQueue* masterQueue;
     SpottingQueue* spottingQueue;
     Knowledge::Corpus* corpus;
+    Web* web;
     thread* incompleteChecker;
     thread* showChecker;
 
@@ -130,6 +132,8 @@ class CATTSS
             delete t;
         for (UpdateTask* t : taskQueue)
             delete t;
+        if (web!=NULL)
+            delete web;
     }
    //this is aux for extracting data from save file 
     CATTSS(     string save,

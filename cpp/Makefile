@@ -53,7 +53,8 @@ OBJECTS = obj/Global.o \
           obj/BatchWraperTranscription.o \
           obj/Simulator.o \
           obj/NetSpotter.o \
-          obj/CTCWrapper.o
+          obj/CTCWrapper.o \
+          obj/Web.o
           #obj/AlmazanSpotter.o \
           #obj/AlmazanDataset.o \
 #          obj/test.o 
@@ -77,7 +78,8 @@ OBJECTSDONTLOAD = obj/Global.o \
           obj/BatchWraperTranscription.o \
           obj/Simulator.o \
           obj/NetSpotter.o \
-          obj/CTCWrapper.o
+          obj/CTCWrapper.o \
+          obj/Web.o
 OBJECTS2 = obj/TranscribeBatchQueue2.o \
           obj/NewExemplarsBatchQueue2.o \
           obj/Global2.o \
@@ -192,7 +194,7 @@ obj/tester.o: tester.cpp tester.h CATTSS.h Simulator.h
 obj/Global.o: Global.h Global.cpp
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/Global.o Global.cpp $(LIBS)
 
-obj/CATTSS.o: CATTSS.h CATTSS.cpp MasterQueue.h Lexicon.h SpottingQueue.h Knowledge.h spotting.h BatchWraper.h
+obj/CATTSS.o: CATTSS.h CATTSS.cpp MasterQueue.h Lexicon.h SpottingQueue.h Knowledge.h spotting.h BatchWraper.h Web.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/CATTSS.o CATTSS.cpp $(LIBS)
 
 obj/test.o: test.cpp MasterQueue.h TestQueue.h MasterQueue.h Knowledge.h Spotter.h
@@ -246,6 +248,9 @@ obj/Lexicon.o: Lexicon.h Lexicon.cpp
 
 obj/CTCWrapper.o: CTCWrapper.h CTCWrapper.cpp
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/CTCWrapper.o CTCWrapper.cpp $(LIBS)
+
+obj/Web.o: Web.h Web.cpp Global.h spotting.h Knowledge.h
+	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/Web.o Web.cpp $(LIBS)
 
 obj/Spotter.o: Spotter.h Spotter.cpp MasterQueue.h Knowledge.h 
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/Spotter.o Spotter.cpp $(LIBS)

@@ -125,3 +125,7 @@ vector< multimap<float,string> > NetSpotter::transcribeCorpus()
 {
     return spotter->transcribeCorpus();
 }
+vector<SpottingLoc> NetSpotter::massSpot(const vector<string>& ngrams, cv::Mat& crossScores)
+{
+    return spotter->massSpot(ngrams,crossScores);
+}

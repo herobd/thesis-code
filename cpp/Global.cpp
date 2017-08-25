@@ -254,6 +254,41 @@ void GlobalK::loadImage(cv::Mat& im, ifstream& in)
     }
 }
 
+void GlobalK::writeFloatMat(ofstream& dst, const cv::Mat& m)
+{
+    assert(m.type()==CV_32F);
+    dst << m.rows<<"\n"<<m.cols<<"\n";
+    std::streamsize p = dst.precision();
+    dst << setprecision(9);
+    for (int r=0; r<m.rows; r++)
+        for (int c=0; c<m.cols; c++)
+        {
+            assert(m.at<float>(r,c)==m.at<float>(r,c));
+            dst << m.at<float>(r,c) << "\n";
+        }
+    dst << setprecision(p);
+}
+
+cv::Mat GlobalK::readFloatMat(ifstream& src)
+{
+    int rows, cols;
+    string rS;
+    string cS;
+    getline(src,rS);
+    getline(src,cS);
+    rows = stoi(rS);
+    cols = stoi(cS);
+    cv::Mat ret(rows,cols,CV_32F);
+    for (int r=0; r<rows; r++)
+        for (int c=0; c<cols; c++)
+        {
+            getline(src,rS);
+            ret.at<float>(r,c) = stof(rS);
+            //src >> ret.at<float>(r,c);
+        }
+    return ret;
+}
+
 string GlobalK::currentDateTime() //from http://stackoverflow.com/a/10467633/1018830
 {
     time_t     now = time(0);

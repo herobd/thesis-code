@@ -30,6 +30,7 @@ class NetSpotter : public Spotter
     vector< multimap<float,string> > transcribeCorpus();
     void setNgrams(const vector<string>& ngrams) {spotter->cpvPrep(ngrams);}
     Mat cpv(int wordIndex) {return spotter->cpv(wordIndex);}
+    vector<SpottingLoc> massSpot(const vector<string>& ngrams, cv::Mat& crossScores);
 };
 
 #endif

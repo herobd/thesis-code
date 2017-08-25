@@ -129,9 +129,14 @@ CATTSS::CATTSS( string lexiconFile,
         CorpusRef* corpusRef = corpus->getCorpusRef();
         PageRef* pageRef = corpus->getPageRef();
         masterQueue = new MasterQueue(in,corpusRef,pageRef);
+        spottingQueue = new SpottingQueue(in,masterQueue,corpus);
+
+        if (GlobalK::knowledge()->WEB_TRANS)
+        {
+            web = new Web(in,corpus);
+        }
         delete corpusRef;
         delete pageRef;
-        spottingQueue = new SpottingQueue(in,masterQueue,corpus);
 
         string line;
         getline(in,line);
@@ -162,6 +167,10 @@ CATTSS::CATTSS( string lexiconFile,
         corpus->addWordSegmentaionAndGT(pageImageDir, segmentationFile);
         corpus->loadSpotter(spottingModelPrefix,nsOfInterest);
         spottingQueue = new SpottingQueue(masterQueue,corpus);
+        if (GlobalK::knowledge()->WEB_TRANS)
+        {
+            web = new Web(corpus);
+        }
 
 #ifdef TEST_MODE_LONG
         int pageId=0;
@@ -234,17 +243,21 @@ CATTSS::CATTSS( string lexiconFile,
             }
             if (GlobalK::knowledge()->WEB_TRANS)
             {
-#ifdef WEB_TRANS
+//#ifdef WEB_TRANS
                 //float transKeep = numSpottingThreads/100.0;
                 cout<<"Commencing WEB transcription."<<endl;
-                vector<Spotting>* toAdd = web->start(ngramsToVectorize);
+                Mat crossScores;
+                cout<<"Commencing massSpot..."<<endl;
+                vector<SpottingLoc> massSpottingRes = corpus->massSpot(ngramsToVectorize,crossScores);//expects QbS scores to be adjusted
+                cout<<"...finished massSpot."<<endl;
+                vector<Spotting>* toAdd = web->start(ngramsToVectorize,massSpottingRes,crossScores);
                 vector<TranscribeBatch*> newBatches = corpus->updateSpottings(toAdd,NULL,NULL,NULL,NULL);
                 cout<<"Finished WEB transcription."<<endl;
                 masterQueue->enqueueTranscriptionBatches(newBatches,NULL);
                 //orderedTranscribeQueue->enqueue(newBatches);
-#else
-                assert(false && "WEB_TRANS comp flag not set");
-#endif
+//#else
+//                assert(false && "WEB_TRANS comp flag not set");
+//#endif
             }
         }
 
@@ -566,8 +579,7 @@ void CATTSS::threadLoop()
                         vector<Spotting*> newExemplars = corpus->transcriptionFeedback(stoul(updateTask->id),updateTask->strings.front(),&toRemoveExemplars);
                         masterQueue->enqueueNewExemplars(newExemplars,&toRemoveExemplars);
                     }
-                    else
-#ifdef WEB_TRANS
+                    else if (GlobalK::knowledge()->WEB_TRANS)
                     {
                         unsigned long badSpotting=0;
                         masterQueue->transcriptionFeedback(stoul(updateTask->id),updateTask->strings.front(),&toRemoveExemplars,&badSpotting);
@@ -581,12 +593,11 @@ void CATTSS::threadLoop()
                             masterQueue->enqueueTranscriptionBatches(newBatches,&toRemoveBatches);
                         }
                     }
-#else
+                    else
                     {
                         masterQueue->transcriptionFeedback(stoul(updateTask->id),updateTask->strings.front(),&toRemoveExemplars);
                     }
                     spottingQueue->removeQueries(&toRemoveExemplars);
-#endif
 #ifdef TEST_MODE
                     //t = clock() - t;
                     //cout<<"END TranscriptionTask: ["<<updateTask->id<<"], took: "<<((float)t)/CLOCKS_PER_SEC<<" secs"<<endl;
@@ -677,7 +688,7 @@ void CATTSS::save()
 
         string saveName = savePrefix+"_CATTSS.sav";
         //In the event of a crash while saveing, keep a backup of the last save
-id       rename( saveName.c_str() , (saveName+".bck").c_str() );
+        rename( saveName.c_str() , (saveName+".bck").c_str() );
 
         ofstream out (saveName);
 

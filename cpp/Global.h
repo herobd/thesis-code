@@ -6,6 +6,7 @@
 #include <vector>
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <algorithm>
 #include "opencv2/core/core.hpp"
 #include "opencv2/highgui/highgui.hpp"
@@ -129,6 +130,8 @@ class GlobalK
         static double otsuThresh(vector<int> histogram);
         static void saveImage(const cv::Mat& im, ofstream& out);
         static void loadImage(cv::Mat& im, ifstream& in);
+        static void writeFloatMat(ofstream& dst, const cv::Mat& m);
+        static cv::Mat readFloatMat(ifstream& src);
         static string currentDateTime();
 
         static int numCombThresh(string ngram)
@@ -197,6 +200,7 @@ class GlobalK
 
         bool PHOC_TRANS;
         bool CPV_TRANS;
+        bool WEB_TRANS;
 };
 
 #endif

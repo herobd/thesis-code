@@ -553,6 +553,8 @@ public:
     static void mouseCallBackFunc(int event, int x, int y, int flags, void* page_p);
     void showInteractive(int pageId);
     string getName() const {return "CORPUS";}
+    Spotting wrapSpotting(int imIdx, int startX, int endX, float score, string ngram);
+    vector<SpottingLoc> massSpot(const vector<string>& ngrams, Mat& crossScores);
 };
 
 }

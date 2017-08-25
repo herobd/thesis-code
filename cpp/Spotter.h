@@ -31,5 +31,6 @@ class Spotter
     virtual vector< multimap<float,string> > transcribeCorpus() =0;
     virtual void setNgrams(const vector<string>& ngrams) =0;
     virtual cv::Mat cpv(int wordIndex) =0;
+    virtual vector<SpottingLoc> massSpot(const vector<string>& ngrams, cv::Mat& crossScores) =0;
 };
 #endif

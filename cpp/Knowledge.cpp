@@ -3399,6 +3399,33 @@ vector<Spotting>* Knowledge::Corpus::runQuery(SpottingQuery* query)// const
     return ret;
 }
 
+Spotting Knowledge::Corpus::wrapSpotting(int imIdx, int startX, int endX, float score, string ngram)
+{
+    Knowledge::Word* w = getWord(imIdx);
+    int tlx, tly, brx, bry;
+    bool done;
+    int gt=0;//UNKNOWN_GT;
+    string wordGT;
+    w->getBoundsAndDoneAndGT(&tlx, &tly, &brx, &bry, &done, &wordGT);
+    int endPos=wordGT.length()-(ngram.length());
+    for (int c=0; c<= endPos; c++)
+    {
+        assert(c+ngram.length() <= wordGT.length());
+        if (ngram.compare( wordGT.substr(c,ngram.length()) ) == 0)
+        {
+            gt=UNKNOWN_GT;
+            break;
+        }
+    }
+
+    Spotting ret(startX+tlx, tly, endX+tlx, bry, w->getPageId(), w->getPage(), ngram, gt, imIdx, startX);
+    ret.scoreQbS=score;
+    //ret->at(i).scoreQbE=score;
+    if (done)
+        w->preapproveSpotting(&ret);
+    return ret;
+}
+
 void Knowledge::Word::preapproveSpotting(Spotting* spotting)
 {
     pthread_rwlock_rdlock(&lock);
@@ -3963,4 +3990,9 @@ void Knowledge::Corpus::getStats(float* accTrans, float* pWordsTrans, float* pWo
     *pWords20_40_IV= c20_40_IV/(0.0+numIV);
     *pWords0_20_IV= c0_20_IV/(0.0+numIV);
     *pWords0_IV= c0_IV/(0.0+numIV);
+}
+
+vector<SpottingLoc> Knowledge::Corpus::massSpot(const vector<string>& ngrams, Mat& crossScores)
+{
+    return spotter->massSpot(ngrams,crossScores);
 }

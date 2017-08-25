@@ -740,11 +740,11 @@ unsigned long MasterQueue::updateSpottingResults(vector<Spotting>* spottings, un
     return ret;
 }
 
-void MasterQueue::transcriptionFeedback(unsigned long id, string transcription, vector<pair<unsigned long, string> >* toRemoveExemplars) 
+void MasterQueue::transcriptionFeedback(unsigned long id, string transcription, vector<pair<unsigned long, string> >* toRemoveExemplars, unsigned long* badSpotting) 
 {
     if (transcription.find('\n') != string::npos)
         transcription="$PASS$";
-    vector<Spotting*> newExemplars = transcribeBatchQueue.feedback(id, transcription, toRemoveExemplars);
+    vector<Spotting*> newExemplars = transcribeBatchQueue.feedback(id, transcription, toRemoveExemplars,badSpotting);
 
     //enqueue these for approval
     //if (newExemplars.size()>0)
