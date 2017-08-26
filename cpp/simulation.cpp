@@ -208,6 +208,7 @@ void threadLoop(CATTSS* cattss, Simulator* sim, atomic_bool* cont, bool noManual
 
 int main(int argc, char** argv)
 {
+    //Mat test(45036,45036,CV_32F);
     /*
     cout<<"1"<<endl;
     CTCWrapper ctcWrapper(28, 10);
