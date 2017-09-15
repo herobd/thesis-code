@@ -406,6 +406,16 @@ int main(int argc, char** argv)
     {
         GlobalK::knowledge()->WEB_TRANS=true;
     }
+    else if (SR_mode.compare("cluster_step")==0)
+    {
+        GlobalK::knowledge()->CLUSTER=true;
+        numSpottingThreads = 1;
+    }
+    else if (SR_mode.compare("cluster_top")==0)
+    {
+        GlobalK::knowledge()->CLUSTER=true;
+        numSpottingThreads = 0;
+    }
     else if (SR_mode.compare("fancy")!=0)
     {
         cout<<"Error, unknown SpottingResults mode: "<<SR_mode<<endl;
@@ -413,12 +423,15 @@ int main(int argc, char** argv)
         return 0;
     }
 
-
+#ifndef TEST_MODE
 //#ifndef DEBUG_AUTO
     Simulator sim(dataname,charSegFile);
 //#else
 //    Simulator sim("test",charSegFile);
 //#endif
+#else
+    Simulator sim("test",charSegFile);
+#endif
     int avgCharWidth=-1;
     if (dataname.compare("BENTHAM")==0)
         avgCharWidth=37;

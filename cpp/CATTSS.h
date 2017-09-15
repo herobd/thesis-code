@@ -4,6 +4,7 @@
 #include "MasterQueue.h"
 #include "Knowledge.h"
 #include "SpottingQueue.h"
+//#include "ClusterBatcher.h"
 #include "spotting.h"
 #include "Lexicon.h"
 #include "BatchWraper.h"

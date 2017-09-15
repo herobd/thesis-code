@@ -182,6 +182,7 @@ class GlobalK
 #endif
 #if defined(TEST_MODE) || defined(NO_NAN)
         bool ngramAt(string ngram, int pageId, int tlx, int tly, int brx, int bry);
+        bool ngramAt_word(string ngram, int wordId, int startX, int endX);
         map<int, multiset<WordBound,tlyComp> > wordBounds;//pageId -> set of words
         void addWordBound(string word, int pageId, int tlx, int tly, int brx, int bry, vector<int> startBounds, vector<int> endBounds);
 #endif
@@ -201,6 +202,7 @@ class GlobalK
         bool PHOC_TRANS;
         bool CPV_TRANS;
         bool WEB_TRANS;
+        bool CLUSTER;
 };
 
 #endif

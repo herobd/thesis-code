@@ -1,9 +1,11 @@
 #include "ClusterBatcher.h"
 
+atomic_ulong ClusterBatcher::_id;
 
-ClusterBatcher(string ngram, int contextPad, bool stepMode, const vector<Spotting>& massSpottingRes, const Mat& crossScores) : ngram(ngram), contextPad(contextPad), stepMode(stepMode), spottingRes(massSpottingRes), crossScores(crossScores), finished(false)
+ClusterBatcher::ClusterBatcher(string ngram, int contextPad, bool stepMode, const vector<Spotting>& massSpottingRes, const Mat& crossScores) : ngram(ngram), contextPad(contextPad), stepMode(stepMode), spottingRes(massSpottingRes), crossScores(crossScores), finished(false), curLevel(-1)
 //vector<Spotting>* start(const vector<Spotting>& massSpottingRes, const Mat& crossScores)
 {
+    id = ++_id;
     //Set up GT
     vector<bool> gt(massSpottingRes.size());
     //spottingRes = massSpottingRes;
@@ -36,49 +38,62 @@ ClusterBatcher(string ngram, int contextPad, bool stepMode, const vector<Spottin
 
 }
 
-SpottingsBatch* getBatch(bool* done, unsigned int maxWidth,int color,string prevNgram, bool need=true)
+SpottingsBatch* ClusterBatcher::getBatch(bool* done, unsigned int num, bool hard, unsigned int maxWidth,int color,string prevNgram, bool need)
 {
 
-    int clusterToReturn-1;
+    int clusterToReturn=-1;
     if (trueInstancesToSeed.size()==0)
     {
-        for (int level=0; level<averageClusterSize.size(); level++)
+        if (curLevel=-1)
         {
-            if (averageClusterSize[level]>10)
+            for (int level=0; level<averageClusterSize.size(); level++)
             {
-                curLevel=level;
-                break;
+                if (averageClusterSize[level]>10)
+                {
+                    curLevel=level;
+                    break;
+                }
             }
         }
         float bestAvgScore=-9999999;//SpottingLocs have high score as good
         //int bestClust=-1;
         for (int clusterI=0; clusterI<clusterLevels.at(curLevel).size(); clusterI++)
         {
-            const list<int>& clust = clusterLevels.at(curLevel)[clusterI];
+            //const list<int>& clust = clusterLevels.at(curLevel)[clusterI];
+            //assert(clust.size()>=0);
+            
             float avgScore=0;
             int count=0;
-            for (int i : clust)
+            for (int i : clusterLevels.at(curLevel)[clusterI])
             {
                 if (spottingRes.at(i).type == SPOTTING_TYPE_NONE &&
                         starts.find(i+1)==starts.end())
                 {
                     count++;
                     avgScore += spottingRes.at(i).scoreQbS;
+                    assert(avgScore==avgScore);
                 }
+                else
+                    assert(starts.size()>0 || spottingRes.at(i).type != SPOTTING_TYPE_NONE);
             }
-            avgScore/=count;
-            if (avgScore>bestAvgScore)
+            if (count>0)
             {
-                bestAvgScore=avgScore;
-                clusterToReturn=clusterI;
+                avgScore/=count;
+                if (avgScore>bestAvgScore)
+                {
+                    bestAvgScore=avgScore;
+                    clusterToReturn=clusterI;
+                }
+                assert(clusterToReturn!=-1);
             }
         }
+    //assert(clusterToReturn!=-1);
     }
     else
     {
         int seedInstance = trueInstancesToSeed.front();
         trueInstancesToSeed.pop_front();
-        maxClustMinDist=-999999;
+        float maxClustMinDist=-999999;
         for (int clusterI=0; clusterI<clusterLevels.at(curLevel).size(); clusterI++)
         {
             const list<int>& clust = clusterLevels.at(curLevel)[clusterI];
@@ -90,31 +105,44 @@ SpottingsBatch* getBatch(bool* done, unsigned int maxWidth,int color,string prev
                         crossScores.at<float>(seedInstance,i) < minDist)
                     minDist=crossScores.at<float>(seedInstance,i);
             }
-            if (minDist > maxClustMinDist)
+            if (minDist!=9999999 && minDist > maxClustMinDist)
             {
                 clusterToReturn=clusterI;
                 maxClustMinDist=minDist;
             }
         }
+    //assert(clusterToReturn!=-1);
     }
-    assert(clusterToReturn!=-1);
 
+    if (clusterToReturn==-1)
+    {
+        finished=true;
+        *done=true;
+        return NULL;
+    }
+
+    //is done?
+    *done=finished;//we'll let this be determined in feedback
     //put batch together
     SpottingsBatch* ret = new SpottingsBatch(ngram,id);
 
     for (int inst : clusterLevels.at(curLevel).at(clusterToReturn))
     {
+        bool a = spottingRes.at(inst).type == SPOTTING_TYPE_NONE;
+        bool b = starts.find(inst+1)==starts.end();
+        bool c = starts.size()>0;
         if (spottingRes.at(inst).type == SPOTTING_TYPE_NONE && starts.find(inst+1)==starts.end()) 
         {
-            ret.emplace_back(spottingRes.at(inst),maxWidth,contextPad,color,prevNgram);
+            ret->emplace_back(spottingRes.at(inst),maxWidth,contextPad,color,prevNgram);
         }
+        else
+            assert(starts.size()>0 || spottingRes.at(inst).type != SPOTTING_TYPE_NONE);
     }
+    assert(ret->size()>0);
 
     //remove cluster so it isn't sent again
     //this is tracked by the type and starts
 
-    //is done?
-    *done=finished;//we'll let this be determined in feedback
 
 
     for (int i=0; i<ret->size(); i++)
@@ -122,10 +150,14 @@ SpottingsBatch* getBatch(bool* done, unsigned int maxWidth,int color,string prev
         starts[ret->at(i).id] = chrono::system_clock::now();
     }
 
+#ifdef TEST_MODE
+    cout<<"["<<ngram<<"] sending cluster/batch of size "<<ret->size()<<" from level "<<curLevel<<endl;
+#endif 
+
     return ret;
 }
 
-vector<Spotting>* feedback(int* done, const vector<string>& ids, const vector<int>& userClassifications, int resent=false, vector<pair<unsigned long,string> >* retRemove=NULL)
+vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long,string> >* retRemove)
 {
 //ids one indexed
     //Evaluate purity and accuracy and update clusterLeve
@@ -165,7 +197,7 @@ vector<Spotting>* feedback(int* done, const vector<string>& ids, const vector<in
             {
                 spottingRes.at(id-1).type=SPOTTING_TYPE_REJECTED;
                 if (retRemove!=NULL)
-                    retRemove->push_back(spottingRes.at(id-1));
+                    retRemove->emplace_back(spottingRes.at(id-1).id,ngram);
             }
         }
         //Cluster is "readded" if we dont set the type
@@ -175,6 +207,9 @@ vector<Spotting>* feedback(int* done, const vector<string>& ids, const vector<in
         //}
     }
 
+    if (numTrue+numFalse==0)
+        return ret;
+
     float purity = 2* ((max(numTrue,numFalse)/(numTrue+numFalse))-0.5);
     windowPurity.push_back(purity);
     if (windowPurity.size()>RUNNING_PURITY_COUNT)
@@ -182,18 +217,19 @@ vector<Spotting>* feedback(int* done, const vector<string>& ids, const vector<in
         float popped = windowPurity.front();
         windowPurity.pop_front();
         runningPurity += (purity-popped)/RUNNING_PURITY_COUNT;
+        assert(runningPurity>=0);
         windowPurity.push_back(purity);
     }
     else
     {
         runningPurity=0;
         for (float p : windowPurity)
-            runningPurity+=1;
+            runningPurity+=p;
         runningPurity/=windowPurity.size();
     }
 
 #ifdef TEST_MODE
-    cout<<"["<<ngram<<"] Estimated purity: "<<runningPurity<<", Actual: "<<meanCPurity[curLevel]<<endl;
+    cout<<"["<<ngram<<"] Estimated purity: "<<runningPurity<<", Actual: "<<meanCPurity[curLevel];
 #endif
     if (abs(GOAL_PURITY-runningPurity) > PURITY_THRESHOLD)
     {
@@ -204,7 +240,7 @@ vector<Spotting>* feedback(int* done, const vector<string>& ids, const vector<in
     }
 
 
-    float accuracy = numTrue/(numTrue+numFalse);
+    float accuracy = numTrue/(0.0+numTrue+numFalse);
     windowAccuracy.push_back(accuracy);
     if (windowAccuracy.size()>RUNNING_ACCURACY_COUNT)
     {
@@ -217,11 +253,16 @@ vector<Spotting>* feedback(int* done, const vector<string>& ids, const vector<in
     {
         runningAccuracy=0;
         for (float p : windowAccuracy)
-            runningAccuracy+=1;
+            runningAccuracy+=p;
         runningAccuracy/=windowAccuracy.size();
     }
+    assert(windowAccuracy.size()<=RUNNING_ACCURACY_COUNT);
 
-    if (windowAccuracy.size()==RUNNING_ACCURACY_COUNT && runningAccuracy<ACCURACY_STOP_THRESH)
+#ifdef TEST_MODE
+    cout<<", batch acc: "<<accuracy<<endl;
+#endif
+
+    if (windowAccuracy.size()>=RUNNING_ACCURACY_COUNT && runningAccuracy<ACCURACY_STOP_THRESH)
     {
 #ifdef TEST_MODE
         cout<<"["<<ngram<<"] running acc: "<<runningAccuracy<<" below thresh: "<<ACCURACY_STOP_THRESH<<endl;
@@ -237,7 +278,7 @@ vector<Spotting>* feedback(int* done, const vector<string>& ids, const vector<in
 
 
 
-void CL_cluster(vector< list<int> >& clusters, Mat& minSimilarity, int numClusters, const vector<bool>& gt)//, vector<float>& meanCPurity, vector<float>& medianCPurity, vector<float>& meanIPurity, vector<float>& medianIPurity, vector<float>& maxPurity, vector< vector< list<int> > >& clusterLevels)
+void ClusterBatcher::CL_cluster(vector< list<int> >& clusters, Mat& minSimilarity, int numClusters, const vector<bool>& gt)//, vector<float>& meanCPurity, vector<float>& medianCPurity, vector<float>& meanIPurity, vector<float>& medianIPurity, vector<float>& maxPurity, vector< vector< list<int> > >& clusterLevels)
 {
     while (clusters.size()>numClusters)
     {
@@ -272,12 +313,17 @@ void CL_cluster(vector< list<int> >& clusters, Mat& minSimilarity, int numCluste
         minSimilarity=newMinS;
         clusterLevels.push_back(clusters);
 
+        //check//
+        for (auto clust : clusters)
+            assert(clust.size()>0);
+        //    //
+
 
         //stats tracking
         float sumCPurity=0;
-        float sumIPurity=0;
-        float mPurity=0;
-        set<float> sortCPurity, sortIPurity;
+        //float sumIPurity=0;
+        //float mPurity=0;
+        //set<float> sortCPurity, sortIPurity;
         float sumSize=0;
         for (auto clust : clusters)
         {
@@ -293,29 +339,215 @@ void CL_cluster(vector< list<int> >& clusters, Mat& minSimilarity, int numCluste
             }
             float purity = 2* ((max(numT,numF)/(numT+numF))-0.5);
             sumCPurity += purity;
-            sumIPurity += clust.size()*purity;
-            sortCPurity.insert(purity);
-            for (int i=0; i<clust.size(); i++)
-                sortIPurity.insert(purity);
-            if (purity > mPurity)
-                mPurity=purity;
+            //sumIPurity += clust.size()*purity;
+            //sortCPurity.insert(purity);
+            //for (int i=0; i<clust.size(); i++)
+            //    sortIPurity.insert(purity);
+            //if (purity > mPurity)
+            //    mPurity=purity;
         }
         meanCPurity.push_back(sumCPurity/clusters.size());
-        meanIPurity.push_back(sumIPurity/gt.size());
-        maxPurity.push_back(mPurity);
-        auto iter = sortCPurity.begin();
-        for (int i=0; i<sortCPurity.size()/2; i++)
-            iter++;
-        medianCPurity.push_back(*iter);
-        iter = sortIPurity.begin();
-        for (int i=0; i<sortIPurity.size()/2; i++)
-            iter++;
-        medianIPurity.push_back(*iter);
+        //meanIPurity.push_back(sumIPurity/gt.size());
+        //maxPurity.push_back(mPurity);
+        //auto iter = sortCPurity.begin();
+        //for (int i=0; i<sortCPurity.size()/2; i++)
+        //    iter++;
+        //medianCPurity.push_back(*iter);
+        //iter = sortIPurity.begin();
+        //for (int i=0; i<sortIPurity.size()/2; i++)
+        //    iter++;
+        //medianIPurity.push_back(*iter);
 
 
 
-        averageClusterSizes.push_back(sumSize/clusters.size());
+        averageClusterSize.push_back(sumSize/clusters.size());
         //if (sumSize/clusters.size()>5)//dont need to track for all levels
         //    minSimilarities[clusterLevels.size()-1]=minSimilarity;
     }
+}
+
+bool ClusterBatcher::checkIncomplete()
+{
+    bool incomp=false;
+    for (auto iter=starts.begin(); iter!=starts.end(); iter++)
+    {
+        auto start = *iter;
+        chrono::system_clock::duration d = chrono::system_clock::now()-start.second;
+        chrono::minutes pass = chrono::duration_cast<chrono::minutes> (d);
+        //cout<<pass.count()<<" minutes has past for "<<(start.first)<<endl;
+        if (pass.count() > 20) //if 20 mins has passed
+        {
+            incomp=true;
+#ifdef TEST_MODE
+            cout<<"Timeout ("<<pass.count()<<") on batch "<<start.first<<endl;
+#endif
+            iter = starts.erase(iter);
+            if (iter!=starts.begin())
+                iter--;
+            if (iter==starts.end())
+                break;
+        }
+    }
+    if (incomp && finished)
+    {
+        finished=false;
+        return true;
+    }
+    return false;
+
+}
+
+void ClusterBatcher::save(ofstream& out)
+{
+    out<<"CLUSTERBATCHER"<<endl;
+    out<<ngram<<"\n";
+    out<<id<<"\n"<<contextPad<<"\n"<<(stepMode?1:0)<<"\n"<<(finished?1:0)<<endl;
+    assert(meanCPurity.size()==clusterLevels.size() && meanCPurity.size()==averageClusterSize.size());
+    //num cluster levels
+    out<<meanCPurity.size()<<"\n";
+    //num instances
+    out<<spottingRes.size()<<"\n";
+
+    for (float f : meanCPurity)
+        out<<f<<"\n";
+
+    for (auto clusters : clusterLevels)
+    {
+        out<<clusters.size()<<"\n";
+        for (auto clust : clusters)
+        {
+            out<<clust.size()<<"\n";
+            for (int i : clust)
+                out<<i<<"\n";
+        }
+    }
+    
+    //for (auto instances : instanceToCluster)
+    //{
+    //    assert(instances.size() == spottingRes.size());
+    //    for (int clust : instances)
+    //        out<<clust<<"\n";
+    //}
+
+    for (float sz : averageClusterSize)
+        out<<sz<<"\n";
+
+    GlobalK::writeFloatMat(out,crossScores);
+
+    for (auto& spotting : spottingRes)
+        spotting.save(out);
+
+    out<<trueInstancesToSeed.size()<<"\n";
+    for (int i : trueInstancesToSeed)
+        out<<i<<"\n";
+
+    out<<runningPurity<<"\n";
+    out<<windowPurity.size()<<"\n";
+    for (float f : windowPurity)
+        out<<f<<"\n";
+    out<<runningAccuracy<<"\n";
+    out<<windowAccuracy.size()<<"\n";
+    for (float f : windowAccuracy)
+        out<<f<<"\n";
+    out<<curLevel<<endl;;
+
+}
+
+ClusterBatcher::ClusterBatcher(ifstream& in, PageRef* pageRef)
+{
+    string line;
+    getline(in,line);
+    assert(line.compare("CLUSTERBATCHER")==0);
+    getline(in,ngram);
+    getline(in,line);
+    id = stoul(line);
+    getline(in,line);
+    contextPad = stoi(line);
+    getline(in,line);
+    stepMode = stoi(line);
+    getline(in,line);
+    finished = stoi(line);
+    getline(in,line);
+    int numLevels = stoi(line);
+    getline(in,line);
+    int numInstances = stoi(line);
+    meanCPurity.resize(numLevels);
+    for (int i=0; i<numLevels; i++)
+    {
+        getline(in,line);
+        meanCPurity[i] = stof(line);
+    }
+
+    clusterLevels.resize(numLevels);
+    for (int i=0; i<numLevels; i++)
+    {
+        getline(in,line);
+        int numClusters = stoi(line);
+        clusterLevels[i].resize(numClusters);
+        for (int j=0; j<numClusters; j++)
+        {
+            getline(in,line);
+            int numIn = stoi(line);
+            for (int k=0; k<numIn; k++)
+            {
+                getline(in,line);
+                clusterLevels[i][j].push_back(stoi(line));
+            }
+        }
+    }
+
+    //instanceToCluster.resize(numLevels);
+    //for (int i=0; i<numLevels; i++)
+    //{
+    //    instanceToCluster[i].resize(numInstances);
+    //    for (int j=0; j<numInstances; j++)
+    //    {
+    //        getline(in,line);
+    //        instanceToCluster[i][j]=stoi(line);
+    //    }
+    //}
+
+    averageClusterSize.resize(numLevels);
+    for (int i=0; i<numLevels; i++)
+    {
+        getline(in,line);
+        averageClusterSize[i]=stof(line);
+    }
+
+    crossScores = GlobalK::readFloatMat(in);
+
+    //spottingRes.resize(numInstances);
+    for (int i=0; i<numInstances; i++)
+    {
+        spottingRes.emplace_back(in,pageRef);
+    }
+
+    getline(in,line);
+    int sz = stoi(line);
+    for (int i=0; i<sz; i++)
+    {
+        getline(in,line);
+        trueInstancesToSeed.push_back(stoi(line));
+    }
+
+    getline(in,line);
+    runningPurity = stof(line);
+    getline(in,line);
+    sz = stoi(line);
+    for (int i=0; i<sz; i++)
+    {
+        getline(in,line);
+        windowPurity.push_back(stoi(line));
+    }
+    getline(in,line);
+    runningAccuracy = stof(line);
+    getline(in,line);
+    sz = stoi(line);
+    for (int i=0; i<sz; i++)
+    {
+        getline(in,line);
+        windowAccuracy.push_back(stoi(line));
+    }
+    getline(in,line);
+    curLevel = stoi(line);
 }

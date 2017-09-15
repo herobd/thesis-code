@@ -264,31 +264,37 @@ CATTSS::CATTSS( string lexiconFile,
                 for (string ngram : ngramsToVectorize)
                 {
                     Mat crossScores;
-                    vector<SpottingLoc> massSpottingRes = corpus->massSpot(ngram,crossScores);
+                    vector<string> n = {ngram};
+                    vector<SpottingLoc> massSpottingRes = corpus->massSpot(n,crossScores);
                     vector<Spotting> spottings;
+                    int tC=0;
                     for (const SpottingLoc& s : massSpottingRes)
                     {
-                        const Word* word = corpus->word(s.imIdx);
+                        Knowledge::Word* word = corpus->getWord(s.imIdx);
                         int tlx,tly,brx,bry;
                         bool done;
                         string label;
                         int gt=0;
                         word->getBoundsAndDoneAndGT(&tlx,&tly,&brx,&bry,&done,&label);
-                        tlx+=s.startX;
-                        brx=tlx+(s.endX-s.startX);
+                        //tlx+=s.startX;
+                        //brx=tlx+(s.endX-s.startX);
                         if (label.find(ngram) != string::npos)
                         {
 #if defined(TEST_MODE) || defined(NO_NAN)
-                            gt = GlobalK::knowledge()->ngramAt(ngram,word->getPageId(),tlx,tly,brx,bry);
+                            gt = GlobalK::knowledge()->ngramAt_word(ngram,s.imIdx,s.startX,s.endX);
 #else
                             gt = -1;
 #endif
                         }
+                        if (gt>0)
+                            tC++;
                         spottings.emplace_back(tlx,tly,brx,bry,word->getPageId(),word->getPage(),ngram,gt,s.imIdx,s.startX);
+                        spottings.back().scoreQbS=s.score();
                         spottings.back().id=spottings.size();//override here for simplicity
                     }
-                    //TODO
-                    ?? = clusterBatcher->start(spottings,crossScores);
+                    assert(tC>0);
+                    bool stepMode = numSpottingThreads;
+                    masterQueue->insertClusterBatcher(ngram,contextPad,stepMode,spottings,crossScores);
                 }
             }
         }
@@ -638,6 +644,7 @@ void CATTSS::threadLoop()
                 else if (updateTask->type==SPOTTINGS_TASK)
                 {
 #ifdef TEST_MODE
+                    assert(updateTask->labels.size()>0);
                     //cout<<"START SpottingsTask: ["<<updateTask->id<<"]"<<endl;
                     //clock_t t;
                     //t = clock();
@@ -651,13 +658,16 @@ void CATTSS::threadLoop()
                         vector<pair<unsigned long,string> > toRemoveExemplars;        
                         vector<TranscribeBatch*> newBatches = corpus->updateSpottings(toAdd,&toRemoveSpottings,&toRemoveBatches,&newExemplars,&toRemoveExemplars);
                         masterQueue->enqueueTranscriptionBatches(newBatches,&toRemoveBatches);
-                        masterQueue->enqueueNewExemplars(newExemplars,&toRemoveExemplars);
-                        //cout <<"Enqueued "<<newBatches.size()<<" new trans batches"<<endl;            
-                        //if (toRemoveBatches.size()>0)
-                        //    cout <<"Removed "<<toRemoveBatches.size()<<" trans batches"<<endl;     
-                        toRemoveExemplars.insert(toRemoveExemplars.end(),toRemoveSpottings.begin(),toRemoveSpottings.end());
-                        spottingQueue->removeQueries(&toRemoveExemplars);
-                        spottingQueue->addQueries(*toAdd);
+                        if (!GlobalK::knowledge()->CLUSTER)
+                        {
+                            masterQueue->enqueueNewExemplars(newExemplars,&toRemoveExemplars);
+                            //cout <<"Enqueued "<<newBatches.size()<<" new trans batches"<<endl;            
+                            //if (toRemoveBatches.size()>0)
+                            //    cout <<"Removed "<<toRemoveBatches.size()<<" trans batches"<<endl;     
+                            toRemoveExemplars.insert(toRemoveExemplars.end(),toRemoveSpottings.begin(),toRemoveSpottings.end());
+                            spottingQueue->removeQueries(&toRemoveExemplars);
+                            spottingQueue->addQueries(*toAdd);
+                        }
                         delete toAdd;
                     }
 #ifdef TEST_MODE
@@ -686,6 +696,10 @@ void CATTSS::threadLoop()
 void CATTSS::enqueue(UpdateTask* task)
 {
      
+#ifdef TEST_MODE
+    assert(task->type != SPOTTINGS_TASK || task->labels.size()>0);
+#endif
+        
     taskQueueLock.lock();
     taskQueue.push_back(task);
     sem_post(&semLock);

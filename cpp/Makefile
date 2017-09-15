@@ -1,6 +1,6 @@
 CXX = g++
 LINK = g++
-CXX_FLAGS_NO_G = -std=c++11 -pthread -DNO_NAN -DNO_EXEMPLARS #-DTEST_MODE #-DGRAPH_SPOTTING_RESULTS #-DDEBUG_AUTO#-ansi -fexceptions -fPIC -fno-omit-frame-pointer -pthread
+CXX_FLAGS_NO_G = -std=c++11 -pthread -DNO_NAN -DNO_EXEMPLARS -DTEST_MODE #-DGRAPH_SPOTTING_RESULTS #-DDEBUG_AUTO#-ansi -fexceptions -fPIC -fno-omit-frame-pointer -pthread
 CXX_FLAGS_NO_G += -DOPENCV2
 CXX_FLAGS =  $(CXX_FLAGS_NO_G) -g#-O3 #-g
 
@@ -41,6 +41,7 @@ OBJECTS = obj/Global.o \
           obj/TranscribeBatchQueue.o \
           obj/NewExemplarsBatchQueue.o \
           obj/SpottingResults.o \
+          obj/ClusterBatcher.o \
           obj/Knowledge.o \
           obj/Lexicon.o \
           obj/maxflow.o \
@@ -66,6 +67,7 @@ OBJECTSDONTLOAD = obj/Global.o \
           obj/TranscribeBatchQueue.o \
           obj/NewExemplarsBatchQueue.o \
           obj/SpottingResults.o \
+          obj/ClusterBatcher.o \
           obj/KnowledgeDONT_LOAD.o \
           obj/Lexicon.o \
           obj/maxflow.o \
@@ -85,6 +87,7 @@ OBJECTS2 = obj/TranscribeBatchQueue2.o \
           obj/Global2.o \
           obj/MasterQueue2.o \
           obj/SpottingResults2.o \
+          obj/ClusterBatcher2.o \
           obj/Knowledge2.o \
           obj/Lexicon2.o \
           obj/maxflow2.o \
@@ -228,11 +231,14 @@ obj/batches.o: batches.h batches.cpp WordBackPointer.h
 #	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/SpottingQuery.o SpottingQuery.cpp $(LIBS)
 
 
-obj/MasterQueue.o: MasterQueue.h MasterQueue.cpp SpottingResults.h Global.h
+obj/MasterQueue.o: MasterQueue.h MasterQueue.cpp SpottingResults.h Global.h ClusterBatcher.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/MasterQueue.o MasterQueue.cpp $(LIBS)
 
-obj/SpottingResults.o: SpottingResults.h SpottingResults.cpp 
+obj/SpottingResults.o: SpottingResults.h SpottingResults.cpp Batcher.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/SpottingResults.o SpottingResults.cpp $(LIBS)
+	
+obj/ClusterBatcher.o: ClusterBatcher.h ClusterBatcher.cpp Batcher.h
+	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/ClusterBatcher.o ClusterBatcher.cpp $(LIBS)
 	
 obj/TestQueue.o: TestQueue.h TestQueue.cpp SpottingResults.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/TestQueue.o TestQueue.cpp $(LIBS)

@@ -12,7 +12,8 @@
 #include <chrono>
 
 #include <iostream>
-#include "batches.h"
+//#include "batches.h"
+#include "Batcher.h"
 #include "Global.h"
 #include "PageRef.h"
 
@@ -128,7 +129,7 @@ public:
  * and the reject threshold, and taking the X number of spottings
  * from that point in ordered results.
  */
-class SpottingResults {
+class SpottingResults : public Batcher {
 public:
     SpottingResults(string ngram, int contextPad);
     SpottingResults(ifstream& in, PageRef* pageRef);
