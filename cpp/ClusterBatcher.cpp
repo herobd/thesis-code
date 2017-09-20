@@ -210,7 +210,8 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
     if (numTrue+numFalse==0)
         return ret;
 
-    float purity = 2* ((max(numTrue,numFalse)/(numTrue+numFalse))-0.5);
+    float purity = 2* ((max(numTrue,numFalse)/(0.0+numTrue+numFalse))-0.5);
+    assert(purity>=0);
     windowPurity.push_back(purity);
     if (windowPurity.size()>RUNNING_PURITY_COUNT)
     {
@@ -218,7 +219,6 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
         windowPurity.pop_front();
         runningPurity += (purity-popped)/RUNNING_PURITY_COUNT;
         assert(runningPurity>=0);
-        windowPurity.push_back(purity);
     }
     else
     {
@@ -227,6 +227,7 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
             runningPurity+=p;
         runningPurity/=windowPurity.size();
     }
+    assert(windowPurity.size()<=RUNNING_PURITY_COUNT);
 
 #ifdef TEST_MODE
     cout<<"["<<ngram<<"] Estimated purity: "<<runningPurity<<", Actual: "<<meanCPurity[curLevel];
@@ -247,7 +248,6 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
         float popped = windowAccuracy.front();
         windowAccuracy.pop_front();
         runningAccuracy += (accuracy-popped)/RUNNING_ACCURACY_COUNT;
-        windowAccuracy.push_back(accuracy);
     }
     else
     {
@@ -259,7 +259,7 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
     assert(windowAccuracy.size()<=RUNNING_ACCURACY_COUNT);
 
 #ifdef TEST_MODE
-    cout<<", batch acc: "<<accuracy<<endl;
+    cout<<", Window acc: "<<runningAccuracy<<", batch acc: "<<accuracy<<endl;
 #endif
 
     if (windowAccuracy.size()>=RUNNING_ACCURACY_COUNT && runningAccuracy<ACCURACY_STOP_THRESH)

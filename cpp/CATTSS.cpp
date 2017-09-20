@@ -276,8 +276,8 @@ CATTSS::CATTSS( string lexiconFile,
                         string label;
                         int gt=0;
                         word->getBoundsAndDoneAndGT(&tlx,&tly,&brx,&bry,&done,&label);
-                        //tlx+=s.startX;
-                        //brx=tlx+(s.endX-s.startX);
+                        tlx+=s.startX;
+                        brx=std::min(tlx+s.endX,brx);
                         if (label.find(ngram) != string::npos)
                         {
 #if defined(TEST_MODE) || defined(NO_NAN)
