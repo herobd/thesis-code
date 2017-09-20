@@ -7,7 +7,7 @@ CXX_FLAGS =  $(CXX_FLAGS_NO_G) -O3 #-g
 LIBS += -lpthread
 
 LIBS += -lopencv_core -lopencv_highgui -lopencv_imgproc -fopenmp
-#LIBS += -lopencv_imgcodecs
+LIBS += -lopencv_imgcodecs
 LIBS += -pthread 
 
 #LIBS += -L/home/brian/intel_index/EmbAttSpotter -lembattspotter -larmadillo
