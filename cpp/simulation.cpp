@@ -5,6 +5,8 @@
 #include "Simulator.h"
 #include "CATTSS.h"
 
+#include "CTCWrapper.h"
+
 using namespace std;
 using namespace cv;
 
@@ -206,6 +208,93 @@ void threadLoop(CATTSS* cattss, Simulator* sim, atomic_bool* cont, bool noManual
 
 int main(int argc, char** argv)
 {
+    //Mat test(45036,45036,CV_32F);
+    /*
+    cout<<"1"<<endl;
+    CTCWrapper ctcWrapper(28, 10);
+    Mat cpv = Mat::zeros(27,14,CV_32F);
+    for (int i=0; i<7; i++)
+        cpv.at<float>(1,i)=1;
+    for (int i=7; i<14; i++)
+        cpv.at<float>(2,i)=1;
+    float loss = ctcWrapper.loss(cpv,"ab");
+    cout<<loss<<" "<<loss/cpv.cols<<endl;
+
+    cout<<"2"<<endl;
+    cpv = Mat::zeros(27,21,CV_32F);
+    for (int i=0; i<7; i++)
+        cpv.at<float>(1,i)=1;
+    for (int i=7; i<14; i++)
+        cpv.at<float>(2,i)=1;
+    for (int i=14; i<21; i++)
+        cpv.at<float>(2,i)=1;
+    loss = ctcWrapper.loss(cpv,"ab");
+    cout<<loss<<" "<<loss/cpv.cols<<endl;
+
+    cout<<"3"<<endl;
+    cpv = Mat::zeros(27,14,CV_32F);
+    for (int i=0; i<7; i++)
+        cpv.at<float>(2,i)=1;
+    for (int i=7; i<14; i++)
+        cpv.at<float>(1,i)=1;
+    loss = ctcWrapper.loss(cpv,"ab");
+    cout<<loss<<" "<<loss/cpv.cols<<endl;
+
+    cpv = Mat::zeros(27,14,CV_32F);
+    for (int i=0; i<7; i++)
+        cpv.at<float>(3,i)=1;
+    for (int i=7; i<14; i++)
+        cpv.at<float>(4,i)=1;
+    loss = ctcWrapper.loss(cpv,"ab");
+    cout<<loss<<" "<<loss/cpv.cols<<endl;
+
+    cpv = Mat::zeros(27,14,CV_32F);
+    for (int i=0; i<7; i++)
+        cpv.at<float>(4,i)=1;
+    for (int i=7; i<14; i++)
+        cpv.at<float>(3,i)=1;
+    loss = ctcWrapper.loss(cpv,"ab");
+    cout<<loss<<" "<<loss/cpv.cols<<endl;
+
+    cpv = Mat::zeros(27,14,CV_32F);
+    for (int i=0; i<7; i++)
+        cpv.at<float>(0,i)=1;
+    for (int i=7; i<14; i++)
+        cpv.at<float>(1,i)=1;
+    loss = ctcWrapper.loss(cpv,"ab");
+    cout<<loss<<" "<<loss/cpv.cols<<endl;
+
+    cpv = Mat::zeros(27,14,CV_32F);
+    for (int i=0; i<7; i++)
+        cpv.at<float>(0,i)=1;
+    for (int i=7; i<14; i++)
+        cpv.at<float>(0,i)=1;
+    loss = ctcWrapper.loss(cpv,"ab");
+    cout<<loss<<" "<<loss/cpv.cols<<endl;
+
+    cout<<"8"<<endl;
+    cpv = Mat::zeros(27,6,CV_32F);
+    for (int i=0; i<3; i++)
+        cpv.at<float>(1,i)=1;
+    for (int i=3; i<6; i++)
+        cpv.at<float>(2,i)=1;
+    loss = ctcWrapper.loss(cpv,"ab");
+    cout<<loss<<" "<<loss/cpv.cols<<endl;
+
+    cout<<"9"<<endl;
+    cpv = Mat::zeros(27,14,CV_32F);
+    for (int i=0; i<7; i++)
+        cpv.at<float>(1,i)=1;
+    for (int i=7; i<14; i++)
+        cpv.at<float>(2,i)=1;
+    cpv.at<float>(1,4)=0.5;
+    cpv.at<float>(3,4)=0.5;
+    loss = ctcWrapper.loss(cpv,"ab");
+    cout<<loss<<" "<<loss/cpv.cols<<endl;
+    return 3;
+    //*/
+
+
     int numSpottingThreads = 1;//CNNSPPSpotter will use the same network object
     int numSimThreads=1;
     set<int> nsOfInterest;
@@ -220,7 +309,7 @@ int main(int argc, char** argv)
     string SR_mode="fancy";
     if (argc==1)
     {
-        cout<<"usage: "<<argv[0]<<" savePrefix simSave.csv numSimThreads [fancy,take_from_top,otsu_fixed,none_take_from_top,none,gaussian_draw,fancy_one,fancy_two] lexiconFile.txt pageImageDir segmentationFile.gtp charSegFile.csv spottingModelPrefix (ngram list)"<<endl;
+        cout<<"usage: "<<argv[0]<<" savePrefix simSave.csv numSimThreads [fancy,take_from_top,otsu_fixed,none_take_from_top,none,gaussian_draw,fancy_one,fancy_two,  phoc_trans,cpv_trans] lexiconFile.txt pageImageDir segmentationFile.gtp charSegFile.csv spottingModelPrefix (ngram list)"<<endl;
         return 0;
     }
 
@@ -303,9 +392,29 @@ int main(int argc, char** argv)
             cout<<"trans top "<<numSpottingThreads<<"%"<<endl;
         }
     }
-    else if (SR_mode.compare("npv_trans")==0)
+    else if (SR_mode.substr(0,9).compare("cpv_trans")==0)
     {
-        GlobalK::knowledge()->NPV_TRANS=true;
+        GlobalK::knowledge()->CPV_TRANS=true;
+        numSpottingThreads = 100;
+        if (SR_mode.length()>9)
+        {
+            numSpottingThreads = stoi(SR_mode.substr(9));
+            cout<<"trans top "<<numSpottingThreads<<"%"<<endl;
+        }
+    }
+    else if (SR_mode.compare("web_trans")==0)
+    {
+        GlobalK::knowledge()->WEB_TRANS=true;
+    }
+    else if (SR_mode.compare("cluster_step")==0)
+    {
+        GlobalK::knowledge()->CLUSTER=true;
+        numSpottingThreads = 1;
+    }
+    else if (SR_mode.compare("cluster_top")==0)
+    {
+        GlobalK::knowledge()->CLUSTER=true;
+        numSpottingThreads = 0;
     }
     else if (SR_mode.compare("fancy")!=0)
     {
@@ -314,12 +423,15 @@ int main(int argc, char** argv)
         return 0;
     }
 
-
+#ifndef TEST_MODE
 //#ifndef DEBUG_AUTO
     Simulator sim(dataname,charSegFile);
 //#else
 //    Simulator sim("test",charSegFile);
 //#endif
+#else
+    Simulator sim("test",charSegFile);
+#endif
     int avgCharWidth=-1;
     if (dataname.compare("BENTHAM")==0)
         avgCharWidth=37;

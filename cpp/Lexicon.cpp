@@ -136,3 +136,20 @@ void Lexicon::load(ifstream& in)
     //in.close();
 }
 
+/*
+multimap<float,string> Lexicon::ctc(Mat cpv, int returnCount, string field)
+{
+    multimap<float,string> ret;
+    for (string word : fields[field])
+    {
+        float loss = ctcWrapper(cpv,word);
+        ret.emplace(loss,word);
+    }
+
+    auto iter = ret.begin();
+    for (int i=0; i<returnCount; i++)
+        iter++;
+    ret.erase(iter,ret.end());
+    return ret;
+}
+*/

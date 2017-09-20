@@ -54,6 +54,9 @@
 // Current instantiations are in instances.inc
 template <typename captype, typename tcaptype, typename flowtype> class Graph
 {
+private:
+	struct node;
+	struct arc;
 public:
 	typedef enum
 	{
@@ -92,7 +95,7 @@ public:
 
 	// Adds a bidirectional edge between 'i' and 'j' with the weights 'cap' and 'rev_cap'.
 	// IMPORTANT: see note about the constructor 
-	void add_edge(node_id i, node_id j, captype cap, captype rev_cap);
+	void add_edge(node_id i, node_id j, captype cap, captype rev_cap, arc** arcF=NULL, arc** arcR=NULL);
 
 	// Adds new edges 'SOURCE->i' and 'i->SINK' with corresponding weights.
 	// Can be called multiple times for each node.
@@ -121,9 +124,6 @@ public:
 	//      (provide access to the graph)       //
 	//////////////////////////////////////////////
 
-private:
-	struct node;
-	struct arc;
 
 public:
 
@@ -397,7 +397,7 @@ template <typename captype, typename tcaptype, typename flowtype>
 }
 
 template <typename captype, typename tcaptype, typename flowtype> 
-	inline void Graph<captype,tcaptype,flowtype>::add_edge(node_id _i, node_id _j, captype cap, captype rev_cap)
+	inline void Graph<captype,tcaptype,flowtype>::add_edge(node_id _i, node_id _j, captype cap, captype rev_cap, arc** arcF, arc** arcR)
 {
 	assert(_i >= 0 && _i < node_num);
 	assert(_j >= 0 && _j < node_num);
@@ -423,6 +423,11 @@ template <typename captype, typename tcaptype, typename flowtype>
 	a_rev -> head = i;
 	a -> r_cap = cap;
 	a_rev -> r_cap = rev_cap;
+
+        if (arcF!=NULL)
+            *arcF=a;
+        if (arcR!=NULL)
+            *arcR=a_rev;
 }
 
 template <typename captype, typename tcaptype, typename flowtype> 

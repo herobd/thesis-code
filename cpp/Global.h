@@ -6,6 +6,7 @@
 #include <vector>
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <algorithm>
 #include "opencv2/core/core.hpp"
 #include "opencv2/highgui/highgui.hpp"
@@ -132,6 +133,8 @@ class GlobalK
         static double otsuThresh(vector<int> histogram);
         static void saveImage(const cv::Mat& im, ofstream& out);
         static void loadImage(cv::Mat& im, ifstream& in);
+        static void writeFloatMat(ofstream& dst, const cv::Mat& m);
+        static cv::Mat readFloatMat(ifstream& src);
         static string currentDateTime();
 
         static int numCombThresh(string ngram)
@@ -182,6 +185,7 @@ class GlobalK
 #endif
 #if defined(TEST_MODE) || defined(NO_NAN)
         bool ngramAt(string ngram, int pageId, int tlx, int tly, int brx, int bry);
+        bool ngramAt_word(string ngram, int wordId, int startX, int endX);
         map<int, multiset<WordBound,tlyComp> > wordBounds;//pageId -> set of words
         void addWordBound(string word, int pageId, int tlx, int tly, int brx, int bry, vector<int> startBounds, vector<int> endBounds);
 #endif
@@ -199,7 +203,9 @@ class GlobalK
         bool IDEAL_COMB;
 
         bool PHOC_TRANS;
-        bool NPV_TRANS;
+        bool CPV_TRANS;
+        bool WEB_TRANS;
+        bool CLUSTER;
 };
 
 #endif

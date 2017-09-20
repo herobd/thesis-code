@@ -102,6 +102,9 @@ public:
         if (im.img().cols>0)
 		instances.push_back(im);
     }
+    void emplace_back(const Spotting& s, int maxWidth, int contextPad, int color, string prevNgram="") {
+        instances.emplace_back(s,maxWidth,contextPad,color,prevNgram);
+    }
     const SpottingImage& operator [](int i) const    {return instances.at(i);}
     SpottingImage& operator [](int i) {return instances.at(i);}
     const SpottingImage& at(int i) const    {return instances.at(i);}

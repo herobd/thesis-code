@@ -32,6 +32,11 @@ GlobalK::GlobalK()
 
     MIN_SPOTTING_AP=-1;
     IDEAL_COMB=false;
+
+    PHOC_TRANS=false;
+    CPV_TRANS=false;
+    WEB_TRANS=false;
+    CLUSTER=false;
 }
 
 GlobalK::~GlobalK()
@@ -251,6 +256,41 @@ void GlobalK::loadImage(cv::Mat& im, ifstream& in)
     }
 }
 
+void GlobalK::writeFloatMat(ofstream& dst, const cv::Mat& m)
+{
+    assert(m.type()==CV_32F);
+    dst << m.rows<<"\n"<<m.cols<<"\n";
+    std::streamsize p = dst.precision();
+    dst << setprecision(9);
+    for (int r=0; r<m.rows; r++)
+        for (int c=0; c<m.cols; c++)
+        {
+            assert(m.at<float>(r,c)==m.at<float>(r,c));
+            dst << m.at<float>(r,c) << "\n";
+        }
+    dst << setprecision(p);
+}
+
+cv::Mat GlobalK::readFloatMat(ifstream& src)
+{
+    int rows, cols;
+    string rS;
+    string cS;
+    getline(src,rS);
+    getline(src,cS);
+    rows = stoi(rS);
+    cols = stoi(cS);
+    cv::Mat ret(rows,cols,CV_32F);
+    for (int r=0; r<rows; r++)
+        for (int c=0; c<cols; c++)
+        {
+            getline(src,rS);
+            ret.at<float>(r,c) = stof(rS);
+            //src >> ret.at<float>(r,c);
+        }
+    return ret;
+}
+
 string GlobalK::currentDateTime() //from http://stackoverflow.com/a/10467633/1018830
 {
     time_t     now = time(0);
@@ -439,8 +479,8 @@ bool GlobalK::ngramAt(string ngram, int pageId, int tlx, int tly, int brx, int b
 
     WordBound searchL(tlx-5,tly-5,brx,bry);
     WordBound searchU(brx,bry,brx+5,bry+5);
-    auto iterL = wordBounds[pageId].lower_bound(searchL);
-    auto iterU = wordBounds[pageId].upper_bound(searchU);
+    auto iterL = wordBounds.at(pageId).lower_bound(searchL);
+    auto iterU = wordBounds.at(pageId).upper_bound(searchU);
 
     int bestOverlap = 0;
     const WordBound* best=NULL;
@@ -468,6 +508,39 @@ bool GlobalK::ngramAt(string ngram, int pageId, int tlx, int tly, int brx, int b
             (tlx>=best->startBounds[loc] && brx<=best->endBounds[loc+ngram.size()-1] && (brx-tlx)/(best->endBounds[loc+ngram.size()-1]-best->startBounds[loc]+0.0) > overlap_insides_thresh) ||
             (tlx<=best->startBounds[loc] && brx>=best->endBounds[loc+ngram.size()-1] && (brx-tlx)/(best->endBounds[loc+ngram.size()-1]-best->startBounds[loc]+0.0) < overlap_consume_thresh) ||
             ((min(brx,best->endBounds[loc+ngram.size()-1])-max(tlx,best->startBounds[loc]))/(best->endBounds[loc+ngram.size()-1]-best->startBounds[loc]+0.0) > overlap_size_thresh && max(max(tlx,best->startBounds[loc])-min(tlx,best->startBounds[loc]),max(brx,best->endBounds[loc+ngram.size()-1])-min(brx,best->endBounds[loc+ngram.size()-1]))/(min(brx,best->endBounds[loc+ngram.size()-1])-max(tlx,best->startBounds[loc])+0.0) < size_note_included_thresh)
+       )
+    {
+        return true;
+    }
+    
+    return false;
+}
+bool GlobalK::ngramAt_word(string ngram, int wordId, int startX, int endX)
+{
+    float overlap_insides_thresh = OVERLAP_INSIDE_THRESH;
+    float overlap_consume_thresh = OVERLAP_CONSUME_THRESH;
+    float overlap_size_thresh = OVERLAP_SIDE_THRESH;
+    float size_note_included_thresh = SIDE_NOT_INCLUDED_THRESH;
+
+
+    int loc1 = corpusSegWords->at(wordId).find(ngram);
+    if (loc1 == string::npos)
+    {
+#ifdef TEST_MODE
+        assert(false);
+#endif
+        return false;
+    }
+    int loc2 = loc1+ngram.size()-1;
+
+    const vector<int>& startBounds = corpusXLetterStartBounds->at(wordId);
+    const vector<int>& endBounds = corpusXLetterEndBounds->at(wordId);
+
+    //int ngramOverlap = min(best->startBounds[loc],tlx) - max(best->endBounds, brx);
+    if (
+            (startX>=startBounds[loc1] && endX<=endBounds[loc2] && (endX-startX)/(endBounds[loc2]-startBounds[loc1]+0.0) > overlap_insides_thresh) ||
+            (startX<=startBounds[loc1] && endX>=endBounds[loc2] && (endX-startX)/(endBounds[loc2]-startBounds[loc1]+0.0) < overlap_consume_thresh) ||
+            ((min(endX,endBounds[loc2])-max(startX,startBounds[loc1]))/(endBounds[loc2]-startBounds[loc1]+0.0) > overlap_size_thresh && max(max(startX,startBounds[loc1])-min(startX,startBounds[loc1]),max(endX,endBounds[loc2])-min(endX,endBounds[loc2]))/(min(endX,endBounds[loc2])-max(startX,startBounds[loc1])+0.0) < size_note_included_thresh)
        )
     {
         return true;

@@ -32,6 +32,7 @@
 #include "NetSpotter.h"
 #include "CorpusRef.h"
 #include "PageRef.h"
+#include "CTCWrapper.h"
 
 using namespace std;
 
@@ -105,10 +106,11 @@ private:
 
     multimap<float,string> scoreAndThresh(vector<string> match) const;
     TranscribeBatch* createBatch(multimap<float,string> scored);
-    string generateQuery();
+    string generateQuery(multimap<int,Spotting>::iterator skip);
     TranscribeBatch* queryForBatch(vector<Spotting*>* newExemplars);
     vector<Spotting*> harvest();
     bool removeWorstSpotting(unsigned long batchId=0);//Returns whether a spotting was removed. Accepts batchId to add to removedSpottings so it can be redeemed in a resend of the batch
+    void removeSpottings(const set<unsigned long>& toRemove);
 #ifdef TEST_MODE
     void emergencyAnchor(cv::Mat& b, GraphType* g,int startX, int endX, float sum_anchor, float goal_sum, bool word, cv::Mat& showA);
 #else
@@ -126,6 +128,9 @@ private:
     {
         return (c-tlx) + (brx-tlx+1)*(r-tly);
     }
+
+    void getPossibleStrings(string s, set<string>& ret);
+    set<string> getPossibleStrings(string s);
 
     string transcription;
 
@@ -488,6 +493,8 @@ private:
     bool changed;
     void recreateDatasetVectors(bool lockPages);
 
+    int minWordImageLen, maxWordImageLen;
+
 public:
     Corpus(int contextPad, int averageCharWidth);
     Corpus(ifstream& in);
@@ -522,6 +529,9 @@ public:
     }
 
     vector<Spotting>* runQuery(SpottingQuery* query);// const;
+#ifdef CTC
+    vector<TranscribeBatch*> cpvTransCTC(float keep, const vector<string>& ngrams);
+#endif
 
     void checkIncomplete();
     void show();
@@ -543,6 +553,8 @@ public:
     static void mouseCallBackFunc(int event, int x, int y, int flags, void* page_p);
     void showInteractive(int pageId);
     string getName() const {return "CORPUS";}
+    Spotting wrapSpotting(int imIdx, int startX, int endX, float score, string ngram);
+    vector<SpottingLoc> massSpot(const vector<string>& ngrams, Mat& crossScores);
 };
 
 }

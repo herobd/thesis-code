@@ -13,6 +13,7 @@
 #include "semaphore.h"
 #include <pthread.h>
 #include "spotting.h"
+#include "ClusterBatcher.h"
 #include "SpottingResults.h"
 #include "TranscribeBatchQueue.h"
 #include "NewExemplarsBatchQueue.h"
@@ -44,6 +45,8 @@ private:
     pthread_rwlock_t semResults;
     map<unsigned long, pair<sem_t*,SpottingResults*> > results;
     map<unsigned long, pair<sem_t*,SpottingResults*> > resultsQueue;
+    map<unsigned long, pair<sem_t*,ClusterBatcher*> > clusterBatchers;
+    map<unsigned long, pair<sem_t*,ClusterBatcher*> > clusterBatchersQueue;
     TranscribeBatchQueue transcribeBatchQueue;
     NewExemplarsBatchQueue newExemplarsBatchQueue;
     
@@ -84,13 +87,20 @@ public:
 
     BatchWraper* getBatch(unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram);
     SpottingsBatch* getSpottingsBatch(unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need=true);
+    template <class T>
+    SpottingsBatch* _getSpottingsBatch(map<unsigned long, pair<sem_t*,T*> > batcherQueue,unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need);
+
     vector<Spotting>* feedback(unsigned long id, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long,string> >* remove);
+    template <class T>
+    vector<Spotting>* _feedback(map<unsigned long, pair<sem_t*,T*> > batchers, map<unsigned long, pair<sem_t*,T*> > batchersQueue, unsigned long id, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long, string> >* remove);
+
     virtual unsigned long updateSpottingResults(vector<Spotting>* spottings, unsigned long id=0);//a negative id means add a new spottingresult
     //void addSpottingResults(SpottingResults* res, bool hasSemResults=false, bool toQueue=true);
     
+    void insertClusterBatcher(string ngram, int contextPad, bool stepMode, const vector<Spotting>& spottings, Mat& crossScores);
     
     //TranscribeBatch* getTranscriptionBatch(unsigned int maxWidth) {return transcribeBatchQueue.dequeue(maxWidth);}
-    void transcriptionFeedback(unsigned long id, string transcription, vector<pair<unsigned long, string> >* toRemoveExemplars);
+    void transcriptionFeedback(unsigned long id, string transcription, vector<pair<unsigned long, string> >* toRemoveExemplars, unsigned long* badSpotting=NULL);
     void enqueueTranscriptionBatches(vector<TranscribeBatch*> newBatches, vector<unsigned long>* remove=NULL) {transcribeBatchQueue.enqueueAll(newBatches,remove);};
     void enqueueNewExemplars(const vector<Spotting*>& newExemplars, vector<pair<unsigned long, string> >* toRemoveExemplars);
     //NewExemplarsBatch* getNewExemplarsBatch(int batchSize, unsigned int maxWidth, int color) {return newExemplarsBatchQueue.dequeue(batchSize,maxWidth,color);}
@@ -121,6 +131,12 @@ public:
 #endif
         //destory semRotate
         for (auto p : results)
+        {
+            sem_destroy(p.second.first);//sem
+            delete p.second.first;//sem
+            delete p.second.second;
+        }
+        for (auto p : clusterBatchers)
         {
             sem_destroy(p.second.first);//sem
             delete p.second.first;//sem

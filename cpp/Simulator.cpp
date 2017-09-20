@@ -15,8 +15,9 @@
 
 Simulator::Simulator(string dataname, string segCSV)
 {
-    //TODO read in seg GT
+    //read in seg GT
     ifstream in (segCSV);
+    assert(in.good());
     string line;
     //getline(in,line);//header
     while (getline(in,line))
@@ -59,8 +60,8 @@ Simulator::Simulator(string dataname, string segCSV)
 
     if (dataname.compare("test")==0)
     {
-        spottingAverageMilli=1;
-        spottingAverageMilli_prev=1;
+        spottingAverageMilli=100;
+        spottingAverageMilli_prev=100;
         //spottingErrorProbConst=0.035;
         //spottingSkipProbConst=0.078;
         spottingErrorProb_m=0; //https://plot.ly/create/
@@ -71,13 +72,13 @@ Simulator::Simulator(string dataname, string segCSV)
 
         transMilli_b=1;//position 0.07 (no -1)
         transMilli_m=1;
-        transMilli_notAvail=1;
+        transMilli_notAvail=100;
         transErrorProbAvail=0;
         transErrorProbNotAvail=0;
         //transSkipProb=0;
 
-        manMilli_b=1;
-        manMilli_m=1;
+        manMilli_b=100;
+        manMilli_m=100;
         manErrorProb=0;
     }
     else if (dataname.compare("BENTHAM")==0)

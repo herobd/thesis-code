@@ -6,31 +6,56 @@ void MasterQueue::checkIncomplete()
     transcribeBatchQueue.checkIncomplete();    
     newExemplarsBatchQueue.checkIncomplete();    
     pthread_rwlock_rdlock(&semResults);
-    for (auto ele : results)
+    if (GlobalK::knowledge()->CLUSTER)
     {
-        
-        sem_t* sem = ele.second.first;
-        SpottingResults* res = ele.second.second;
-        sem_wait(sem);
-            
-        bool incm = res->checkIncomplete();
-        sem_post(sem);
-        if (incm)
+        for (auto ele : clusterBatchers)
         {
-            pthread_rwlock_wrlock(&semResultsQueue);
-            resultsQueue[res->getId()] = ele.second;
-            pthread_rwlock_unlock(&semResultsQueue);
-        }
-        
             
+            sem_t* sem = ele.second.first;
+            ClusterBatcher* res = ele.second.second;
+            sem_wait(sem);
+                
+            bool incm = res->checkIncomplete();
+            sem_post(sem);
+            if (incm)
+            {
+                pthread_rwlock_wrlock(&semResultsQueue);
+                clusterBatchersQueue[res->getId()] = ele.second;
+                pthread_rwlock_unlock(&semResultsQueue);
+            }
+            
+                
 
+        }
+    }
+    else
+    {
+        for (auto ele : results)
+        {
+            
+            sem_t* sem = ele.second.first;
+            SpottingResults* res = ele.second.second;
+            sem_wait(sem);
+                
+            bool incm = res->checkIncomplete();
+            sem_post(sem);
+            if (incm)
+            {
+                pthread_rwlock_wrlock(&semResultsQueue);
+                resultsQueue[res->getId()] = ele.second;
+                pthread_rwlock_unlock(&semResultsQueue);
+            }
+            
+                
+
+        }
     }
     pthread_rwlock_unlock(&semResults);
 }
 
 MasterQueue::MasterQueue(int contextPad) : contextPad(contextPad)
 {
-    if (GlobalK::knowledge()->PHOC_TRANS || GlobalK::knowledge()->NPV_TRANS)
+    if (GlobalK::knowledge()->PHOC_TRANS || GlobalK::knowledge()->CPV_TRANS)
         finish.store(true);
     else
         finish.store(false);
@@ -227,12 +252,13 @@ bool MasterQueue::test_autoBatch()
     return true;
 }*/
 
+
 BatchWraper* MasterQueue::getBatch(unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram)
 {
 
     int ngramQueueCount;
     pthread_rwlock_rdlock(&semResultsQueue);
-    ngramQueueCount=resultsQueue.size();
+    ngramQueueCount=(GlobalK::knowledge()->CLUSTER)?clusterBatchersQueue.size():resultsQueue.size();
     pthread_rwlock_unlock(&semResultsQueue);
     if (ngramQueueCount==0 && !finish.load())
         return NULL;
@@ -321,17 +347,30 @@ BatchWraper* MasterQueue::getBatch(unsigned int numberOfInstances, bool hard, un
 
 SpottingsBatch* MasterQueue::getSpottingsBatch(unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need) 
 {
+    //TODO, not use prevNgram?
+    if (GlobalK::knowledge()->CLUSTER)
+    {
+        return _getSpottingsBatch<ClusterBatcher>(clusterBatchersQueue,numberOfInstances,hard,maxWidth,color,prevNgram,need);
+    }
+    else
+    {
+        return _getSpottingsBatch<SpottingResults>(resultsQueue,numberOfInstances,hard,maxWidth,color,prevNgram,need);
+    }
+}
+template <class T>
+SpottingsBatch* MasterQueue::_getSpottingsBatch(map<unsigned long, pair<sem_t*,T*> > batcherQueue,unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need) 
+{
     SpottingsBatch* batch=NULL;
     //cout<<"getting rw lock"<<endl;
     pthread_rwlock_rdlock(&semResultsQueue);
     //cout<<"got rw lock"<<endl;
 
-    auto iter = resultsQueue.begin();
+    auto iter = batcherQueue.begin();
     int indexHolder=0;
-    //for (auto ele : resultsQueue)
-    for (; iter!=resultsQueue.end(); iter++, indexHolder++)
+    //for (auto ele : batcherQueue)
+    for (; iter!=batcherQueue.end(); iter++, indexHolder++)
     {
-        SpottingResults*  res = iter->second.second;
+        T*  res = iter->second.second;
         if (prevNgram.compare(res->ngram)==0)
         {
             break;
@@ -347,17 +386,17 @@ SpottingsBatch* MasterQueue::getSpottingsBatch(unsigned int numberOfInstances, b
     }
 
 
-    if (iter==resultsQueue.end())
+    if (iter==batcherQueue.end())
     {
-        iter = resultsQueue.begin();
+        iter = batcherQueue.begin();
         indexHolder=0;
 #if ROTATE
         int test_loc=0;
         pthread_rwlock_rdlock(&semRotate);
-        for (; iter!=resultsQueue.end(); iter++,indexHolder++)
+        for (; iter!=batcherQueue.end(); iter++,indexHolder++)
             if (test_loc++>=test_rotate/2 - 1) //TODO add var to control
                 break;
-        assert(iter!=resultsQueue.end());
+        assert(iter!=batcherQueue.end());
         pthread_rwlock_unlock(&semRotate);
 #endif
     }
@@ -368,7 +407,7 @@ SpottingsBatch* MasterQueue::getSpottingsBatch(unsigned int numberOfInstances, b
     {
         
         sem_t* sem = iter->second.first;
-        SpottingResults* res = iter->second.second;
+        T* res = iter->second.second;
 
         bool succ = 0==sem_trywait(sem);
         if (succ)
@@ -377,7 +416,7 @@ SpottingsBatch* MasterQueue::getSpottingsBatch(unsigned int numberOfInstances, b
             
             //test
 #if ROTATE
-            int qSize = resultsQueue.size();
+            int qSize = batcherQueue.size();
             pthread_rwlock_wrlock(&semRotate);
             if (test_rotate++>2*(qSize-1))
                 test_rotate=0;
@@ -398,8 +437,8 @@ SpottingsBatch* MasterQueue::getSpottingsBatch(unsigned int numberOfInstances, b
             {   //cout <<"done in queue "<<endl;
                 
                 pthread_rwlock_wrlock(&semResultsQueue);
-                //resultsQueue.erase(id);
-                resultsQueue.erase(iter);
+                //batcherQueue.erase(id);
+                batcherQueue.erase(iter);
                 
                 pthread_rwlock_unlock(&semResultsQueue);
                 
@@ -413,11 +452,11 @@ SpottingsBatch* MasterQueue::getSpottingsBatch(unsigned int numberOfInstances, b
             {
                 pthread_rwlock_rdlock(&semResultsQueue);
                 //reset iter as results queue may have changed (race)
-                iter=resultsQueue.begin();
-                for (int i=0; i<std::min(indexHolder,(int)resultsQueue.size()); i++)
+                iter=batcherQueue.begin();
+                for (int i=0; i<std::min(indexHolder,(int)batcherQueue.size()); i++)
                     iter++;
-                iterStart = resultsQueue.begin();
-                for (int i=0; i<std::min(startIndexHolder,(int)resultsQueue.size()); i++)
+                iterStart = batcherQueue.begin();
+                for (int i=0; i<std::min(startIndexHolder,(int)batcherQueue.size()); i++)
                     iterStart++;
             }
             
@@ -428,9 +467,9 @@ SpottingsBatch* MasterQueue::getSpottingsBatch(unsigned int numberOfInstances, b
         //}
         iter++;
         indexHolder++;
-        if (iter==resultsQueue.end())
+        if (iter==batcherQueue.end())
         {
-            iter=resultsQueue.begin();
+            iter=batcherQueue.begin();
             indexHolder=0;
         }
     } while (iter!=iterStart);
@@ -441,20 +480,6 @@ SpottingsBatch* MasterQueue::getSpottingsBatch(unsigned int numberOfInstances, b
         cout<<"no spotting batch from MasterQueue, need:"<<need<<endl;
 #endif
     }
-#ifdef TEST_MODE
-    else //test
-    {   
-        /*cout<<"batch: ";
-        for (int i=0; i<batch->size(); i++)
-        {
-            if (test_groundTruth[batch->spottingResultsId][batch->at(i).id])
-                cout << "true\t";
-            else
-                cout << "false\t";
-        }   
-        cout<<endl;*/
-    }
-#endif
     return batch;
 }
 
@@ -521,13 +546,25 @@ vector<Spotting>* MasterQueue::test_feedback(unsigned long id, const vector<stri
 
 vector<Spotting>* MasterQueue::feedback(unsigned long id, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long, string> >* remove)
 {
+    if (GlobalK::knowledge()->CLUSTER)
+    {
+        return _feedback<ClusterBatcher>(clusterBatchers,clusterBatchersQueue,id,ids,userClassifications,resent, remove);
+    }
+    else
+    {
+        return _feedback<SpottingResults>(results,resultsQueue,id,ids,userClassifications,resent, remove);
+    }
+}
+template <class T>
+vector<Spotting>* MasterQueue::_feedback(map<unsigned long, pair<sem_t*,T*> > batchers, map<unsigned long, pair<sem_t*,T*> > batchersQueue, unsigned long id, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long, string> >* remove)
+{
     //cout <<"got feedback for: "<<id<<endl;
     vector<Spotting>* ret=NULL;
     pthread_rwlock_rdlock(&semResults);
-    if (results.find(id)!=results.end())
+    if (batchers.find(id)!=batchers.end())
     {
-        sem_t* sem=results.at(id).first;
-        SpottingResults* res = results.at(id).second;
+        sem_t* sem=batchers.at(id).first;
+        T* res = batchers.at(id).second;
         pthread_rwlock_unlock(&semResults);
         sem_wait(sem);
         int done=0;
@@ -539,14 +576,14 @@ vector<Spotting>* MasterQueue::feedback(unsigned long id, const vector<string>& 
         if (done==-1)
         {
             pthread_rwlock_wrlock(&semResultsQueue);
-            resultsQueue[id] = make_pair(sem,res);
+            batchersQueue[id] = make_pair(sem,res);
             pthread_rwlock_unlock(&semResultsQueue);
             
         }
         else if (done==2)
         {
             pthread_rwlock_wrlock(&semResultsQueue);
-            resultsQueue.erase(id);
+            batchersQueue.erase(id);
             
             pthread_rwlock_unlock(&semResultsQueue);
         }
@@ -740,11 +777,26 @@ unsigned long MasterQueue::updateSpottingResults(vector<Spotting>* spottings, un
     return ret;
 }
 
-void MasterQueue::transcriptionFeedback(unsigned long id, string transcription, vector<pair<unsigned long, string> >* toRemoveExemplars) 
+
+void MasterQueue::insertClusterBatcher(string ngram, int contextPad, bool stepMode, const vector<Spotting>& spottings, Mat& crossScores)
+{
+    ClusterBatcher* batcher = new ClusterBatcher(ngram,contextPad,stepMode,spottings,crossScores);
+    sem_t* sem = new sem_t();
+    sem_init(sem,false,0);
+    auto p = make_pair(sem,batcher);
+    clusterBatchers[batcher->getId()] = p;
+    pthread_rwlock_unlock(&semResults);
+    sem_post(sem);
+    pthread_rwlock_wrlock(&semResultsQueue);
+    clusterBatchersQueue[batcher->getId()] = p;
+    pthread_rwlock_unlock(&semResultsQueue);
+}
+
+void MasterQueue::transcriptionFeedback(unsigned long id, string transcription, vector<pair<unsigned long, string> >* toRemoveExemplars, unsigned long* badSpotting) 
 {
     if (transcription.find('\n') != string::npos)
         transcription="$PASS$";
-    vector<Spotting*> newExemplars = transcribeBatchQueue.feedback(id, transcription, toRemoveExemplars);
+    vector<Spotting*> newExemplars = transcribeBatchQueue.feedback(id, transcription, toRemoveExemplars,badSpotting);
 
     //enqueue these for approval
     //if (newExemplars.size()>0)
@@ -781,6 +833,22 @@ void MasterQueue::save(ofstream& out)
 
     out<<resultsQueue.size()<<"\n";
     for (auto p : resultsQueue)
+    {
+        out<<p.first<<"\n";
+    }
+
+
+    out<<clusterBatchers.size()<<"\n";
+    for (auto p : clusterBatchers)
+    {
+        out<<p.first<<"\n";
+        sem_wait(p.second.first);
+        p.second.second->save(out);
+        sem_post(p.second.first);
+    }
+
+    out<<clusterBatchersQueue.size()<<"\n";
+    for (auto p : clusterBatchersQueue)
     {
         out<<p.first<<"\n";
     }
@@ -834,6 +902,31 @@ MasterQueue::MasterQueue(ifstream& in, CorpusRef* corpusRef, PageRef* pageRef)
         unsigned long id = stoul(line);
         resultsQueue[results[id].second->getId()] = results[id];
     }
+
+    getline(in,line);
+    rSize = stoi(line);
+    for (int i=0; i<rSize; i++)
+    {
+        getline(in,line);
+        unsigned long id = stoul(line);
+        //assert(id==i+1);
+        ClusterBatcher* res = new ClusterBatcher(in,pageRef);
+        assert(id==res->getId());
+        sem_t* sem = new sem_t();
+        sem_init(sem,false,1);
+        auto p = make_pair(sem,res);
+        clusterBatchers[res->getId()] = p;
+    }
+    getline(in,line);
+    rSize = stoi(line);
+    for (int i=0; i<rSize; i++)
+    {
+        getline(in,line);
+        unsigned long id = stoul(line);
+        clusterBatchersQueue[clusterBatchers[id].second->getId()] = clusterBatchers[id];
+    }
+
+
     transcribeBatchQueue.load(in,corpusRef);
     newExemplarsBatchQueue.load(in,pageRef);
 
