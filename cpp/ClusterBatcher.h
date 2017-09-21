@@ -79,6 +79,7 @@ private:
 
     vector<Spotting> spottingRes;
     deque<int> trueInstancesToSeed;
+    map<unsigned long, int> spottingIdToIndex;
 
     map<unsigned long, chrono::system_clock::time_point > starts; //For tracking sent batches
 

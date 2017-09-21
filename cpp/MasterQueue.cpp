@@ -364,6 +364,11 @@ SpottingsBatch* MasterQueue::_getSpottingsBatch(map<unsigned long, pair<sem_t*,T
     //cout<<"getting rw lock"<<endl;
     pthread_rwlock_rdlock(&semResultsQueue);
     //cout<<"got rw lock"<<endl;
+    if (batcherQueue.size()==0)
+    {
+        pthread_rwlock_unlock(&semResultsQueue);
+        return NULL;
+    }
 
     auto iter = batcherQueue.begin();
     int indexHolder=0;
@@ -451,6 +456,8 @@ SpottingsBatch* MasterQueue::_getSpottingsBatch(map<unsigned long, pair<sem_t*,T
             else
             {
                 pthread_rwlock_rdlock(&semResultsQueue);
+                if (batcherQueue.size()==0)
+                    break;
                 //reset iter as results queue may have changed (race)
                 iter=batcherQueue.begin();
                 for (int i=0; i<std::min(indexHolder,(int)batcherQueue.size()); i++)
@@ -475,7 +482,7 @@ SpottingsBatch* MasterQueue::_getSpottingsBatch(map<unsigned long, pair<sem_t*,T
     } while (iter!=iterStart);
     if (batch==NULL)
     {
-        pthread_rwlock_unlock(&semResultsQueue);//just in case
+        pthread_rwlock_unlock(&semResultsQueue);
 #ifdef TEST_MODE
         cout<<"no spotting batch from MasterQueue, need:"<<need<<endl;
 #endif

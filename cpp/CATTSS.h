@@ -133,7 +133,7 @@ class CATTSS
             delete t;
         for (UpdateTask* t : taskQueue)
             delete t;
-        if (web!=NULL)
+        if (GlobalK::knowledge()->WEB_TRANS && web!=NULL)
             delete web;
     }
    //this is aux for extracting data from save file 
