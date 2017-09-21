@@ -276,8 +276,8 @@ CATTSS::CATTSS( string lexiconFile,
                         string label;
                         int gt=0;
                         word->getBoundsAndDoneAndGT(&tlx,&tly,&brx,&bry,&done,&label);
-                        tlx+=s.startX;
                         brx=std::min(tlx+s.endX,brx);
+                        tlx+=s.startX;
                         if (label.find(ngram) != string::npos)
                         {
 #if defined(TEST_MODE) || defined(NO_NAN)
@@ -288,9 +288,10 @@ CATTSS::CATTSS( string lexiconFile,
                         }
                         if (gt>0)
                             tC++;
+                       
                         spottings.emplace_back(tlx,tly,brx,bry,word->getPageId(),word->getPage(),ngram,gt,s.imIdx,s.startX);
                         spottings.back().scoreQbS=s.score();
-                        spottings.back().id=spottings.size();//override here for simplicity
+                        //NOO! spottings.back().id=spottings.size();//override here for simplicity
                     }
                     assert(tC>0);
                     bool stepMode = numSpottingThreads;

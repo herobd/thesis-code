@@ -5,6 +5,8 @@ atomic_ulong ClusterBatcher::_id;
 ClusterBatcher::ClusterBatcher(string ngram, int contextPad, bool stepMode, const vector<Spotting>& massSpottingRes, const Mat& crossScores) : ngram(ngram), contextPad(contextPad), stepMode(stepMode), spottingRes(massSpottingRes), crossScores(crossScores), finished(false), curLevel(-1)
 //vector<Spotting>* start(const vector<Spotting>& massSpottingRes, const Mat& crossScores)
 {
+    for (int i=0; i<spottingRes.size(); i++)
+        spottingIdToIndex[spottingRes[i].id]=i;
     id = ++_id;
     //Set up GT
     vector<bool> gt(massSpottingRes.size());
@@ -159,7 +161,6 @@ SpottingsBatch* ClusterBatcher::getBatch(bool* done, unsigned int num, bool hard
 
 vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long,string> >* retRemove)
 {
-//ids one indexed
     //Evaluate purity and accuracy and update clusterLeve
     //Add seeds
     //Store results
@@ -171,20 +172,21 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
     vector<Spotting>* ret = new vector<Spotting>();
     for (unsigned int i=0; i< ids.size(); i++)
     {
-        int id = stoi(ids[i]);
-        int check = starts.erase(id);
+        int sid = stoi(ids[i]);
+        int sindex = spottingIdToIndex[sid];
+        int check = starts.erase(sid);
         if (userClassifications[i]>0)
         {
             numTrue++;
 #ifdef NO_NAN
             GlobalK::knowledge()->accepted();
 #endif
-            if (!resent || spottingRes.at(id-1).type!=SPOTTING_TYPE_APPROVED)
+            if (spottingRes.at(sindex).type!=SPOTTING_TYPE_APPROVED)
             {
-                spottingRes.at(id-1).type=SPOTTING_TYPE_APPROVED;
-                ret->push_back(spottingRes.at(id-1));
+                spottingRes.at(sindex).type=SPOTTING_TYPE_APPROVED;
+                ret->push_back(spottingRes.at(sindex));
                 if (stepMode)
-                    trueInstancesToSeed.push_back(id-1);
+                    trueInstancesToSeed.push_back(sindex);
             }
         }
         else if (userClassifications[i]==0)
@@ -193,11 +195,11 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
 #ifdef NO_NAN
             GlobalK::knowledge()->rejected();
 #endif
-            if (!resent || spottingRes.at(id-1).type!=SPOTTING_TYPE_REJECTED)
+            if (spottingRes.at(sindex).type!=SPOTTING_TYPE_REJECTED)
             {
-                spottingRes.at(id-1).type=SPOTTING_TYPE_REJECTED;
-                if (retRemove!=NULL)
-                    retRemove->emplace_back(spottingRes.at(id-1).id,ngram);
+                spottingRes.at(sindex).type=SPOTTING_TYPE_REJECTED;
+                if (resent&&retRemove!=NULL)
+                    retRemove->emplace_back(spottingRes.at(sindex).id,ngram);
             }
         }
         //Cluster is "readded" if we dont set the type
