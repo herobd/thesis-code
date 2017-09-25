@@ -66,7 +66,7 @@ void GlobalK::setSimSave(string file)
     trackFile.open(file,ofstream::app|ofstream::out);
     if (!appending)
     {
-        trackFile<<"time,accuracyTrans,pWordsTrans,pWords80_100,pWords60_80,pWords40_60,pWords20_40,pWords0_20,pWords0,transSent,badTransBatchs,badTransNgram,spotSent,spotAccept,spotReject,spotAutoAccept,spotAutoReject,newExemplarsSpotted,badPrunes,";
+        trackFile<<"time,accuracyTrans,pWordsTrans,pWords80_100,pWords60_80,pWords40_60,pWords20_40,pWords0_20,pWords0,pWordsBad,transSent,badTransBatchs,badTransNgram,spotSent,spotAccept,spotReject,spotAutoAccept,spotAutoReject,newExemplarsSpotted,badPrunes,";
         trackFile<<"accuracyTrans_IV,pWordsTrans_IV,pWords80_100_IV,pWords60_80_IV,pWords40_60_IV,pWords20_40_IV,pWords0_20_IV,pWords0_IV,misTrans"<<endl;
     }
 
