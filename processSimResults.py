@@ -5,6 +5,7 @@ out=[['file','% comp.','comp./day','trans sent','true ratio']]
 
 for i in range(1,len(sys.argv)):
     csvfile=sys.argv[i]
+    print csvfile
     assert csvfile[-4:]=='.csv'
     outRow = [csvfile[:-4]]
     with open(csvfile, 'rb') as content:
@@ -22,8 +23,10 @@ for i in range(1,len(sys.argv)):
             startTime = (int(data[1][0][-8:-6])*60 + int(data[1][0][-5:-3]))*60 + int(data[1][0][-2:])
             endIndex=-1
             if blankEnd:
-                while int(data[endIndex][9])==0 and int(data[endIndex][12])==0 and int(data[endIndex][13])==0:
+                while endIndex>1-len(data) and int(data[endIndex][9])==0 and int(data[endIndex][12])==0 and int(data[endIndex][13])==0:
                     endIndex-=1
+            if endIndex == 1-len(data):
+                endIndex=-1
                     
             endTime = (int(data[endIndex][0][-8:-6])*60 + int(data[endIndex][0][-5:-3]))*60 + int(data[endIndex][0][-2:])
             time = endTime-startTime

@@ -1,13 +1,13 @@
 CXX = g++
 LINK = g++
-CXX_FLAGS_NO_G = -std=c++11 -pthread -DNO_NAN -DNO_EXEMPLARS #-DTEST_MODE #-DGRAPH_SPOTTING_RESULTS #-DDEBUG_AUTO#-ansi -fexceptions -fPIC -fno-omit-frame-pointer -pthread
-CXX_FLAGS_NO_G += -DOPENCV2
-CXX_FLAGS =  $(CXX_FLAGS_NO_G) -g#-O3 #-g
+CXX_FLAGS_NO_G =  -std=c++11 -pthread -DNO_NAN #-DTEST_MODE #-DGRAPH_SPOTTING_RESULTS #-DDEBUG_AUTO#-ansi -fexceptions -fPIC -fno-omit-frame-pointer -pthread
+CXX_FLAGS =  $(CXX_FLAGS_NO_G) -O3 #-g
+#CXX_FLAGS_NO_G += -DOPENCV2
 
 LIBS += -lpthread
 
 LIBS += -lopencv_core -lopencv_highgui -lopencv_imgproc -fopenmp
-#LIBS += -lopencv_imgcodecs
+LIBS += -lopencv_imgcodecs
 LIBS += -pthread 
 
 #LIBS += -L/home/brian/intel_index/EmbAttSpotter -lembattspotter -larmadillo
@@ -15,23 +15,23 @@ LIBS += -pthread
 #INCLUDE +=-I. -I/home/brian/intel_index/EmbAttSpotter
 
 
-CXX_FLAGS += -DCTC
-#LIBS += -L ../../warp-ctc/build -lwarpctc
-#INCLUDE += -I ../../warp-ctc/include
-LIBS += -L/home/brian/robert_stuff/documentproject/lib -ldtwarp
-INCLUDE += -I/home/brian/robert_stuff/documentproject/src
+#CXX_FLAGS += -DCTC
+##LIBS += -L ../../warp-ctc/build -lwarpctc
+##INCLUDE += -I ../../warp-ctc/include
+#LIBS += -L/home/brian/robert_stuff/documentproject/lib -ldtwarp
+#INCLUDE += -I/home/brian/robert_stuff/documentproject/src
+#
+#LIBS += -L ../../brian_caffe/scripts/cnnspp_spotter -lcnnspp_spotter
+#INCLUDE += -I ../../brian_caffe/scripts/cnnspp_spotter
+#LIBS += -L ../../brian_caffe/build/lib
+#INCLUDE +=-I ../../brian_caffe/include
+#LIBS += -lcaffe -lboost_system
 
-LIBS += -L ../../brian_caffe/scripts/cnnspp_spotter -lcnnspp_spotter
-INCLUDE += -I ../../brian_caffe/scripts/cnnspp_spotter
-LIBS += -L ../../brian_caffe/build/lib
-INCLUDE +=-I ../../brian_caffe/include
-LIBS += -lcaffe -lboost_system
-
-#LIBS += -L ../../caffe/scripts/cnnspp_spotter -lcnnspp_spotter
-#INCLUDE += -I ../../caffe/scripts/cnnspp_spotter
-#LIBS += -L ../../caffe/build/lib
-#INCLUDE +=-I ../../caffe/include
-#LIBS += -lcaffe -l:libboost_system.so.1.59.0 -lglog
+LIBS += -L ../../caffe/scripts/cnnspp_spotter -lcnnspp_spotter
+INCLUDE += -I ../../caffe/scripts/cnnspp_spotter
+LIBS += -L ../../caffe/build/lib
+INCLUDE +=-I ../../caffe/include
+LIBS += -lcaffe -l:libboost_system.so.1.59.0 -lglog
 
 PROGRAM_NAME = test
 
@@ -135,6 +135,7 @@ getDone: getDone
 sim: simulation
 sim2: simulation2
 sim3: simulationNoWait
+sim4: simulationExemplars
 pp: $(PREPROCESSEDS)
 expand: removeinc addinc simulation2
 addinc: $(PREPROCESSEDS)
@@ -178,6 +179,9 @@ simulation2: $(OBJECTS) simulation.cpp
 
 simulationNoWait: $(OBJECTS) simulation.cpp
 	$(LINK) $(CXX_FLAGS) -o simulationNoWait simulation.cpp $(INCLUDE) $(OBJECTS) $(LIBS)
+
+simulationExemplars: $(OBJECTS) simulation.cpp
+	$(LINK) $(CXX_FLAGS) -o simulationExemplars simulation.cpp $(INCLUDE) $(OBJECTS) $(LIBS)
 
 train: $(OBJECTS)
 	$(LINK) $(CXX_FLAGS) -o train train.cpp $(INCLUDE) $(OBJECTS) $(LIBS)

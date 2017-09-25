@@ -87,8 +87,13 @@ Simulator::Simulator(string dataname, string segCSV)
         spottingAverageMilli_prev=-4338;
         //spottingErrorProbConst=0.035;
         //spottingSkipProbConst=0.078;
+#if NO_ERROR
+        spottingErrorProb_m=0;
+        spottingErrorProb_b=0;
+#else
         spottingErrorProb_m=-0.0041; //https://plot.ly/create/
         spottingErrorProb_b=0.061;
+#endif
         spottingSkipProb_m=0.02652;
         spottingSkipProb_b=0.084055;
 
@@ -108,8 +113,13 @@ Simulator::Simulator(string dataname, string segCSV)
     {
         spottingAverageMilli=19951;
         spottingAverageMilli_prev=-6825;
+#if NO_ERROR
+        spottingErrorProb_m=0;
+        spottingErrorProb_b=0;
+#else
         spottingErrorProb_m=0.00059863;
         spottingErrorProb_b=0.08758;
+#endif
         spottingSkipProb_m=-0.000805;
         spottingSkipProb_b=0.010303;
 

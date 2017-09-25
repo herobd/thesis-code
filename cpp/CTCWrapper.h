@@ -1,6 +1,8 @@
 #ifndef CTCWRAPPER_H
 #define CTCWRAPPER_H
 
+#ifdef CTC
+
 #include "opencv2/core/core.hpp"
 #include "opencv2/highgui/highgui.hpp"
 //#include "ctc.h"
@@ -35,4 +37,5 @@ public:
     float loss(Mat cpv, string label);
 };
 
+#endif
 #endif

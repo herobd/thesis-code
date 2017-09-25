@@ -1,4 +1,5 @@
 #include "CTCWrapper.h"
+#ifdef CTC
 /*
 CTCWrapper::CTCWrapper(int maxInputLen, int maxLabelLen) : maxInputLen(maxInputLen), maxLabelLen(maxLabelLen)
 {
@@ -207,3 +208,4 @@ float CTCWrapper::loss(Mat cpv, string label)
     
     return score;
 }
+#endif
