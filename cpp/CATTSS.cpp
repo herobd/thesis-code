@@ -49,13 +49,13 @@ void showSleeper(CATTSS* cattss, MasterQueue* q, Knowledge::Corpus* c, int heigh
             {
                 string misTrans;
                 float accTrans,pWordsTrans;
-                float pWords80_100, pWords60_80, pWords40_60, pWords20_40, pWords0_20, pWords0;
+                float pWords80_100, pWords60_80, pWords40_60, pWords20_40, pWords0_20, pWords0, pWordsBad;
                 string misTrans_IV;
                 float accTrans_IV,pWordsTrans_IV;
                 float pWords80_100_IV, pWords60_80_IV, pWords40_60_IV, pWords20_40_IV, pWords0_20_IV, pWords0_IV;
-                c->getStats(&accTrans,&pWordsTrans, &pWords80_100, &pWords60_80, &pWords40_60, &pWords20_40, &pWords0_20, &pWords0, &misTrans,
+                c->getStats(&accTrans,&pWordsTrans, &pWords80_100, &pWords60_80, &pWords40_60, &pWords20_40, &pWords0_20, &pWords0, &pWordsBad, &misTrans,
                             &accTrans_IV,&pWordsTrans_IV, &pWords80_100_IV, &pWords60_80_IV, &pWords40_60_IV, &pWords20_40_IV, &pWords0_20_IV, &pWords0_IV, &misTrans_IV);
-                GlobalK::knowledge()->saveTrack(accTrans,pWordsTrans, pWords80_100, pWords60_80, pWords40_60, pWords20_40, pWords0_20, pWords0, misTrans,
+                GlobalK::knowledge()->saveTrack(accTrans,pWordsTrans, pWords80_100, pWords60_80, pWords40_60, pWords20_40, pWords0_20, pWords0, pWordsBad, misTrans,
                                                 accTrans_IV,pWordsTrans_IV, pWords80_100_IV, pWords60_80_IV, pWords40_60_IV, pWords20_40_IV, pWords0_20_IV, pWords0_IV, misTrans_IV);
             }
 #endif
@@ -770,5 +770,57 @@ void CATTSS::save()
         t = clock() - t;
         cout<<"END save: "<<((float)t)/CLOCKS_PER_SEC<<" secs.    "<<endl;
 #endif
+    }
+}
+
+void CATTSS::printFinalStats()
+{
+    //Summary stats for analysis
+    //
+    //of words in each spotting group
+    //mean,std size of words in each group
+    //char dists
+    //of transcribed words in each spotting group
+    //mean,std size of words in each group
+    //char dists
+    string misTrans;
+    float accTrans,pWordsTrans;
+    float pWords80_100, pWords60_80, pWords40_60, pWords20_40, pWords0_20, pWords0, pWordsBad;
+    string misTrans_IV;
+    float accTrans_IV,pWordsTrans_IV;
+    float pWords80_100_IV, pWords60_80_IV, pWords40_60_IV, pWords20_40_IV, pWords0_20_IV, pWords0_IV;
+
+    float wordsTrans80_100,  wordsTrans60_80,  wordsTrans40_60,  wordsTrans20_40,  wordsTrans0_20,  wordsTrans0;
+    float meanLenPWordsTrans,  meanLenPWords80_100,  meanLenPWords60_80,  meanLenPWords40_60,  meanLenPWords20_40,  meanLenPWords0_20,  meanLenPWords0, meanLenPWordsBad;
+     float stdLenPWordsTrans,  stdLenPWords80_100,  stdLenPWords60_80,  stdLenPWords40_60,  stdLenPWords20_40,  stdLenPWords0_20,  stdLenPWords0, stdLenPWordsBad;
+     float meanLenWordsTrans80_100,  meanLenWordsTrans60_80,  meanLenWordsTrans40_60,  meanLenWordsTrans20_40,  meanLenWordsTrans0_20,  meanLenWordsTrans0;
+     float stdLenWordsTrans80_100,  stdLenWordsTrans60_80,  stdLenWordsTrans40_60,  stdLenWordsTrans20_40,  stdLenWordsTrans0_20,  stdLenWordsTrans0;
+     map<char,float> charDistDone, charDistUndone;
+
+    corpus->getStats(&accTrans,&pWordsTrans, &pWords80_100, &pWords60_80, &pWords40_60, &pWords20_40, &pWords0_20, &pWords0, &pWordsBad, &misTrans,
+                &accTrans_IV,&pWordsTrans_IV, &pWords80_100_IV, &pWords60_80_IV, &pWords40_60_IV, &pWords20_40_IV, &pWords0_20_IV, &pWords0_IV, &misTrans_IV,
+                &wordsTrans80_100,  &wordsTrans60_80,  &wordsTrans40_60,  &wordsTrans20_40,  &wordsTrans0_20,  &wordsTrans0,
+                &meanLenPWordsTrans,  &meanLenPWords80_100,  &meanLenPWords60_80,  &meanLenPWords40_60,  &meanLenPWords20_40,  &meanLenPWords0_20,  &meanLenPWords0, &meanLenPWordsBad,
+                &stdLenPWordsTrans,  &stdLenPWords80_100,  &stdLenPWords60_80,  &stdLenPWords40_60,  &stdLenPWords20_40,  &stdLenPWords0_20,  &stdLenPWords0, &stdLenPWordsBad,
+                &meanLenWordsTrans80_100,  &meanLenWordsTrans60_80,  &meanLenWordsTrans40_60,  &meanLenWordsTrans20_40,  &meanLenWordsTrans0_20,  &meanLenWordsTrans0,
+                &stdLenWordsTrans80_100,  &stdLenWordsTrans60_80,  &stdLenWordsTrans40_60,  &stdLenWordsTrans20_40,  &stdLenWordsTrans0_20,  &stdLenWordsTrans0,
+                &charDistDone, &charDistUndone);
+
+
+    cout<<"---------Stats----------"<<endl;
+    cout<<fixed<<setprecision(5)<<endl;
+    cout<<"acc trans: "<<accTrans<<endl;
+    cout<<"categories     trnsbd\t100-80\t80-60\t60-40\t40-20\t20-0\t0\t(bad spotting)"<<endl;
+    cout<<"all, in:       "<<pWordsTrans<<'\t'<<pWords80_100<<'\t'<<pWords60_80<<'\t'<<pWords40_60<<'\t'<<pWords20_40<<'\t'<<pWords0_20<<'\t'<<pWords0<<'\t'<<pWordsBad<<endl;
+    cout<<"all, mean len  "<<meanLenPWordsTrans<<'\t'<<meanLenPWords80_100<<'\t'<<meanLenPWords60_80<<'\t'<<meanLenPWords40_60<<'\t'<<meanLenPWords20_40<<'\t'<<meanLenPWords0_20<<'\t'<<meanLenPWords0<<'\t'<<meanLenPWordsBad<<endl;
+    cout<<"all, std len   "<<stdLenPWordsTrans<<'\t'<<stdLenPWords80_100<<'\t'<<stdLenPWords60_80<<'\t'<<stdLenPWords40_60<<'\t'<<stdLenPWords20_40<<'\t'<<stdLenPWords0_20<<'\t'<<stdLenPWords0<<'\t'<<stdLenPWordsBad<<endl;
+    cout<<"trans, in:     n/a  \t"<<wordsTrans80_100<<'\t'<<wordsTrans60_80<<'\t'<<wordsTrans40_60<<'\t'<<wordsTrans20_40<<'\t'<<wordsTrans0_20<<'\t'<<wordsTrans0<<endl;
+    cout<<"trans, mean len n/a \t"<<meanLenWordsTrans80_100<<'\t'<<meanLenWordsTrans60_80<<'\t'<<meanLenWordsTrans40_60<<'\t'<<meanLenWordsTrans20_40<<'\t'<<meanLenWordsTrans0_20<<'\t'<<meanLenWordsTrans0<<endl;
+    cout<<"trans, std len n/a  \t"<<stdLenWordsTrans80_100<<'\t'<<stdLenWordsTrans60_80<<'\t'<<stdLenWordsTrans40_60<<'\t'<<stdLenWordsTrans20_40<<'\t'<<stdLenWordsTrans0_20<<'\t'<<stdLenWordsTrans0<<endl;
+
+    cout<<".\tdone\tundone"<<endl;
+    for (char a='a'; a<'z'; a++)
+    {
+        cout<<a<<'\t'<<charDistDone[a]<<'t'<<charDistUndone[a]<<endl;
     }
 }

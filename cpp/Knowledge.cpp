@@ -641,6 +641,9 @@ TranscribeBatch* Knowledge::Word::addSpotting(Spotting s, vector<Spotting*>* new
         //cout<<"[write] "<<gt<<" ("<<tlx<<","<<tly<<") addSpotting"<<endl;
 #endif
     pthread_rwlock_wrlock(&lock);
+#if NO_ERROR
+    assert (gt.find(s.ngram) != string::npos);
+#endif
     //decide if it should be merge with another
     int width = s.brx-s.tlx;
     bool merged=false;
@@ -3843,12 +3846,38 @@ TranscribeBatch* Knowledge::Word::reset_(vector<Spotting*>* newExemplars)
     return queryForBatch(newExemplars);
 }
 
-void Knowledge::Corpus::getStats(float* accTrans, float* pWordsTrans, float* pWords80_100, float* pWords60_80, float* pWords40_60, float* pWords20_40, float* pWords0_20, float* pWords0, string* misTrans,
-                                 float* accTrans_IV, float* pWordsTrans_IV, float* pWords80_100_IV, float* pWords60_80_IV, float* pWords40_60_IV, float* pWords20_40_IV, float* pWords0_20_IV, float* pWords0_IV, string* misTrans_IV)
+void meanStd(vector<int> vs, float* mean, float* std)
 {
-    int trueTrans, cTrans, c80_100, c60_80, c40_60, c20_40, c0_20, c0;
-    trueTrans= cTrans= c80_100= c60_80= c40_60= c20_40= c0_20= c0=0;
+    *mean = 0;
+    for (int v : vs)
+        *mean+=v;
+    *mean/=vs.size();
+
+
+    *std=0;
+    for (int v : vs)
+        *std+=(*mean-v)*(*mean-v);
+    *std=sqrt(*std/vs.size());
+}
+
+void Knowledge::Corpus::getStats(float* accTrans, float* pWordsTrans, float* pWords80_100, float* pWords60_80, float* pWords40_60, float* pWords20_40, float* pWords0_20, float* pWords0, float* pWordsBad, string* misTrans,
+                                 float* accTrans_IV, float* pWordsTrans_IV, float* pWords80_100_IV, float* pWords60_80_IV, float* pWords40_60_IV, float* pWords20_40_IV, float* pWords0_20_IV, float* pWords0_IV, string* misTrans_IV,
+                                 //additional
+                                 float* wordsTrans80_100, float* wordsTrans60_80, float* wordsTrans40_60, float* wordsTrans20_40, float* wordsTrans0_20, float* wordsTrans0,
+                                 float* meanLenPWordsTrans, float* meanLenPWords80_100, float* meanLenPWords60_80, float* meanLenPWords40_60, float* meanLenPWords20_40, float* meanLenPWords0_20, float* meanLenPWords0, float* meanLenPWordsBad,
+                                 float* stdLenPWordsTrans, float* stdLenPWords80_100, float* stdLenPWords60_80, float* stdLenPWords40_60, float* stdLenPWords20_40, float* stdLenPWords0_20, float* stdLenPWords0, float* stdLenPWordsBad,
+                                 float* meanLenWordsTrans80_100, float* meanLenWordsTrans60_80, float* meanLenWordsTrans40_60, float* meanLenWordsTrans20_40, float* meanLenWordsTrans0_20, float* meanLenWordsTrans0,
+                                 float* stdLenWordsTrans80_100, float* stdLenWordsTrans60_80, float* stdLenWordsTrans40_60, float* stdLenWordsTrans20_40, float* stdLenWordsTrans0_20, float* stdLenWordsTrans0,
+                                 map<char,float>* charDistDone, map<char,float>* charDistUndone)
+{
+    int trueTrans, cTrans, c80_100, c60_80, c40_60, c20_40, c0_20, c0, cBad, cTrans80_100, cTrans60_80, cTrans40_60, cTrans20_40, cTrans0_20, cTrans0;
+    trueTrans= cTrans= c80_100= c60_80= c40_60= c20_40= c0_20= c0= cBad= cTrans80_100= cTrans60_80= cTrans40_60= cTrans20_40= cTrans0_20= cTrans0=0;
     *misTrans="";
+    vector<int> lensC80_100, lensC60_80, lensC40_60, lensC20_40, lensC0_20, lensC0, lensCBad;
+    vector<int> lensTransC80_100, lensTransC60_80, lensTransC40_60, lensTransC20_40, lensTransC0_20, lensTransC0;
+    int numCharsDone=0;
+    int numCharsUndone=0;
+    bool more = charDistUndone!=NULL && wordsTrans80_100!=NULL;
 
     //IV is In-Vocabulary
     int trueTrans_IV, cTrans_IV, c80_100_IV, c60_80_IV, c40_60_IV, c20_40_IV, c0_20_IV, c0_IV;
@@ -3867,6 +3896,12 @@ void Knowledge::Corpus::getStats(float* accTrans, float* pWordsTrans, float* pWo
         bool inVocab = Lexicon::instance()->inVocab(gt);
         if (inVocab)
             numIV++;
+        if (more && !done)
+        {
+            for (int i=0; i<gt.length(); i++)
+                (*charDistUndone)[gt[i]]+=1;
+            numCharsUndone+=gt.length();
+        }
         if (done)
         {
             cTrans++;
@@ -3883,15 +3918,98 @@ void Knowledge::Corpus::getStats(float* accTrans, float* pWordsTrans, float* pWo
                 if (inVocab)
                     *misTrans_IV+=trans+"("+gt+") ";
             }
+
+            if (more)
+            {
+                for (int i=0; i<gt.length(); i++)
+                    (*charDistDone)[gt[i]]+=1;
+                numCharsDone+=gt.length();
+                int numMatch=0;
+                int posGT=0;
+                bool skip=false;
+                char last='.';
+                for (int i=0; i<query.length(); i++)
+                {
+                    if (skip)
+                    {
+                        if (query[i]==']')
+                            skip=false;
+                    }
+                    else
+                    {
+                        if (query[i]==']')
+                        {
+                            skip=true;
+                            last='.';
+                        }
+                        else if (query[i]>='a' && query[i]<='z')
+                        {
+                            if (query[i]==last)
+                            {
+                                if (query[i]==gt[posGT])
+                                {
+                                    posGT++;
+                                    numMatch++;
+                                }
+                            }
+                            else
+                            {
+                                for (;posGT<gt.length(); posGT++)
+                                    if (gt[posGT]==query[i])
+                                    {
+                                        numMatch++;
+                                        posGT++;
+                                        break;
+                                    }
+                            }
+                            last=query[i];
+                        }
+                    }
+                }
+                float p = numMatch/(0.0+gt.length());
+                if (p>.8)
+                {
+                    cTrans80_100++;
+                    lensTransC80_100.push_back(gt.length());
+                }
+                else if (p>.6)
+                {
+                    cTrans60_80++;
+                    lensTransC60_80.push_back(gt.length());
+                }
+                else if (p>.4)
+                {
+                    cTrans40_60++;
+                    lensTransC40_60.push_back(gt.length());
+                }
+                else if (p>.2)
+                {
+                    cTrans20_40++;
+                    lensTransC20_40.push_back(gt.length());
+                }
+                else if (p>0)
+                {
+                    cTrans0_20++;
+                    lensTransC0_20.push_back(gt.length());
+                }
+                else
+                {
+                    cTrans0++;
+                    lensTransC0.push_back(gt.length());
+                }
+            }
         }
         else if (query.length()==0)
         {
             c0++;
             if (inVocab)
                 c0_IV++;
+            if (more)
+                lensC0.push_back(gt.length());
         }
         else
         {
+            bool bad=false;
             int numMatch=0;
             int posGT=0;
             bool skip=false;
@@ -3905,14 +4023,14 @@ void Knowledge::Corpus::getStats(float* accTrans, float* pWordsTrans, float* pWo
                 }
                 else
                 {
-                    if (query[i]==']')
+                    if (query[i]=='[')
                     {
                         skip=true;
                         last='.';
                     }
                     else if (query[i]>='a' && query[i]<='z')
                     {
-                        if (query[i]==last)
+                        if (query[i]==last && posGT<gt.length())
                         {
                             if (query[i]==gt[posGT])
                             {
@@ -3922,48 +4040,84 @@ void Knowledge::Corpus::getStats(float* accTrans, float* pWordsTrans, float* pWo
                         }
                         else
                         {
+                            bool match=false;
                             for (;posGT<gt.length(); posGT++)
                                 if (gt[posGT]==query[i])
                                 {
+                                    match=true;
                                     numMatch++;
                                     posGT++;
                                     break;
                                 }
+                            if (!match)
+                            {
+                                bad=true;
+                                cout<<"["<<w->getId()<<"]Bad1: "<<gt<<", q: "<<query<<endl;
+                            }
                         }
                         last=query[i];
                     }
                 }
+                //if (i<query.length()-1 && posGT>=gt.length())
+                //{
+                //    bad=true;
+                //    cout<<"["<<w->getId()<<"]Bad2: "<<gt<<", q: "<<query<<endl;
+                //}
             }
             float p = numMatch/(0.0+gt.length());
-            if (p>.8)
+            if (bad)
+            {
+                cBad++;
+                if (more)
+                    lensCBad.push_back(gt.length());
+            }
+            else if (p>.8)
             {
                 c80_100++;
                 if (inVocab)
                     c80_100_IV++;
+                if (more)
+                    lensC80_100.push_back(gt.length());
             }
             else if (p>.6)
             {
                 c60_80++;
                 if (inVocab)
                     c60_80_IV++;
+                if (more)
+                    lensC60_80.push_back(gt.length());
             }
             else if (p>.4)
             {
                 c40_60++;
                 if (inVocab)
                     c40_60_IV++;
+                if (more)
+                    lensC40_60.push_back(gt.length());
             }
             else if (p>.2)
             {
                 c20_40++;
                 if (inVocab)
                     c20_40_IV++;
+                if (more)
+                    lensC20_40.push_back(gt.length());
             }
-            else
+            else if (p>0)
             {
                 c0_20++;
                 if (inVocab)
                     c0_20_IV++;
+                if (more)
+                    lensC0_20.push_back(gt.length());
+            }
+            else
+            {
+                c0++;
+                if (inVocab)
+                    c0_IV++;
+                if (more)
+                    lensC0.push_back(gt.length());
             }
         }
     }
@@ -3978,6 +4132,7 @@ void Knowledge::Corpus::getStats(float* accTrans, float* pWordsTrans, float* pWo
     *pWords20_40= c20_40/(0.0+_words.size());
     *pWords0_20= c0_20/(0.0+_words.size());
     *pWords0= c0/(0.0+_words.size());
+    *pWordsBad= cBad/(0.0+_words.size());
 
     if (cTrans_IV>0)
         *accTrans_IV= trueTrans_IV/(0.0+cTrans_IV);
@@ -3990,6 +4145,36 @@ void Knowledge::Corpus::getStats(float* accTrans, float* pWordsTrans, float* pWo
     *pWords20_40_IV= c20_40_IV/(0.0+numIV);
     *pWords0_20_IV= c0_20_IV/(0.0+numIV);
     *pWords0_IV= c0_IV/(0.0+numIV);
+
+    if (more)
+    {
+        *wordsTrans80_100= cTrans80_100/(0.0+_words.size());
+        *wordsTrans60_80= cTrans60_80/(0.0+_words.size());
+        *wordsTrans40_60= cTrans40_60/(0.0+_words.size());
+        *wordsTrans20_40= cTrans20_40/(0.0+_words.size());
+        *wordsTrans0_20= cTrans0_20/(0.0+_words.size());
+        *wordsTrans0= cTrans0/(0.0+_words.size());
+
+        meanStd(lensCTrans,meanLenPWordsTrans,stdLenPWordsTrans);
+        meanStd(lensC80_100,meanLenPWords80_100,stdLenPWords80_100);
+        meanStd(lensC60_80 ,meanLenPWords60_80 ,stdLenPWords60_80 );
+        meanStd(lensC40_60 ,meanLenPWords40_60 ,stdLenPWords40_60 );
+        meanStd(lensC20_40 ,meanLenPWords20_40 ,stdLenPWords20_40 );
+        meanStd(lensC0_20  ,meanLenPWords0_20  ,stdLenPWords0_20  );
+        meanStd(lensC0     ,meanLenPWords0     ,stdLenPWords0     );
+
+        meanStd(lensTransC80_100,meanLenWordsTrans80_100,stdLenWordsTrans80_100);
+        meanStd(lensTransC60_80 ,meanLenWordsTrans60_80 ,stdLenWordsTrans60_80 );
+        meanStd(lensTransC40_60 ,meanLenWordsTrans40_60 ,stdLenWordsTrans40_60 );
+        meanStd(lensTransC20_40 ,meanLenWordsTrans20_40 ,stdLenWordsTrans20_40 );
+        meanStd(lensTransC0_20  ,meanLenWordsTrans0_20  ,stdLenWordsTrans0_20  );
+        meanStd(lensTransC0     ,meanLenWordsTrans0     ,stdLenWordsTrans0     );
+
+        for (auto& p : *charDistDone)
+            p.second/=numCharsDone;
+        for (auto& p : *charDistUndone)
+            p.second/=numCharsUndone;
+    }
 }
 
 vector<SpottingLoc> Knowledge::Corpus::massSpot(const vector<string>& ngrams, Mat& crossScores)

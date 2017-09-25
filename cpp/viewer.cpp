@@ -16,6 +16,7 @@ int main(int argc, char** argv)
     }
     string save=argv[1];
     CATTSS cattss(save);
+    cattss.printFinalStats();
     while (1)
     {
         string line;

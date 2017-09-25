@@ -32,7 +32,9 @@
 #include "NetSpotter.h"
 #include "CorpusRef.h"
 #include "PageRef.h"
+#ifdef CTC
 #include "CTCWrapper.h"
+#endif
 
 using namespace std;
 
@@ -547,8 +549,15 @@ public:
 
     //For data collection, when I deleted all my trans... :(
     vector<TranscribeBatch*> resetAllWords_();
-    void getStats(float* accTrans, float* pWordsTrans, float* pWords80_100, float* pWords60_80, float* pWords40_60, float* pWords20_40, float* pWords0_20, float* pWords0, string* misTrans,
-                          float* accTrans_IV, float* pWordsTrans_IV, float* pWords80_100_IV, float* pWords60_80_IV, float* pWords40_60_IV, float* pWords20_40_IV, float* pWords0_20_IV, float* pWords0_IV, string* misTrans_IV);
+    void getStats(float* accTrans, float* pWordsTrans, float* pWords80_100, float* pWords60_80, float* pWords40_60, float* pWords20_40, float* pWords0_20, float* pWords0, float* pWordsBad, string* misTrans,
+                          float* accTrans_IV, float* pWordsTrans_IV, float* pWords80_100_IV, float* pWords60_80_IV, float* pWords40_60_IV, float* pWords20_40_IV, float* pWords0_20_IV, float* pWords0_IV, string* misTrans_IV,
+                          //additional
+                                 float* wordsTrans80_100=NULL, float* wordsTrans60_80=NULL, float* wordsTrans40_60=NULL, float* wordsTrans20_40=NULL, float* wordsTrans0_20=NULL, float* wordsTrans0=NULL,
+                                 float* meanLenPWordsTrans=NULL, float* meanLenPWords80_100=NULL, float* meanLenPWords60_80=NULL, float* meanLenPWords40_60=NULL, float* meanLenPWords20_40=NULL, float* meanLenPWords0_20=NULL, float* meanLenPWords0=NULL, float* meanLenPWordsBad=NULL,
+                                 float* stdLenPWordsTrans=NULL, float* stdLenPWords80_100=NULL, float* stdLenPWords60_80=NULL, float* stdLenPWords40_60=NULL, float* stdLenPWords20_40=NULL, float* stdLenPWords0_20=NULL, float* stdLenPWords0=NULL, float* stdLenPWordsBad=NULL,
+                                 float* meanLenWordsTrans80_100=NULL, float* meanLenWordsTrans60_80=NULL, float* meanLenWordsTrans40_60=NULL, float* meanLenWordsTrans20_40=NULL, float* meanLenWordsTrans0_20=NULL, float* meanLenWordsTrans0=NULL,
+                                 float* stdLenWordsTrans80_100=NULL, float* stdLenWordsTrans60_80=NULL, float* stdLenWordsTrans40_60=NULL, float* stdLenWordsTrans20_40=NULL, float* stdLenWordsTrans0_20=NULL, float* stdLenWordsTrans0=NULL,
+                                 map<char,float>* charDistDone=NULL, map<char,float>* charDistUndone=NULL);
 
     static void mouseCallBackFunc(int event, int x, int y, int flags, void* page_p);
     void showInteractive(int pageId);
