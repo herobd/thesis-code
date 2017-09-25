@@ -90,6 +90,7 @@ private:
 
     int curLevel; //Current cluster level we are drawing from. Adjusted to maintain purity
 
+    int batchesOut; //Number of batches sent, used to prevent wierd things
 
     void CL_cluster(vector< list<int> >& clusters, Mat& minSimilarity, int numClusters, const vector<bool>& gt);
 };

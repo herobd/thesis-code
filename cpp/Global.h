@@ -34,6 +34,8 @@
 #define USE_QBE 1
 #define NO_EXEMPLARS 1
 
+#define MAX_BATCHES_OUT_PER_NGRAM 5
+
 
 
 

@@ -37,11 +37,37 @@ ClusterBatcher::ClusterBatcher(string ngram, int contextPad, bool stepMode, cons
     //vector<float> averageClusterSize;
     //map<int,Mat> minSimilarities;
     CL_cluster(clusters,minSimilarity,10, gt);//, meanCPurity,  medianCPurity,  meanIPurity,  medianIPurity,  maxPurity, clusterLevels, averageClusterSize);
+    batchesOut=0;
 
+    //Cut down the clusters!
+    //We're going to prune away the first few layers of clusters to improve memory efficiency
+
+    //at what point should the average batch size be 2?
+    auto meanIter = meanCPurity.begin();
+    auto clustIter = clusterLevels.begin();
+    auto sizeIter = averageClusterSize.begin();
+    while (*sizeIter < 2)
+    {
+        meanIter++;
+        clustIter++;
+        sizeIter++;
+    }
+    meanCPurity.erase(meanCPurity.begin(),meanIter);
+    clusterLevels.erase(clusterLevels.begin(),clustIter);
+    averageClusterSize.erase(averageClusterSize.begin(),sizeIter);
 }
 
 SpottingsBatch* ClusterBatcher::getBatch(bool* done, unsigned int num, bool hard, unsigned int maxWidth,int color,string prevNgram, bool need)
 {
+    if (batchesOut>=MAX_BATCHES_OUT_PER_NGRAM && !need)
+    {
+        *done=finished;
+        return NULL;
+    }
+    else if (batchesOut>=MAX_BATCHES_OUT_PER_NGRAM)
+    {
+        cout<<"["<<ngram<<"] need making me send out extra batch: "<<batchesOut+1<<endl;
+    }
 
     int clusterToReturn=-1;
     if (trueInstancesToSeed.size()==0)
@@ -156,11 +182,14 @@ SpottingsBatch* ClusterBatcher::getBatch(bool* done, unsigned int num, bool hard
     cout<<"["<<ngram<<"] sending cluster/batch of size "<<ret->size()<<" from level "<<curLevel<<endl;
 #endif 
 
+    batchesOut++;
+
     return ret;
 }
 
 vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long,string> >* retRemove)
 {
+    batchesOut--;
     //Evaluate purity and accuracy and update clusterLeve
     //Add seeds
     //Store results
@@ -217,18 +246,18 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
     windowPurity.push_back(purity);
     if (windowPurity.size()>RUNNING_PURITY_COUNT)
     {
-        float popped = windowPurity.front();
+    //    float popped = windowPurity.front();
         windowPurity.pop_front();
-        runningPurity += (purity-popped)/RUNNING_PURITY_COUNT;
-        assert(runningPurity>=0);
+    //    runningPurity += (purity-popped)/RUNNING_PURITY_COUNT;
     }
-    else
-    {
+    //else
+    //{
         runningPurity=0;
         for (float p : windowPurity)
             runningPurity+=p;
         runningPurity/=windowPurity.size();
-    }
+    //}
+    assert(runningPurity>=0);
     assert(windowPurity.size()<=RUNNING_PURITY_COUNT);
 
 #ifdef TEST_MODE
@@ -237,9 +266,11 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
     if (abs(GOAL_PURITY-runningPurity) > PURITY_THRESHOLD)
     {
         if (runningPurity<GOAL_PURITY)
-            curLevel--;
-        else
+            if (curLevel>0)
+                curLevel--;
+        else if (curLevel<clusterLevels.size()-1)
             curLevel++;
+        //assert(curLevel>=0 && curLevel<clusterLevels.size());
     }
 
 

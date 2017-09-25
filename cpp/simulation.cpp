@@ -441,7 +441,7 @@ int main(int argc, char** argv)
         avgCharWidth=38;
     assert(avgCharWidth>0);
 
-    int numTaskThreads = 3;
+    int numTaskThreads = 7;
     int height = 1000;
     int width = 2500;
     int milli = 7000;

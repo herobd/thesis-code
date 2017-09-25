@@ -293,7 +293,7 @@ CATTSS::CATTSS( string lexiconFile,
                         spottings.back().scoreQbS=s.score();
                         //NOO! spottings.back().id=spottings.size();//override here for simplicity
                     }
-                    assert(tC>0);
+                    //assert(tC>0); 'you' is not in the corpus
                     bool stepMode = numSpottingThreads;
                     masterQueue->insertClusterBatcher(ngram,contextPad,stepMode,spottings,crossScores);
                 }
