@@ -1,7 +1,10 @@
 import sys
 import csv
 
+#time,accuracyTrans,pWordsTrans,pWords80_100,pWords60_80,pWords40_60,pWords20_40,pWords0_20,pWords0,pWordsBad,transSent,badTransBatchs,badTransNgram,spotSent,spotAccept,spotReject,spotAutoAccept,spotAutoReject,newExemplarsSpotted,badPrunes,accuracyTrans_IV,pWordsTrans_IV,pWords80_100_IV,pWords60_80_IV,pWords40_60_IV,pWords20_40_IV,pWords0_20_IV,pWords0_IV,misTrans
+
 out=[['file','% comp.','comp./day','trans sent','true ratio']]
+usingBad=0
 
 for i in range(1,len(sys.argv)):
     csvfile=sys.argv[i]
@@ -13,7 +16,10 @@ for i in range(1,len(sys.argv)):
         data=[]
         for row in reader:
             data.append(row)
-        endString = data[-1][27]
+        #is using new pWordsBad?
+        if (data[0][9]=='pWordsBad'):
+            usingBad=1
+        endString = data[-1][27+usingBad]
         manualEnd = ('MANUAL' in endString)
         blankEnd = ('BLANK' in endString)
         if not manualEnd != blankEnd:
@@ -23,7 +29,7 @@ for i in range(1,len(sys.argv)):
             startTime = (int(data[1][0][-8:-6])*60 + int(data[1][0][-5:-3]))*60 + int(data[1][0][-2:])
             endIndex=-1
             if blankEnd:
-                while endIndex>1-len(data) and int(data[endIndex][9])==0 and int(data[endIndex][12])==0 and int(data[endIndex][13])==0:
+                while endIndex>1-len(data) and int(data[endIndex][9+usingBad])==0 and int(data[endIndex][12+usingBad])==0 and int(data[endIndex][13+usingBad])==0:
                     endIndex-=1
             if endIndex == 1-len(data):
                 endIndex=-1
@@ -38,9 +44,9 @@ for i in range(1,len(sys.argv)):
             trueDone=0
             falseDone=0
             for index in range(1,len(data)+endIndex+1):
-                transSent += int(data[index][9])
-                trueDone += int(data[index][12])
-                falseDone += int(data[index][13])
+                transSent += int(data[index][9+usingBad])
+                trueDone += int(data[index][12+usingBad])
+                falseDone += int(data[index][13+usingBad])
 
             compsec = endCompletion/(time)
             outRow.append(endCompletion)

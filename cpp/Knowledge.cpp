@@ -28,6 +28,7 @@ void Knowledge::Corpus::loadSpotter(string modelPrefix, set<int> nsOfInterest)
 vector<TranscribeBatch*> Knowledge::Corpus::addSpotting(Spotting s,vector<Spotting*>* newExemplars)
 {
     vector<TranscribeBatch*> ret;
+#if DONT_ASSUME_PAGE_SEG
     pthread_rwlock_rdlock(&pagesLock);
     Page* page = pages[s.pageId];
     pthread_rwlock_unlock(&pagesLock);
@@ -39,8 +40,23 @@ vector<TranscribeBatch*> Knowledge::Corpus::addSpotting(Spotting s,vector<Spotti
         pthread_rwlock_unlock(&pagesLock);*/
         assert(false && "ERROR, page not present");
     }
+
     
     addSpottingToPage(s,page,ret,newExemplars);
+#else
+
+    assert(s.wordId >= 0);
+    Word* word = getWord(s.wordId);
+    assert(word!=NULL);
+    TranscribeBatch* newBatch = word->addSpotting(s,newExemplars);
+    pthread_rwlock_wrlock(&spottingsMapLock);
+    spottingsToWords[s.id].push_back(word);
+    pthread_rwlock_unlock(&spottingsMapLock);
+    if (newBatch != NULL)
+    {
+        ret.push_back(newBatch);
+    }
+#endif
     
     return ret;
 }
@@ -324,10 +340,11 @@ vector<TranscribeBatch*> Knowledge::Corpus::updateSpottings(vector<Spotting>* sp
 {
     //cout <<"addSpottings"<<endl;
     vector<TranscribeBatch*> ret;
+#if DONT_ASSUME_PAGE_SEG
     vector<Page*> thesePages;
     pthread_rwlock_rdlock(&pagesLock);
     //cout <<"addSpottings: got lock"<<endl;
-    bool writing=false;
+    //bool writing=false;
     for (const Spotting& s : *spottings)
     {
         Page* page;
@@ -357,6 +374,22 @@ vector<TranscribeBatch*> Knowledge::Corpus::updateSpottings(vector<Spotting>* sp
     
     for (int i=0; i<spottings->size(); i++)
         addSpottingToPage(spottings->at(i),thesePages[i],ret,newExemplars);
+#else
+    for (const Spotting& s : *spottings)
+    {
+        assert(s.wordId >= 0);
+        Word* word = getWord(s.wordId);
+        assert(word!=NULL);
+        TranscribeBatch* newBatch = word->addSpotting(s,newExemplars);
+        pthread_rwlock_wrlock(&spottingsMapLock);
+        spottingsToWords[s.id].push_back(word);
+        pthread_rwlock_unlock(&spottingsMapLock);
+        if (newBatch != NULL)
+        {
+            ret.push_back(newBatch);
+        }
+    }
+#endif
 
     //Removing spottings
     map<unsigned long, vector<Word*> > wordsForIds;
@@ -4155,7 +4188,6 @@ void Knowledge::Corpus::getStats(float* accTrans, float* pWordsTrans, float* pWo
         *wordsTrans0_20= cTrans0_20/(0.0+_words.size());
         *wordsTrans0= cTrans0/(0.0+_words.size());
 
-        meanStd(lensCTrans,meanLenPWordsTrans,stdLenPWordsTrans);
         meanStd(lensC80_100,meanLenPWords80_100,stdLenPWords80_100);
         meanStd(lensC60_80 ,meanLenPWords60_80 ,stdLenPWords60_80 );
         meanStd(lensC40_60 ,meanLenPWords40_60 ,stdLenPWords40_60 );

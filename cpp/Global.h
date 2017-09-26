@@ -21,6 +21,8 @@
 #include "SubwordSpottingResult.h"
 #endif
 
+#define DONT_ASSUME_PAGE_SEG 0
+
 #if defined(TEST_MODE) || defined(NO_NAN)
 #define OVERLAP_INSIDE_THRESH 0.65
 #define OVERLAP_CONSUME_THRESH 1.8
