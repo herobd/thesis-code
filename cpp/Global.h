@@ -43,6 +43,8 @@
 
 #define PHOC_TRANS_TOP 10
 
+#define DEBUG_DIR "./debug"
+
 
 
 using namespace std;

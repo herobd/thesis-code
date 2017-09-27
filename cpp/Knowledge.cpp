@@ -140,6 +140,9 @@ Mat drawCPV(Mat cpv, Mat image, float netScale)
 
 vector<TranscribeBatch*> Knowledge::Corpus::cpvTransCTC(float keep, const vector<string>& ngrams)
 {
+#ifdef TEST_MODE
+    ofstream dout(DEBUG_DIR+"/topTrans.txt");
+#endif
     spotter->setNgrams(ngrams);
     //join
     int maxFeatureLen=1+maxWordImageLen/4;
@@ -171,8 +174,11 @@ vector<TranscribeBatch*> Knowledge::Corpus::cpvTransCTC(float keep, const vector
                 cpv.at<float>(gt[c]-'a',pad*c+ii) = 1-26*0.0001;
         }
         */
-        //Mat draw = drawCPV(cpv,getWord(i)->getImg(),0.25);
+#ifdef TEST_MODE
+        Mat draw = drawCPV(cpv,getWord(i)->getImg(),0.25);
+        imwrite(DEBUG_DIR+"/cpv"+to_string(i)+".png",draw);
         //imshow("cpv",draw);
+#endif
         multimap<float,string> topMatches;// = Lexicon::instance()->ctc(cpv,THRESH_SCORING_COUNT);
         //multimap<float,string> ret;
         for (string word : lex)
@@ -183,13 +189,28 @@ vector<TranscribeBatch*> Knowledge::Corpus::cpvTransCTC(float keep, const vector
             topMatches.emplace(loss,word);
         }
 
+#ifdef TEST_MODE
+        dout<<i<<": ";
+#endif
         auto iter = topMatches.begin();
-        for (int i=0; i<THRESH_SCORING_COUNT; i++)
+        for (int j=0; j<THRESH_SCORING_COUNT; j++)
         {
             if (iter->second.compare(gt)==0)
+            {
                 top5Acc+=1;
+#ifdef TEST_MODE
+                dout<<"["<<iter->second<<"]:"<<iter->first<<",";
+            }
+            else
+            {
+                dout<<iter->second<<":"<<iter->first<<",";
+#endif
+            }
             iter++;
         }
+#ifdef TEST_MODE
+        dout<<endl;
+#endif
         topMatches.erase(iter,topMatches.end());
         //return ret;
         
@@ -215,7 +236,11 @@ vector<TranscribeBatch*> Knowledge::Corpus::cpvTransCTC(float keep, const vector
         ///////
     }
     top5Acc /= size();
-    cout<<"Top 5 acc for CTC trans: "<<top5Acc<<endl;
+    cout<<"Top "<<THRESH_SCORING_COUNT<<" acc for CTC trans: "<<top5Acc<<endl;
+#ifdef TEST_MODE
+    dout<<"Top "<<THRESH_SCORING_COUNT<<" acc for CTC trans: "<<top5Acc<<endl;
+    dout.close();
+#endif
     vector<TranscribeBatch*> ret(size()*keep);
     auto transIter = byAvgScore.begin();
     for (int i=0; i<(int)(size()*keep); i++, transIter++)
@@ -677,7 +702,7 @@ TranscribeBatch* Knowledge::Word::addSpotting(Spotting s, vector<Spotting*>* new
 #if NO_ERROR
     assert (gt.find(s.ngram) != string::npos);
 #endif
-    if (done && (s.type==SPOTTING_TYPE_TRANS_FALSE || transcription.find(ngram) == string::npos))
+    if (done && (s.type==SPOTTING_TYPE_TRANS_FALSE || transcription.find(s.ngram) == string::npos))
     {
         return NULL;
     }
@@ -1315,9 +1340,9 @@ string Knowledge::Word::generateQuery(multimap<int,Spotting>::iterator skip)
 string Knowledge::Word::generateQuery(multimap<int,Spotting>::iterator skip)
 {
     auto spot = spottings.begin();
-    int pos = tlx;
+    int pos = tlxBetter();
     string ret = "";
-    float estTotalChars = (brx-tlx)/(0.0+*averageCharWidth);
+    float estTotalChars = (brxBetter()-tlxBetter())/(0.0+*averageCharWidth);
     while (spot != spottings.end())
     {
         if (spot == skip)
@@ -1417,7 +1442,7 @@ string Knowledge::Word::generateQuery(multimap<int,Spotting>::iterator skip)
         spot++;
     }
     
-    int dif = brx-pos;
+    int dif = brxBetter()-pos;
     float numChars = dif/(0.0+*averageCharWidth);
     //cout <<"pos: "<<pos<<" end: "<<brx<<endl;
     //cout <<"E num chars: "<<numChars<<endl;
@@ -1443,6 +1468,37 @@ string Knowledge::Word::generateQuery(multimap<int,Spotting>::iterator skip)
             ret += "[a-zA-Z0-9]{"+to_string(least)+","+to_string(most)+"}";
     }
     return ret;
+}
+
+int Knowledge::Word::tlxBetter()
+{
+    if (_tlxBetter==-1)
+        refineHorzBoundaries();
+    return _tlxBetter;
+}
+int Knowledge::Word::brxBetter()
+{
+    if (_brxBetter==-1)
+        refineHorzBoundaries();
+    return _brxBetter;
+}
+
+void Knowledge::Word::refineHorzBoundaries()
+{
+    Mat wordIm, bin;
+    getWordImgAndBin(wordIm, bin);
+    Mat profile;
+    reduce(bin,profile,0,CV_REDUCE_SUM);
+    int x=0;
+    while (profile.at<unsigned char>(0,x)<=255)
+        x++;
+    assert(x<profile.cols);
+    _tlxBetter+=x;
+    x=0;
+    while (profile.at<unsigned char>(0,profile.cols-(x+1))<=255)
+        x++;
+    assert(x<profile.cols);
+    _brxBetter-=x;
 }
 
 /*
@@ -3786,7 +3842,7 @@ void Knowledge::Word::save(ofstream& out)
     }
     pthread_rwlock_unlock(&lock);
 }
-Knowledge::Word::Word(ifstream& in, const cv::Mat* pagePnt, const Spotter* const* spotter, float* averageCharWidth, int* countCharWidth) : pagePnt(pagePnt), spotter(spotter), averageCharWidth(averageCharWidth), countCharWidth(countCharWidth), sentBatchId(0)
+Knowledge::Word::Word(ifstream& in, const cv::Mat* pagePnt, const Spotter* const* spotter, float* averageCharWidth, int* countCharWidth) : pagePnt(pagePnt), spotter(spotter), averageCharWidth(averageCharWidth), countCharWidth(countCharWidth), sentBatchId(0), _tlxBetter(-1), _brxBetter(-1)
 {
     pthread_rwlock_init(&lock,NULL);
     string line;
