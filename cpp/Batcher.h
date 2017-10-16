@@ -12,7 +12,7 @@ class Batcher
     public:
 
 
-    virtual SpottingsBatch* getBatch(bool* done, unsigned int num, bool hard, unsigned int maxWidth,int color,string prevNgram, bool need=true) =0;
+    virtual SpottingsBatch* getBatch(int* done, unsigned int num, bool hard, unsigned int maxWidth,int color,string prevNgram, bool need=true) =0;
 
     virtual vector<Spotting>* feedback(int* done, const vector<string>& ids, const vector<int>& userClassifications, int resent=false, vector<pair<unsigned long,string> >* retRemove=NULL) =0;
     

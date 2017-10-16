@@ -1,9 +1,10 @@
 #include "NetSpotter.h"
 
-NetSpotter::NetSpotter(const Dataset* corpus, string modelPrefix, int charWidth, set<int> ngrams) 
+NetSpotter::NetSpotter(const Dataset* corpus, string modelPrefix, string ngramWWFile) 
 {
     //spotter = new EmbAttSpotter(modelPrefix+"_emb",true);
-    spotter = new CNNSPPSpotter(modelPrefix+"_featurizer.prototxt", modelPrefix+"_embedder.prototxt", modelPrefix+".caffemodel", ngrams, true, 0.25, charWidth, 4, modelPrefix+"_cnnsppspotter", GlobalK::knowledge()->IDEAL_COMB);
+    int gpu=-1;
+    spotter = new CNNSPPSpotter(modelPrefix+"_featurizer.prototxt", modelPrefix+"_embedder.prototxt", modelPrefix+".caffemodel", ngramWWFile, gpu, true, 0.25, 4, modelPrefix+"_cnnsppspotter", GlobalK::knowledge()->IDEAL_COMB);
     
     spotter->setCorpus_dataset(corpus,false);
 }

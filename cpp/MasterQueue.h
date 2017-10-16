@@ -80,19 +80,21 @@ private:
 
     int contextPad;
 
+    string saveDir;
+
 public:
-    MasterQueue(int contextPad);
-    MasterQueue(ifstream& in, CorpusRef* corpusRef, PageRef* pageRef);
+    MasterQueue(int contextPad, string savePre);
+    MasterQueue(ifstream& in, CorpusRef* corpusRef, PageRef* pageRef, string savePre);
     void save(ofstream& out);
 
     BatchWraper* getBatch(unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram);
     SpottingsBatch* getSpottingsBatch(unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need=true);
     template <class T>
-    SpottingsBatch* _getSpottingsBatch(map<unsigned long, pair<sem_t*,T*> > batcherQueue,unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need);
+    SpottingsBatch* _getSpottingsBatch(map<unsigned long, pair<sem_t*,T*> >& batcherQueue,unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need);
 
     vector<Spotting>* feedback(unsigned long id, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long,string> >* remove);
     template <class T>
-    vector<Spotting>* _feedback(map<unsigned long, pair<sem_t*,T*> > batchers, map<unsigned long, pair<sem_t*,T*> > batchersQueue, unsigned long id, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long, string> >* remove);
+    vector<Spotting>* _feedback(map<unsigned long, pair<sem_t*,T*> >& batchers, map<unsigned long, pair<sem_t*,T*> >& batchersQueue, unsigned long id, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long, string> >* remove);
 
     virtual unsigned long updateSpottingResults(vector<Spotting>* spottings, unsigned long id=0);//a negative id means add a new spottingresult
     //void addSpottingResults(SpottingResults* res, bool hasSemResults=false, bool toQueue=true);
@@ -153,5 +155,12 @@ public:
 #ifdef TEST_MODE
     string forceNgram;
 #endif
+    map<string, vector< tuple<float,float,int,float,float> > > getBatchTracking();
+
+    int checkLocks();//for debugging
+    ClusterBatcher* getBatcher(unsigned long id)//for debugging
+    {
+        return clusterBatchers[id].second;
+    }
 };
 #endif

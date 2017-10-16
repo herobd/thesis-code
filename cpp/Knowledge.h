@@ -478,6 +478,7 @@ private:
     pthread_rwlock_t pagesLock;
     pthread_rwlock_t spottingsMapLock;
     float averageCharWidth;
+    string ngramWWFile;
     int countCharWidth;
     float threshScoring;
     
@@ -503,7 +504,7 @@ private:
     int minWordImageLen, maxWordImageLen;
 
 public:
-    Corpus(int contextPad, int averageCharWidth);
+    Corpus(int contextPad, string ngramWWFile, vector<string>* ngrams=NULL);
     Corpus(ifstream& in);
     void save(ofstream& out);
     ~Corpus()
@@ -517,7 +518,7 @@ public:
         pthread_rwlock_destroy(&pagesLock);
         pthread_rwlock_destroy(&spottingsMapLock);
     }
-    void loadSpotter(string modelPrefix, set<int> nsOfInterest);
+    void loadSpotter(string modelPrefix);
     vector<TranscribeBatch*> phocTrans(float keep);
     vector<TranscribeBatch*> npvTrans(const vector<string>& ngrams);
     vector<TranscribeBatch*> addSpotting(Spotting s,vector<Spotting*>* newExemplars);
@@ -563,7 +564,8 @@ public:
                                  float* meanLenWordsTrans80_100=NULL, float* meanLenWordsTrans60_80=NULL, float* meanLenWordsTrans40_60=NULL, float* meanLenWordsTrans20_40=NULL, float* meanLenWordsTrans0_20=NULL, float* meanLenWordsTrans0=NULL, float* meanLenWordsTransBad=NULL,
                                  float* stdLenWordsTrans80_100=NULL, float* stdLenWordsTrans60_80=NULL, float* stdLenWordsTrans40_60=NULL, float* stdLenWordsTrans20_40=NULL, float* stdLenWordsTrans0_20=NULL, float* stdLenWordsTrans0=NULL, float* stdLenWordsTransBad=NULL,
                                  map<char,float>* charDistDone=NULL, map<char,float>* charDistUndone=NULL,
-                                 vector<string>* badNgrams=NULL);
+                                 vector<string>* badNgrams=NULL,
+                                 map<int,float>* meanUnigramsSpottedByLen=NULL, map<int,float>* meanBigramsSpottedByLen=NULL, map<int,float>* meanTrigramsSpottedByLen=NULL);
 
     static void mouseCallBackFunc(int event, int x, int y, int flags, void* page_p);
     void showInteractive(int pageId);

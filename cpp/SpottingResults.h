@@ -172,7 +172,7 @@ public:
     //This accpets a spotting which is a new exemplar. We just want to prevent a future redundant classification of it.
     void updateSpottingTrueNoScore(const SpottingExemplar& spotting);
 
-    SpottingsBatch* getBatch(bool* done, unsigned int num, bool hard, unsigned int maxWidth,int color,string prevNgram, bool need=true);
+    SpottingsBatch* getBatch(int* done, unsigned int num, bool hard, unsigned int maxWidth,int color,string prevNgram, bool need=true);
     
     vector<Spotting>* feedback(int* done, const vector<string>& ids, const vector<int>& userClassifications, int resent=false, vector<pair<unsigned long,string> >* retRemove=NULL);
     
@@ -183,6 +183,10 @@ public:
     void saveHistogram(float actualModelDif);
 #endif
     void debugState() const;
+    vector< tuple<float,float,int,float,float> > getBatchTracking()
+    {
+        return batchTracking;
+    }
     
 private:
     static atomic_ulong _id;
@@ -410,6 +414,7 @@ private:
         else
             return l.pageId < r.pageId;
     }*/
+    vector< tuple<float,float,int,float,float> > batchTracking;
 };
 
 #endif

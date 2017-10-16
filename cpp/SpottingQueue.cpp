@@ -220,7 +220,7 @@ void SpottingQueue::addQueries(vector<Spotting>& exemplars)
     mutLock.unlock();
 #endif
 }
-void SpottingQueue::addQueries(vector<string>& ngrams)
+void SpottingQueue::addQueries(const vector<string>& ngrams)
 {
     mutLock.lock();
     for (string ngram : ngrams)

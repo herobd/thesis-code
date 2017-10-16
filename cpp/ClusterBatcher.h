@@ -42,12 +42,12 @@ using namespace cv;
 class ClusterBatcher : public Batcher
 {
 public:
-    ClusterBatcher(string ngram, int contextPad, bool stepMode, const vector<Spotting>& massSpottingRes, const Mat& crossScores);
+    ClusterBatcher(string ngram, int contextPad, bool stepMode, const vector<Spotting>& massSpottingRes, const Mat& crossScores, string saveDir);
     //vector<Spotting>* start(const vector<SpottingLoc>& massSpottingRes, const Mat& crossScores);
-    ClusterBatcher(ifstream& in, PageRef* pageRef);
+    ClusterBatcher(ifstream& in, PageRef* pageRef, string saveDir);
     void save(ofstream& out);
 
-    SpottingsBatch* getBatch(bool* done, unsigned int num, bool hard, unsigned int maxWidth,int color,string prevNgram, bool need=true);
+    SpottingsBatch* getBatch(int* done, unsigned int num, bool hard, unsigned int maxWidth,int color,string prevNgram, bool need=true);
     
     vector<Spotting>* feedback(int* done, const vector<string>& ids, const vector<int>& userClassifications, int resent=false, vector<pair<unsigned long,string> >* retRemove=NULL);
     
@@ -58,6 +58,10 @@ public:
     string ngram;
 
     //bool checkIncomplete();
+    vector< tuple<float,float,int,float,float> > getBatchTracking()
+    {
+        return batchTracking;
+    }
 
 private:
     static atomic_ulong _id;
@@ -71,7 +75,8 @@ private:
     //For testing purposes
     vector<float> meanCPurity;//,  medianCPurity,  meanIPurity,  medianIPurity,  maxPurity;
 
-    vector< vector< list<int> > > clusterLevels;
+    //vector< vector< list<int> > > clusterLevels;
+    vector< vector< vector<int> > > clusterLevels;//changed to vector as its more memory efficeint. list was effiecent for building
     //vector< vector< int > > instanceToCluster;
     vector<float> averageClusterSize;
     //map<int,Mat> minSimilarities;
@@ -91,6 +96,7 @@ private:
     int curLevel; //Current cluster level we are drawing from. Adjusted to maintain purity
 
     int batchesOut; //Number of batches sent, used to prevent wierd things
+    vector< tuple<float,float,int,float,float> > batchTracking;
 
     void CL_cluster(vector< list<int> >& clusters, Mat& minSimilarity, int numClusters, const vector<bool>& gt);
 };

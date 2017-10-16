@@ -133,9 +133,13 @@ class GlobalK
     public:
         static GlobalK* knowledge();
 
+        const vector<string> unigrams,bigrams,trigrams;
+
         int getNgramRank(string ngram);
         //int getContextPad() {return contextPad;}
         //void setContextPad(int pad) {contextPad=pad;}
+
+        static string lowercaseAndStrip(string s);
 
         static double otsuThresh(vector<int> histogram);
         static void saveImage(const cv::Mat& im, ofstream& out);
@@ -190,6 +194,8 @@ class GlobalK
         void storeSpottingOther(string ngram, float ap);
         vector<SubwordSpottingResult>* accumResFor(string ngram);
 #endif
+
+       
 #if defined(TEST_MODE) || defined(NO_NAN)
         bool ngramAt(string ngram, int pageId, int tlx, int tly, int brx, int bry);
         bool ngramAt_word(string ngram, int wordId, int startX, int endX);

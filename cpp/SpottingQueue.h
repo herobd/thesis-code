@@ -39,7 +39,7 @@ class SpottingQueue
     void addQueries(vector<SpottingExemplar*>& exemplars);
     void addQueries(vector<Spotting*>& exemplars);
     void addQueries(vector<Spotting>& exemplars);
-    void addQueries(vector<string>& ngrams);
+    void addQueries(const vector<string>& ngrams);
     void removeQueries(vector<pair<unsigned long,string> >* toRemove);
 
 

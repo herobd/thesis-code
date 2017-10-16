@@ -303,13 +303,14 @@ int main(int argc, char** argv)
     string lexiconFile = "/home/brian/intel_index/data/wordsEnWithNames.txt";
     string pageImageDir = "/home/brian/intel_index/data/bentham/BenthamDatasetR0-Images/Images/Pages";
     string segmentationFile = "/home/brian/intel_index/data/bentham/ben_cattss_c_corpus.gtp";
+    string ngramWWFile = "/home/brian/intel_index/data/bentham/customWidths.txt";
     string charSegFile = "/home/brian/intel_index/data/bentham/manual_segmentations.csv";
     string spottingModelPrefix = "/home/brian/intel_index/data/bentham/network/phocnet_msf";//"model/CATTSS_BENTHAM";
     string savePrefix = "save/sim_net_BENTHAM";
     string SR_mode="fancy";
     if (argc==1)
     {
-        cout<<"usage: "<<argv[0]<<" savePrefix simSave.csv numSimThreads [fancy,take_from_top,otsu_fixed,none_take_from_top,none,gaussian_draw,fancy_one,fancy_two,  phoc_trans,cpv_trans,web_trans,cluster_step,cluster_top] lexiconFile.txt pageImageDir segmentationFile.gtp charSegFile.csv spottingModelPrefix (ngram list)"<<endl;
+        cout<<"usage: "<<argv[0]<<" savePrefix simSave.csv numSimThreads [fancy,take_from_top,otsu_fixed,none_take_from_top,none,gaussian_draw,fancy_one,fancy_two,  phoc_trans,cpv_trans,web_trans,cluster_step,cluster_top] lexiconFile.txt pageImageDir segmentationFile.gtp ngramWWFile.txt charSegFile.csv spottingModelPrefix (ngram list)"<<endl;
         return 0;
     }
 
@@ -330,13 +331,15 @@ int main(int argc, char** argv)
     if (argc>7)
         segmentationFile=argv[7];
     if (argc>8)
-        charSegFile=argv[8];
+        ngramWWFile=argv[8];
     if (argc>9)
-        spottingModelPrefix=argv[9];
-
+        charSegFile=argv[9];
     if (argc>10)
+        spottingModelPrefix=argv[10];
+
+    if (argc>11)
     {
-        for (int i=10; i<argc; i++)
+        for (int i=11; i<argc; i++)
         {
             if (argv[i][0]=='i')
             {
@@ -432,14 +435,14 @@ int main(int argc, char** argv)
 #else
     Simulator sim("test",charSegFile);
 #endif
-    int avgCharWidth=-1;
+    /*int avgCharWidth=-1;
     if (dataname.compare("BENTHAM")==0)
         avgCharWidth=37;
     else if (dataname.compare("NAMES")==0)
         avgCharWidth=20;
     else if (dataname.compare("GW")==0)
         avgCharWidth=38;
-    assert(avgCharWidth>0);
+    assert(avgCharWidth>0);*/
 
     int numTaskThreads = 7;
     int height = 1000;
@@ -450,8 +453,8 @@ int main(int argc, char** argv)
                         segmentationFile,
                         spottingModelPrefix,
                         savePrefix,
-                        nsOfInterest,
-                        avgCharWidth,
+                        //nsOfInterest,
+                        ngramWWFile,//avgCharWidth,
                         numSpottingThreads,
                         numTaskThreads,
                         height,

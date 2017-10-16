@@ -2,7 +2,7 @@
 
 atomic_ulong ClusterBatcher::_id;
 
-ClusterBatcher::ClusterBatcher(string ngram, int contextPad, bool stepMode, const vector<Spotting>& massSpottingRes, const Mat& crossScores) : ngram(ngram), contextPad(contextPad), stepMode(stepMode), spottingRes(massSpottingRes), crossScores(crossScores), finished(false), curLevel(-1)
+ClusterBatcher::ClusterBatcher(string ngram, int contextPad, bool stepMode, const vector<Spotting>& massSpottingRes, const Mat& crossScores, string saveDir) : ngram(ngram), contextPad(contextPad), stepMode(stepMode), spottingRes(massSpottingRes), crossScores(crossScores), finished(false), curLevel(-1)
 //vector<Spotting>* start(const vector<Spotting>& massSpottingRes, const Mat& crossScores)
 {
     for (int i=0; i<spottingRes.size(); i++)
@@ -55,13 +55,24 @@ ClusterBatcher::ClusterBatcher(string ngram, int contextPad, bool stepMode, cons
     meanCPurity.erase(meanCPurity.begin(),meanIter);
     clusterLevels.erase(clusterLevels.begin(),clustIter);
     averageClusterSize.erase(averageClusterSize.begin(),sizeIter);
+
+    //to speed things up, were going to save the crossScores matrix once.
+    mkdir(saveDir.c_str(),S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    ofstream out(saveDir+"/crossScores_"+ngram+".dat");
+    GlobalK::writeFloatMat(out,crossScores);
+    out.close();
+
 }
 
-SpottingsBatch* ClusterBatcher::getBatch(bool* done, unsigned int num, bool hard, unsigned int maxWidth,int color,string prevNgram, bool need)
+SpottingsBatch* ClusterBatcher::getBatch(int* done, unsigned int num, bool hard, unsigned int maxWidth,int color,string prevNgram, bool need)
 {
-    if (batchesOut>=MAX_BATCHES_OUT_PER_NGRAM && !need)
+    if(finished)
     {
-        *done=finished;
+        cout<<"["<<ngram<<"] got getBatch() called when finished."<<endl;
+    }
+    if ((finished || batchesOut>=MAX_BATCHES_OUT_PER_NGRAM) && !need)
+    {
+        *done=finished?1:0;
         return NULL;
     }
     else if (batchesOut>=MAX_BATCHES_OUT_PER_NGRAM)
@@ -124,7 +135,7 @@ SpottingsBatch* ClusterBatcher::getBatch(bool* done, unsigned int num, bool hard
         float maxClustMinDist=-999999;
         for (int clusterI=0; clusterI<clusterLevels.at(curLevel).size(); clusterI++)
         {
-            const list<int>& clust = clusterLevels.at(curLevel)[clusterI];
+            const vector<int>& clust = clusterLevels.at(curLevel)[clusterI];
             float minDist=9999999;
             for (int i : clust)
             {
@@ -144,13 +155,13 @@ SpottingsBatch* ClusterBatcher::getBatch(bool* done, unsigned int num, bool hard
 
     if (clusterToReturn==-1)
     {
+        *done=finished?1:2;
         finished=true;
-        *done=true;
         return NULL;
     }
 
     //is done?
-    *done=finished;//we'll let this be determined in feedback
+    *done=finished?1:0;//we'll let this be determined in feedback
     //put batch together
     SpottingsBatch* ret = new SpottingsBatch(ngram,id);
 
@@ -199,6 +210,7 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
     int numFalse=0;
 
     vector<Spotting>* ret = new vector<Spotting>();
+    assert(ids.size()<spottingRes.size());
     for (unsigned int i=0; i< ids.size(); i++)
     {
         int sid = stoi(ids[i]);
@@ -213,8 +225,11 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
             if (spottingRes.at(sindex).type!=SPOTTING_TYPE_APPROVED)
             {
                 spottingRes.at(sindex).type=SPOTTING_TYPE_APPROVED;
+#if NO_ERROR
+                assert(spottingRes.at(sindex).gt==1 || spottingRes.at(sindex).gt==UNKNOWN_GT);
+#endif
                 ret->push_back(spottingRes.at(sindex));
-                if (stepMode)
+                if (stepMode && trueInstancesToSeed.size()<1000)
                     trueInstancesToSeed.push_back(sindex);
             }
         }
@@ -227,6 +242,9 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
             if (spottingRes.at(sindex).type!=SPOTTING_TYPE_REJECTED)
             {
                 spottingRes.at(sindex).type=SPOTTING_TYPE_REJECTED;
+#if NO_ERROR
+                assert(spottingRes.at(sindex).gt==0 || spottingRes.at(sindex).gt==UNKNOWN_GT);
+#endif
                 if (resent&&retRemove!=NULL)
                     retRemove->emplace_back(spottingRes.at(sindex).id,ngram);
             }
@@ -300,9 +318,13 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
 #ifdef TEST_MODE
         cout<<"["<<ngram<<"] running acc: "<<runningAccuracy<<" below thresh: "<<ACCURACY_STOP_THRESH<<endl;
 #endif
-        *done=finished?2:1;
+        *done=finished?1:2;//-1 resurrect, 0 not done, 1 done, 2 just finished
         finished=true;
     }
+
+    //Tracking for debugging
+    assert(numTrue+numFalse<spottingRes.size());
+    batchTracking.emplace_back(purity,accuracy,numTrue+numFalse,runningPurity,runningAccuracy);
 
 
     return ret;
@@ -344,7 +366,6 @@ void ClusterBatcher::CL_cluster(vector< list<int> >& clusters, Mat& minSimilarit
             minSimilarity(Rect(clust2+1,clust2+1,minSimilarity.cols-(clust2+1),minSimilarity.rows-(clust2+1))).copyTo(newMinS(Rect(clust2,clust2,minSimilarity.cols-(clust2+1),minSimilarity.rows-(clust2+1))));
         }
         minSimilarity=newMinS;
-        clusterLevels.push_back(clusters);
 
         //check//
         for (auto clust : clusters)
@@ -379,7 +400,6 @@ void ClusterBatcher::CL_cluster(vector< list<int> >& clusters, Mat& minSimilarit
             //if (purity > mPurity)
             //    mPurity=purity;
         }
-        meanCPurity.push_back(sumCPurity/clusters.size());
         //meanIPurity.push_back(sumIPurity/gt.size());
         //maxPurity.push_back(mPurity);
         //auto iter = sortCPurity.begin();
@@ -391,10 +411,18 @@ void ClusterBatcher::CL_cluster(vector< list<int> >& clusters, Mat& minSimilarit
         //    iter++;
         //medianIPurity.push_back(*iter);
 
-
-
-        averageClusterSize.push_back(sumSize/clusters.size());
-        //if (sumSize/clusters.size()>5)//dont need to track for all levels
+        int meanClusterSize = sumSize/clusters.size();
+        if (meanClusterSize>5 && (meanClusterSize>10 || clusters.size()%2==0))//dont need to track for all levels
+        {
+            //clusterLevels.push_back(clusters);
+            vector< vector<int> > clustersNew;
+            clustersNew.reserve(clusters.size());
+            for (auto clust : clusters)
+                clustersNew.emplace_back(clust.begin(), clust.end());
+            clusterLevels.emplace_back(clustersNew);
+            meanCPurity.push_back(sumCPurity/clusters.size());
+            averageClusterSize.push_back(meanClusterSize);
+        }
         //    minSimilarities[clusterLevels.size()-1]=minSimilarity;
     }
 }
@@ -465,7 +493,6 @@ void ClusterBatcher::save(ofstream& out)
     for (float sz : averageClusterSize)
         out<<sz<<"\n";
 
-    GlobalK::writeFloatMat(out,crossScores);
 
     for (auto& spotting : spottingRes)
         spotting.save(out);
@@ -482,11 +509,17 @@ void ClusterBatcher::save(ofstream& out)
     out<<windowAccuracy.size()<<"\n";
     for (float f : windowAccuracy)
         out<<f<<"\n";
-    out<<curLevel<<endl;;
+    out<<curLevel<<endl;
+
+    out<<batchTracking.size()<<endl;
+    for (auto t : batchTracking)
+    {
+        out<<get<0>(t)<<"\n"<<get<1>(t)<<"\n"<<get<2>(t)<<get<3>(t)<<"\n"<<get<4>(t)<<endl;
+    }
 
 }
 
-ClusterBatcher::ClusterBatcher(ifstream& in, PageRef* pageRef)
+ClusterBatcher::ClusterBatcher(ifstream& in, PageRef* pageRef, string saveDir)
 {
     string line;
     getline(in,line);
@@ -521,6 +554,7 @@ ClusterBatcher::ClusterBatcher(ifstream& in, PageRef* pageRef)
         {
             getline(in,line);
             int numIn = stoi(line);
+            clusterLevels[i][j].reserve(numIn);
             for (int k=0; k<numIn; k++)
             {
                 getline(in,line);
@@ -546,9 +580,11 @@ ClusterBatcher::ClusterBatcher(ifstream& in, PageRef* pageRef)
         getline(in,line);
         averageClusterSize[i]=stof(line);
     }
-
-    crossScores = GlobalK::readFloatMat(in);
-
+//
+    ifstream crossIn(saveDir+"/crossScores_"+ngram+".dat");
+    crossScores = GlobalK::readFloatMat(crossIn);
+    crossIn.close();
+//
     //spottingRes.resize(numInstances);
     for (int i=0; i<numInstances; i++)
     {
@@ -583,4 +619,24 @@ ClusterBatcher::ClusterBatcher(ifstream& in, PageRef* pageRef)
     }
     getline(in,line);
     curLevel = stoi(line);
+
+
+    getline(in,line);
+    sz = stoi(line);
+    batchTracking.reserve(sz);
+    for (int i=0; i<sz; i++)
+    {
+        getline(in,line);
+        float p = stof(line);
+        getline(in,line);
+        float a = stof(line);
+        getline(in,line);
+        int s = stoi(line);
+        assert(s<spottingRes.size());
+        getline(in,line);
+        float rp = stof(line);
+        getline(in,line);
+        float ra = stof(line);
+        batchTracking.emplace_back(p,a,s,rp,ra);
+    }
 }

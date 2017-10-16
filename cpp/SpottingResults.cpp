@@ -557,7 +557,7 @@ void SpottingResults::saveHistogram(float actualModelDif)
 }
 #endif
 
-SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need) {
+SpottingsBatch* SpottingResults::getBatch(int* done, unsigned int num, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need) {
     //debugState();
 
     if (!need && (numLeftInRange<12 && numLeftInRange>=0) && starts.size()>1 && !takeFromTail)
@@ -699,32 +699,33 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
     }
 
     //check if done, that is we don't have spottings left between the thresholds
+    *done=0;
     if (instancesByScore.size()<=1)
-        *done=true;
+        *done=allBatchesSent?1:2;
     else
     {
         if (instancesById.at(iterR->second).score(useQbE) > rejectThreshold)
         {
             if (iterR==instancesByScore.begin())
-                *done=true;
+                *done=allBatchesSent?1:2;
             else
             {
                 iterR--;
                 assert(instancesById.find(iterR->second) != instancesById.end());
                 if (instancesById.at(iterR->second).score(useQbE) < acceptThreshold)
-                    *done=true;
+                    *done=allBatchesSent?1:2;
             }
         }
         else if (instancesById.at(iterR->second).score(useQbE) < acceptThreshold)
         {
             iterR++;
             if (iterR==instancesByScore.end())
-                *done=true;
+                *done=allBatchesSent?1:2;
             else
             {
                 assert(instancesById.find(iterR->second) != instancesById.end());
                 if (instancesById.at(iterR->second).score(useQbE) > rejectThreshold)
-                    *done=true;
+                    *done=allBatchesSent?1:2;
             }
         }
 
@@ -732,12 +733,12 @@ SpottingsBatch* SpottingResults::getBatch(bool* done, unsigned int num, bool har
         if (batchesSinceChange++ > CHECK_IF_BAD_SPOTTING_START)
         {
             if (numberClassifiedTrue/(numberClassifiedTrue+numberClassifiedFalse+0.0) < CHECK_IF_BAD_SPOTTING_THRESH)
-                this->done=true;
+                this->done=allBatchesSent?1:2;
         }
         
         if (!*done && takeFromTail && runningClassificationTrueAverage() > TAIL_CONTINUE_THRESH)
         {
-            *done=false;//Just keep taking from the top until we aren't getting a lot of trues. This allows a bad thresholding to still work
+            *done=0;//Just keep taking from the top until we aren't getting a lot of trues. This allows a bad thresholding to still work
 #ifdef TEST_MODE
             cout<<"["<<ngram<<"] continuing past thresh due to running classification avg: "<<runningClassificationTrueAverage()<<endl;
 #endif
@@ -823,6 +824,9 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
     {
         badInARow=0;
     }
+
+    int numTrue=0;
+    int numFalse=0;
     
     vector<Spotting>* ret = new vector<Spotting>();
     int swing=0;
@@ -864,6 +868,7 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
         {
             swing++;
             numberClassifiedTrue++;
+            numTrue++;
 #ifdef NO_NAN
         GlobalK::knowledge()->accepted();
 #endif
@@ -877,6 +882,7 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
         {
             swing--;
             numberClassifiedFalse++;
+            numFalse--;
 #ifdef NO_NAN
         GlobalK::knowledge()->rejected();
 #endif
@@ -899,9 +905,11 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
             this->done=true;
     }
 
+    batchTracking.emplace_back(-1,numTrue/(0.0+numTrue+numFalse),numTrue+numFalse,0,runningClassificationTrueAverage());
+
     if (this->done)
     {
-        *done=true;
+        *done=1;
         return ret;
     }
     bool allWereSent = allBatchesSent; 
@@ -2421,6 +2429,12 @@ void SpottingResults::save(ofstream& out)
     //skip updateMap as no feedback will be recieved.
     //skip tracer as we will just refind it
     out<<contextPad<<"\n";
+
+    out<<batchTracking.size()<<endl;
+    for (auto t : batchTracking)
+    {
+        out<<get<0>(t)<<"\n"<<get<1>(t)<<"\n"<<get<2>(t)<<get<3>(t)<<"\n"<<get<4>(t)<<endl;
+    }
     //debugState();
 }
 
@@ -2560,6 +2574,23 @@ SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef)
     rtn=0;
     atn=0;
 #endif //TEST_MODE
+    getline(in,line);
+    size = stoi(line);
+    batchTracking.reserve(size);
+    for (int i=0; i<size; i++)
+    {
+        getline(in,line);
+        float p = stof(line);
+        getline(in,line);
+        float a = stof(line);
+        getline(in,line);
+        int s = stoi(line);
+        getline(in,line);
+        float rp = stof(line);
+        getline(in,line);
+        float ra = stof(line);
+        batchTracking.emplace_back(p,a,s,rp,ra);
+    }
     //debugState();
     
 }

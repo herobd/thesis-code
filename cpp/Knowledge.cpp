@@ -4,22 +4,37 @@
 int Knowledge::Page::_id=0;
 atomic_uint Knowledge::Word::_id(0);
 
-Knowledge::Corpus::Corpus(int contextPad, int averageCharWidth) 
+Knowledge::Corpus::Corpus(int contextPad, string ngramWWFile, vector<string>* ngrams) : ngramWWFile(ngramWWFile)  //int averageCharWidth) 
 {
     pthread_rwlock_init(&pagesLock,NULL);
     pthread_rwlock_init(&spottingsMapLock,NULL);
-    this->averageCharWidth=averageCharWidth;
+    //this->averageCharWidth=averageCharWidth;
+    ifstream widths(ngramWWFile);
+    assert(widths.good());
+    string line;
+    float sum=0;
+    int count=0;
+    while (getline(widths,line))
+    {
+        if (ngrams!=NULL)
+            ngrams->push_back(GlobalK::lowercaseAndStrip(line));
+        getline(widths,line);
+        sum+=stoi(line);
+        count++;
+        getline(widths,line);
+    }
+    widths.close();
+    averageCharWidth=sum/count;
     countCharWidth=0;
     threshScoring= 1.0;
     manQueue.setContextPad(contextPad);
     minWordImageLen=99999;
     maxWordImageLen=0;
 }
-void Knowledge::Corpus::loadSpotter(string modelPrefix, set<int> nsOfInterest)
+void Knowledge::Corpus::loadSpotter(string modelPrefix)
 {
     //spotter = new AlmazanSpotter(this,modelPrefix);
-    assert(averageCharWidth>0);    
-    spotter = new NetSpotter(this,modelPrefix,averageCharWidth,nsOfInterest);
+    spotter = new NetSpotter(this,modelPrefix,ngramWWFile);
 
     //This is bad, it shouldn't be coming from here, but it prevents code dup.
     //averageCharWidth = spotter->getAverageCharWidth();
@@ -1488,17 +1503,19 @@ void Knowledge::Word::refineHorzBoundaries()
     Mat wordIm, bin;
     getWordImgAndBin(wordIm, bin);
     Mat profile;
-    reduce(bin,profile,0,CV_REDUCE_SUM);
+    reduce(bin,profile,0,CV_REDUCE_SUM,CV_32S);
     int x=0;
-    while (profile.at<unsigned char>(0,x)<=255)
+    while (profile.at<int>(0,x)<=255)
         x++;
     assert(x<profile.cols);
-    _tlxBetter+=x;
+    _tlxBetter=tlx+x;
     x=0;
-    while (profile.at<unsigned char>(0,profile.cols-(x+1))<=255)
+    while (profile.at<int>(0,profile.cols-(x+1))<=255)
         x++;
     assert(x<profile.cols);
-    _brxBetter-=x;
+    _brxBetter=brx-x;
+
+    assert(_tlxBetter>=tlx && _tlxBetter<_brxBetter &&  _brxBetter<=brx);
 }
 
 /*
@@ -3623,6 +3640,7 @@ void Knowledge::Corpus::save(ofstream& out)
     for (const Mat& m : _wordImages)*/
     //just call recreateDatasetVectors
     //out.close();
+    out<<ngramWWFile<<endl;
 }
 
 Knowledge::Corpus::Corpus(ifstream& in)
@@ -3697,6 +3715,8 @@ Knowledge::Corpus::Corpus(ifstream& in)
     CorpusRef* cr = getCorpusRef();
     manQueue.load(in,cr);
     delete cr;
+
+    getline(in,ngramWWFile);
 
     //in.close();
 }
@@ -3962,7 +3982,8 @@ void Knowledge::Corpus::getStats(float* accTrans, float* pWordsTrans, float* pWo
                                  float* meanLenWordsTrans80_100, float* meanLenWordsTrans60_80, float* meanLenWordsTrans40_60, float* meanLenWordsTrans20_40, float* meanLenWordsTrans0_20, float* meanLenWordsTrans0, float* meanLenWordsTransBad,
                                  float* stdLenWordsTrans80_100, float* stdLenWordsTrans60_80, float* stdLenWordsTrans40_60, float* stdLenWordsTrans20_40, float* stdLenWordsTrans0_20, float* stdLenWordsTrans0, float* stdLenWordsTransBad,
                                  map<char,float>* charDistDone, map<char,float>* charDistUndone,
-                                 vector<string>* badNgrams)
+                                 vector<string>* badNgrams,
+                                 map<int,float>* meanUnigramsSpottedByLen, map<int,float>* meanBigramsSpottedByLen, map<int,float>* meanTrigramsSpottedByLen)
 {
     int trueTrans, cTrans, c80_100, c60_80, c40_60, c20_40, c0_20, c0, cBad, cTrans80_100, cTrans60_80, cTrans40_60, cTrans20_40, cTrans0_20, cTrans0, cTransBad;
     trueTrans= cTrans= c80_100= c60_80= c40_60= c20_40= c0_20= c0= cBad= cTrans80_100= cTrans60_80= cTrans40_60= cTrans20_40= cTrans0_20= cTrans0= cTransBad=0;
@@ -3971,7 +3992,8 @@ void Knowledge::Corpus::getStats(float* accTrans, float* pWordsTrans, float* pWo
     vector<int> lensTransC80_100, lensTransC60_80, lensTransC40_60, lensTransC20_40, lensTransC0_20, lensTransC0, lensTransCBad;
     int numCharsDone=0;
     int numCharsUndone=0;
-    bool more = charDistUndone!=NULL && wordsTrans80_100!=NULL;
+    map<int,vector<float> > unigramsSpottedByLen, bigramsSpottedByLen, trigramsSpottedByLen;
+    bool more = meanTrigramsSpottedByLen!=NULL && wordsTrans80_100!=NULL;
 
     //IV is In-Vocabulary
     int trueTrans_IV, cTrans_IV, c80_100_IV, c60_80_IV, c40_60_IV, c20_40_IV, c0_20_IV, c0_IV;
@@ -4063,7 +4085,8 @@ void Knowledge::Corpus::getStats(float* accTrans, float* pWordsTrans, float* pWo
                                 {
                                     bad=true;
                                     //cout<<"["<<w->getId()<<"]BadT: "<<gt<<", q: "<<query<<endl;
-                                    badNgrams->push_back("["+to_string(w->getId())+"]BadT: "+gt+", q: "+query);
+                                    if (badNgrams!=NULL)
+                                        badNgrams->push_back("["+to_string(w->getId())+"]BadT: "+gt+", q: "+query);
                                 }
                             }
                             last=query[i];
@@ -4162,7 +4185,8 @@ void Knowledge::Corpus::getStats(float* accTrans, float* pWordsTrans, float* pWo
                             {
                                 bad=true;
                                 //cout<<"["<<w->getId()<<"]Bad1: "<<gt<<", q: "<<query<<endl;
-                                badNgrams->push_back("["+to_string(w->getId())+"]Bad1: "+gt+", q: "+query);
+                                if (badNgrams!=NULL)
+                                    badNgrams->push_back("["+to_string(w->getId())+"]Bad1: "+gt+", q: "+query);
                             }
                         }
                         last=query[i];
@@ -4230,6 +4254,54 @@ void Knowledge::Corpus::getStats(float* accTrans, float* pWordsTrans, float* pWo
                     lensC0.push_back(gt.length());
             }
         }
+
+        if (more)
+        {
+            int numPossibleUnis=0;
+            for (int ii=0; ii<gt.length(); ii++)
+            {
+                if (find(GlobalK::knowledge()->unigrams.begin(),GlobalK::knowledge()->unigrams.end(),gt.substr(ii,1))!=GlobalK::knowledge()->unigrams.end())
+                    numPossibleUnis++;
+            }
+            int numPossibleBis=0;
+            for (int ii=0; ii<((int)gt.length())-1; ii++)
+            {
+                if (find(GlobalK::knowledge()->bigrams.begin(),GlobalK::knowledge()->bigrams.end(),gt.substr(ii,2))!=GlobalK::knowledge()->bigrams.end())
+                    numPossibleBis++;
+            }
+            int numPossibleTris=0;
+            for (int ii=0; ii<((int)gt.length())-2; ii++)
+            {
+                if (find(GlobalK::knowledge()->trigrams.begin(),GlobalK::knowledge()->trigrams.end(),gt.substr(ii,3))!=GlobalK::knowledge()->trigrams.end())
+                    numPossibleTris++;
+            }
+            int numUnis=0;
+            int numBis=0;
+            int numTris=0;
+            for (auto spotting : w->getSpottings())
+            {
+                int l = spotting.ngram.length();
+                switch (l)
+                {
+                    case 1:
+                        numUnis++;
+                        break;
+                    case 2:
+                        numBis++;
+                        break;
+                    case 3:
+                        numTris++;
+                        break;
+                }
+            }
+            if (numPossibleUnis>0)
+                unigramsSpottedByLen[gt.length()].push_back(numUnis/(0.0+numPossibleUnis));
+            if (numPossibleBis>0)
+                bigramsSpottedByLen[gt.length()].push_back(numBis/(0.0+numPossibleBis));
+            if (numPossibleTris>0)
+                trigramsSpottedByLen[gt.length()].push_back(numTris/(0.0+numPossibleTris));
+                    
+        }
     }
     if (cTrans>0)
         *accTrans= trueTrans/(0.0+cTrans);
@@ -4287,6 +4359,35 @@ void Knowledge::Corpus::getStats(float* accTrans, float* pWordsTrans, float* pWo
             p.second/=numCharsDone;
         for (auto& p : *charDistUndone)
             p.second/=numCharsUndone;
+
+        for (auto p : unigramsSpottedByLen)
+        {
+            float sum = 0;
+            for (float v : p.second)
+                sum+=v;
+            assert(sum==sum);
+            assert(sum==0 || p.second.size()>0);
+            //*(meanUnigramsSpottedByLen)[p.first] = sum/p.second.size();
+            meanUnigramsSpottedByLen->emplace(p.first,sum/p.second.size());
+        }
+        for (auto p : bigramsSpottedByLen)
+        {
+            float sum = 0;
+            for (float v : p.second)
+                sum+=v;
+            assert(sum==sum);
+            assert(sum==0 || p.second.size()>0);
+            //*(meanBigramsSpottedByLen)[p.first] = sum/p.second.size();
+            meanBigramsSpottedByLen->emplace(p.first,sum/p.second.size());
+        }
+        for (auto p : trigramsSpottedByLen)
+        {
+            float sum = 0;
+            for (float v : p.second)
+                sum+=v;
+            //*(meanTrigramsSpottedByLen)[p.first] = sum/p.second.size();
+            meanTrigramsSpottedByLen->emplace(p.first,sum/p.second.size());
+        }
     }
 }
 
@@ -4294,3 +4395,4 @@ vector<SpottingLoc> Knowledge::Corpus::massSpot(const vector<string>& ngrams, Ma
 {
     return spotter->massSpot(ngrams,crossScores);
 }
+

@@ -16,7 +16,7 @@ class NetSpotter : public Spotter
     //AlmazanDataset* dataset;
 
     public:
-    NetSpotter(const Dataset* corpus, string modelDir, int charWidth, set<int> nsOfInterest);
+    NetSpotter(const Dataset* corpus, string modelDir, string ngramWWFile);
     ~NetSpotter()
     {
         delete spotter;
