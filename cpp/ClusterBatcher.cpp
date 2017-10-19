@@ -70,7 +70,7 @@ SpottingsBatch* ClusterBatcher::getBatch(int* done, unsigned int num, bool hard,
     {
         cout<<"["<<ngram<<"] got getBatch() called when finished."<<endl;
     }
-    if ((finished || batchesOut>=MAX_BATCHES_OUT_PER_NGRAM) && !need)
+    if (((finished || batchesOut>=MAX_BATCHES_OUT_PER_NGRAM) && !need) || batchesOut>=HARD_MAX_BATCHES_OUT_PER_NGRAM)
     {
         *done=finished?1:0;
         return NULL;
@@ -176,6 +176,8 @@ SpottingsBatch* ClusterBatcher::getBatch(int* done, unsigned int num, bool hard,
         }
         else
             assert(starts.size()>0 || spottingRes.at(inst).type != SPOTTING_TYPE_NONE);
+        if (ret->size() >= MAX_BATCH_SIZE)
+            break;
     }
     assert(ret->size()>0);
 
@@ -514,7 +516,7 @@ void ClusterBatcher::save(ofstream& out)
     out<<batchTracking.size()<<endl;
     for (auto t : batchTracking)
     {
-        out<<get<0>(t)<<"\n"<<get<1>(t)<<"\n"<<get<2>(t)<<get<3>(t)<<"\n"<<get<4>(t)<<endl;
+        out<<get<0>(t)<<"\n"<<get<1>(t)<<"\n"<<get<2>(t)<<"\n"<<get<3>(t)<<"\n"<<get<4>(t)<<endl;
     }
 
 }
@@ -581,7 +583,9 @@ ClusterBatcher::ClusterBatcher(ifstream& in, PageRef* pageRef, string saveDir)
         averageClusterSize[i]=stof(line);
     }
 //
-    ifstream crossIn(saveDir+"/crossScores_"+ngram+".dat");
+    string crossFile = saveDir+"/crossScores_"+ngram+".dat";
+    ifstream crossIn(crossFile);
+    assert(crossIn.good());
     crossScores = GlobalK::readFloatMat(crossIn);
     crossIn.close();
 //
@@ -631,10 +635,24 @@ ClusterBatcher::ClusterBatcher(ifstream& in, PageRef* pageRef, string saveDir)
         getline(in,line);
         float a = stof(line);
         getline(in,line);
-        int s = stoi(line);
-        assert(s<spottingRes.size());
-        getline(in,line);
-        float rp = stof(line);
+        //fix prev error
+        int loc = line.find('.');
+        int s;
+        float rp;
+        if (loc==string::npos)
+        {
+            loc=line.length();
+            //s = stoi(line);
+            //assert(s<spottingRes.size());
+            //getline(in,line);
+            //rp = stof(line);
+        }
+        //else
+        {
+            s = stoi(line.substr(0,loc-1));
+            assert(s<spottingRes.size());
+            rp = stof(line.substr(loc-1));
+        }
         getline(in,line);
         float ra = stof(line);
         batchTracking.emplace_back(p,a,s,rp,ra);

@@ -28,40 +28,58 @@ numberOfTests=2;
 
 function printErr(err){if (err) console.log(err);}
 
+///////////////////////////////////////////////////////
 //SYSTEM PARAMS
+
+
 var lexiconFiles=[  "/home/brian/intel_index/data/wordsEnWithNames.txt",
                     "/home/brian/intel_index/data/wordsEnWithNames.txt",
-                    "/home/brian/intel_index/data/names_only_f300.txt"
+                    "/home/brian/intel_index/data/names_only_lexicon.txt",
+                    "/home/brian/intel_index/data/wordsEnWithNames.txt"
                  ];
 var pageImageDirs=[ "/home/brian/intel_index/data/gw_20p_wannot",
                     "/home/brian/intel_index/data/bentham/BenthamDatasetR0-Images/Images/Pages",
-                    "/home/brian/intel_index/data/us1930_census/names_only"
+                    "/home/brian/intel_index/data/us1930_census/names_only",
+                    "/home/brian/intel_index/data/bentham/BenthamDatasetR0-Images/Images/Pages"
                   ];
 var segmentationFiles=[ "/home/brian/intel_index/EmbAttSpotter/test/queries_test.gtp",
                         "/home/brian/intel_index/data/bentham/ben_cattss_c_corpus.gtp",
-                        "/home/brian/intel_index/data/us1930_census/names_only/seg_names_corpus.gtp"
+                        "/home/brian/intel_index/data/us1930_census/names_only/seg_names_corpus.gtp",
+                        "/home/brian/intel_index/data/bentham/ben_fixed_val.gtp"
                       ];
 var datasetNames=[  'GW',       //0
                     'BENTHAM',  //1
-                    'NAMES'     //2
+                    'NAMES',     //2
+                    'VAL'      //3
                  ];
 var contextPads=[ 0,
                   0,
-                  15
+                  15,
+                  0
                 ];
-var avgCharWidths=[ 38,
-                    37,
-                    20
-                  ];
+//var avgCharWidths=[ 38,
+//                    37,
+//                    20
+//                  ];
 //var spottingModelPrefixes=[ "model/CATTSS_GW",
 //                            "model/CATTSS_BENTHAM",
 //                            "model/CATTSS_NAMES"
 //                          ];
 var spottingModelPrefixes=[ "/home/brian/intel_index/data/gw_20p_wannot/network/phocnet_msf",
                             "/home/brian/intel_index/data/bentham/network/phocnet_msf",
-                            "??"
+                            "??",
+                            "/home/brian/intel_index/data/bentham/network/phocnet_msf"
                           ];
+var ngramWWFiles=[  "/home/brian/intel_index/data/gw_20p_wannot/originalNgramWW.txt",
+                    "/home/brian/intel_index/data/bentham/originalNgramWW.txt",
+                    "/home/brian/intel_index/data/us1930_census/names_only/originalNgramWW.txt",
+                    "/home/brian/intel_index/data/bentham/originalNgramWW.txt"
+                 ];
 
+//SET HERE
+var mode = 'fancy';//The mode, either trans method or spotting batch serving method. See SpottingAddon.cpp
+var cluster = (mode.length>=5 && mode.substr(0,5)=="clust");
+var useAppName = cluster?"app_cluster":"app_full";
 var datasetNum=1;
 var lexiconFile=lexiconFiles[datasetNum];
 var pageImageDir=pageImageDirs[datasetNum];
@@ -69,6 +87,7 @@ var segmentationFile=segmentationFiles[datasetNum];
 var datasetName=datasetNames[datasetNum];
 var contextPad=contextPads[datasetNum];
 var avgCharWidth=avgCharWidths[datasetNum];
+var ngramWWFile=ngramWWFiles[datasetNum];
 var spottingModelPrefix=spottingModelPrefixes[datasetNum];
 var savePrefix="save/net_";
 var numThreadsSpotting=5;
@@ -98,6 +117,7 @@ if (timingTestMode)
     numThreadsSpotting=0;
     numThreadsUpdating=0;
 }
+////////////////////////////////////////
 /**
  *  Define the application.
  */
@@ -250,9 +270,9 @@ var ControllerApp = function(port) {
                 //console.log('[app] user:'+req.user.id+' hit app');
                 //res.setHeader('Content-Type', 'text/html');
                 //res.send(self.cache_get('app.html') );
-                var appName = 'app_full';
+                var appName = "app_full";
                 if (!saveMode)
-                    res.render(appName, {app_version:'app_full', testMode:false, trainMode:false, save:saveMode, message: req.flash('error') });
+                    res.render(appName, {app_version:useAppName, testMode:false, trainMode:false, save:saveMode, message: req.flash('error') });
                 else
                     res.redirect('/');
             } else {
@@ -261,9 +281,9 @@ var ControllerApp = function(port) {
         });
         self.app.get('/app-demo', function(req, res) {
             //if (debug) {
-                var appName = 'app_full';
+                var appName = "app_full";
                 if (!saveMode)
-                    res.render(appName, {app_version:'app_full', testMode:false, trainMode:true, save:false, message: req.flash('error') });
+                    res.render(appName, {app_version:useAppName, testMode:false, trainMode:true, save:false, message: req.flash('error') });
                 else
                     res.redirect('/');
             //} else {
@@ -301,9 +321,9 @@ var ControllerApp = function(port) {
                 //console.log('[app] user:'+req.user.id+' hit app');
                 //res.setHeader('Content-Type', 'text/html');
                 //res.send(self.cache_get('app.html') );
-                var appName = 'app_full';
+                var appName = "app_full";
                 if (!saveMode)
-                    res.render(appName, {app_version:'app_full', testMode:false, trainMode:false, save:false, message: req.flash('error') });
+                    res.render(appName, {app_version:useAppName, testMode:false, trainMode:false, save:false, message: req.flash('error') });
                 else
                     res.redirect('/');
             } else {
@@ -314,8 +334,8 @@ var ControllerApp = function(port) {
             if (req.user || debug) {
                 if (req.user.datasetTiming && !saveMode) {
                     //console.log('[app] user:'+req.user.id+' hit app');
-                    var appName = 'app_full';
-                    res.render(appName, {app_version:'app_full', testMode:timingTestMode, trainMode:trainUsers, save:false, message: req.flash('error') });
+                    var appName = "app_full";
+                    res.render(appName, {app_version:useAppName, testMode:timingTestMode, trainMode:trainUsers, save:false, message: req.flash('error') });
                 } else {
                     res.redirect('/home');
                 }
@@ -326,9 +346,9 @@ var ControllerApp = function(port) {
         self.app.get('/app-label', function(req, res) {
             if (req.user || debug) {
                 //console.log('[app] user:'+req.user.id+' hit app');
-                var appName = 'app_full';
+                var appName = "app_full";
                 if (saveMode)
-                    res.render(appName, {app_version:'app_full', testMode:false, trainMode:false, save:true, message: req.flash('error') });
+                    res.render(appName, {app_version:useAppName, testMode:false, trainMode:false, save:true, message: req.flash('error') });
                 else
                     res.redirect('/home');
             } else {
@@ -338,9 +358,9 @@ var ControllerApp = function(port) {
         self.app.get('/app-false-label', function(req, res) {
             if (req.user || debug) {
                 //console.log('[app] user:'+req.user.id+' hit app');
-                var appName = 'app_full';
+                var appName = "app_full";
                 if (saveMode)
-                    res.render(appName, {app_version:'app_full', testMode:false, trainMode:false, save:false, message: req.flash('error') });
+                    res.render(appName, {app_version:useAppName, testMode:false, trainMode:false, save:false, message: req.flash('error') });
                 else
                     res.redirect('/home');
             } else {
@@ -967,9 +987,11 @@ var ControllerApp = function(port) {
                                 segmentationFile,
                                 spottingModelPrefix,
                                 savePrefix,
-                                startN,
-                                endN,
-                                avgCharWidth,
+                                //startN,
+                                //endN,
+                                //avgCharWidth,
+                                ngramWWFile,
+                                mode,
                                 numThreadsSpotting,
                                 numThreadsUpdating,
                                 showHeight,
@@ -1109,7 +1131,7 @@ var ControllerApp = function(port) {
     
     self.getTestApp = function(userNum,testNum) {
         if ((userNum+testNum)%2==0)
-            return 'app_full';
+            return useAppName;
         else
             return 'app_tap';
     }

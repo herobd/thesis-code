@@ -241,26 +241,102 @@ NAN_METHOD(start) {
     string spottingModelPrefix = string(*spottingModelPrefixNAN);
     v8::String::Utf8Value savePrefixNAN(info[4]);
     string savePrefix = string(*savePrefixNAN);
-    int startN = To<int>(info[5]).FromJust();
-    int endN = To<int>(info[6]).FromJust();
-    int avgCharWidth = To<int>(info[7]).FromJust();
-    int numSpottingThreads = To<int>(info[8]).FromJust();
-    int numTaskThreads = To<int>(info[9]).FromJust();
-    int height = To<int>(info[10]).FromJust();
-    int width = To<int>(info[11]).FromJust();
-    int milli = To<int>(info[12]).FromJust();
-    int contextPad = To<int>(info[13]).FromJust();
-    set<int> nsOfInterest;
-    for (int i=startN; i<=endN; i++)
-        nsOfInterest.insert(i);
+    //int startN = To<int>(info[5]).FromJust();
+    //int endN = To<int>(info[6]).FromJust();
+    //int avgCharWidth = To<int>(info[7]).FromJust();
+    v8::String::Utf8Value ngramWWFileNAN(info[5]);
+    string ngramWWFile = string(*ngramWWFileNAN);
+    v8::String::Utf8Value modeNAN(info[6]);
+    string mode = string(*modeNAN);
+
+    int numSpottingThreads = To<int>(info[7]).FromJust();
+    int numTaskThreads = To<int>(info[8]).FromJust();
+    int height = To<int>(info[9]).FromJust();
+    int width = To<int>(info[10]).FromJust();
+    int milli = To<int>(info[11]).FromJust();
+    int contextPad = To<int>(info[12]).FromJust();
+    //set<int> nsOfInterest;
+    //for (int i=startN; i<=endN; i++)
+    //    nsOfInterest.insert(i);
+    if (mode.compare("take_from_top")==0)
+    {
+        GlobalK::knowledge()->SR_TAKE_FROM_TOP=true;
+    }
+    else if (mode.compare("otsu_fixed")==0)
+    {
+        GlobalK::knowledge()->SR_OTSU_FIXED=true;
+    }
+    else if (mode.compare("none_take_from_top")==0)
+    {
+        GlobalK::knowledge()->SR_TAKE_FROM_TOP=true;
+        GlobalK::knowledge()->SR_THRESH_NONE=true;
+    }
+    else if (mode.compare("none")==0)
+    {
+        GlobalK::knowledge()->SR_THRESH_NONE=true;
+    }
+    else if (mode.compare("gaussian_draw")==0)
+    {
+        GlobalK::knowledge()->SR_GAUSSIAN_DRAW=true;
+    }
+    else if (mode.compare("fancy_one")==0)
+    {
+        GlobalK::knowledge()->SR_FANCY_ONE=true;
+    }
+    else if (mode.compare("fancy_two")==0)
+    {
+        GlobalK::knowledge()->SR_FANCY_TWO=true;
+    }
+    else if (mode.substr(0,10).compare("phoc_trans")==0)
+    {
+        GlobalK::knowledge()->PHOC_TRANS=true;
+        numSpottingThreads = 100;
+        if (mode.length()>10)
+        {
+            numSpottingThreads = stoi(mode.substr(10));
+            cout<<"trans top "<<numSpottingThreads<<"%"<<endl;
+        }
+    }
+    else if (mode.substr(0,9).compare("cpv_trans")==0)
+    {
+        GlobalK::knowledge()->CPV_TRANS=true;
+        numSpottingThreads = 100;
+        if (mode.length()>9)
+        {
+            numSpottingThreads = stoi(mode.substr(9));
+            cout<<"trans top "<<numSpottingThreads<<"%"<<endl;
+        }
+    }
+    else if (mode.compare("web_trans")==0)
+    {
+        GlobalK::knowledge()->WEB_TRANS=true;
+    }
+    else if (mode.compare("cluster_step")==0)
+    {
+        GlobalK::knowledge()->CLUSTER=true;
+        numSpottingThreads = 1;
+    }
+    else if (mode.compare("cluster_top")==0)
+    {
+        GlobalK::knowledge()->CLUSTER=true;
+        numSpottingThreads = 0;
+    }
+    else if (mode.compare("fancy")!=0)
+    {
+        cout<<"Error, unknown SpottingResults mode: "<<mode<<endl;
+        cout<<mode.substr(0,10)<<endl;
+        cout<<"Defaults to fancy"<<endl;
+        //return 0;
+    }
     assert(cattss==NULL);
     cattss = new CATTSS(lexiconFile,
                         pageImageDir,
                         segmentationFile,
                         spottingModelPrefix,
                         savePrefix,
-                        nsOfInterest,
-                        avgCharWidth,
+                        //nsOfInterest,
+                        //avgCharWidth,
+                        ngramWWFile,
                         numSpottingThreads,
                         numTaskThreads,
                         height,

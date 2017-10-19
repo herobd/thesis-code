@@ -361,6 +361,9 @@ button {
     position: relative;
       left: 0;
 }
+.spotting .selected img {
+    filter: brightness(70%);
+}
 
 .spotting label {
     

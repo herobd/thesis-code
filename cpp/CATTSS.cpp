@@ -131,7 +131,7 @@ CATTSS::CATTSS( string lexiconFile,
         corpus->loadSpotter(spottingModelPrefix);
         CorpusRef* corpusRef = corpus->getCorpusRef();
         PageRef* pageRef = corpus->getPageRef();
-        masterQueue = new MasterQueue(in,corpusRef,pageRef,savePrefix);
+        masterQueue = new MasterQueue(in,corpusRef,pageRef,savePrefix+"_CATTSS.sav");
         spottingQueue = new SpottingQueue(in,masterQueue,corpus);
 
         if (GlobalK::knowledge()->WEB_TRANS)
