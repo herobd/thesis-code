@@ -100,6 +100,7 @@ class GlobalK
         map<int, vector<string> > ngramRanks;
         //int contextPad;
 #ifdef NO_NAN
+        atomic_int badPrunes;
         atomic_int transSent;
         atomic_int transBadBatch;
         atomic_int transBadNgram;
@@ -109,7 +110,6 @@ class GlobalK
         atomic_int spotAutoAccept;
         atomic_int spotAutoReject;
         atomic_int newExemplarSpotted;
-        atomic_int badPrunes;
         ofstream trackFile;
 
         stringstream track;

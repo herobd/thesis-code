@@ -359,10 +359,12 @@ NAN_METHOD(loadTestingCorpus) {
     v8::String::Utf8Value segmentationFileNAN(info[2]);
     string segmentationFile = string(*segmentationFileNAN);
     int contextPad = To<int>(info[3]).FromJust();
+    v8::String::Utf8Value ngramWWFileNAN(info[4]);
+    string ngramWWFile = string(*ngramWWFileNAN);
     //GlobalK::knowledge()->setContextPad(contextPad);
 
     assert(testingCorpi.find(datasetName) == testingCorpi.end());
-    testingCorpi[datasetName] = new Knowledge::Corpus(contextPad,30);
+    testingCorpi[datasetName] = new Knowledge::Corpus(contextPad,ngramWWFile);
     testingCorpi[datasetName]->addWordSegmentaionAndGT(pageImageDir, segmentationFile);
     testingInstances[datasetName]=new TestingInstances(testingCorpi[datasetName],contextPad);
 }

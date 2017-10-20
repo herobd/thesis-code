@@ -30,6 +30,7 @@ Knowledge::Corpus::Corpus(int contextPad, string ngramWWFile, vector<string>* ng
     manQueue.setContextPad(contextPad);
     minWordImageLen=99999;
     maxWordImageLen=0;
+    name="UNINITIALIZED";
 }
 void Knowledge::Corpus::loadSpotter(string modelPrefix)
 {
@@ -3196,8 +3197,13 @@ void Knowledge::Corpus::showProgress(int height, int width)
 
 void Knowledge::Corpus::addWordSegmentaionAndGT(string imageLoc, string queriesFile)
 {
+    if (queriesFile.find_last_of('/') != string::npos)
+        name=queriesFile.substr(queriesFile.find_last_of('/')+1);
+    else
+        name=queriesFile;
     ifstream in(queriesFile);
-
+    if (!in.good())
+        cout<<"failed to open "<<queriesFile<<endl;
     assert(in.is_open());
     string line;
     

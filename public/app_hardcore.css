@@ -540,6 +540,36 @@ div.selection.error {
           min-height:0px;}
 }
 
+.fader {
+    animation-duration: 0.3s;
+    animation-name: fade;
+    -webkit-animation-duration: 0.3s;
+    -webkit-animation-name: fade;
+}
+.flashGreen {
+    background: green;
+    animation-duration: 0.3s;
+    animation-name: fade;
+    -webkit-animation-duration: 0.3s;
+    -webkit-animation-name: fade;
+}
+.flashRed {
+    background: red;
+    animation-duration: 0.3s;
+    animation-name: fade;
+    -webkit-animation-duration: 0.3s;
+    -webkit-animation-name: fade;
+}
+@keyframes fade {
+    from {opacity:1;}
+    to   {opacity:0;}
+}
+@-webkit-keyframes fade {
+    from {opacity:1;}
+    to   {opacity:0;}
+}
+
+
 .spotting.redo {
     /*background: #94BD5E;*/
     color: #0E0E0E;

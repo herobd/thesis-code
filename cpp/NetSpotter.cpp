@@ -4,7 +4,7 @@ NetSpotter::NetSpotter(const Dataset* corpus, string modelPrefix, string ngramWW
 {
     //spotter = new EmbAttSpotter(modelPrefix+"_emb",true);
     int gpu=-1;
-    spotter = new CNNSPPSpotter(modelPrefix+"_featurizer.prototxt", modelPrefix+"_embedder.prototxt", modelPrefix+".caffemodel", ngramWWFile, gpu, true, 0.25, 4, modelPrefix+"_cnnsppspotter", GlobalK::knowledge()->IDEAL_COMB);
+    spotter = new CNNSPPSpotter(modelPrefix+"_featurizer.prototxt", modelPrefix+"_embedder.prototxt", modelPrefix+".caffemodel", ngramWWFile, gpu, true, 0.25, 4, modelPrefix+"_cnnspp_spotter", GlobalK::knowledge()->IDEAL_COMB);
     
     spotter->setCorpus_dataset(corpus,false);
 }
@@ -45,7 +45,7 @@ vector<SpottingResult> NetSpotter::runQuery(SpottingQuery* query)
            res = spotter->subwordSpot_eval(query->getWordId(), query->getX0(), query->getNgram(), refinePortionQbE, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP, &resLock, GlobalK::knowledge()->MIN_SPOTTING_AP);
            
 #else
-           res = spotter->subwordSpot(query->getNgram().length(),query->getWordId(), query->getX0(), refinePortionQbE);
+           res = spotter->subwordSpot(query->getNgram(),query->getWordId(), query->getX0(), refinePortionQbE);
 #endif
             
         }
@@ -57,7 +57,7 @@ vector<SpottingResult> NetSpotter::runQuery(SpottingQuery* query)
                res = spotter->subwordSpot_eval(query->getImg(), query->getNgram(), refinePortionQbE, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP, &resLock, GlobalK::knowledge()->MIN_SPOTTING_AP);
                
 #else
-               res = spotter->subwordSpot(query->getNgram().length(),query->getImg(), refinePortion);
+               res = spotter->subwordSpot(query->getNgram(),query->getImg(), refinePortion);
 #endif
             }
             else
@@ -68,7 +68,7 @@ vector<SpottingResult> NetSpotter::runQuery(SpottingQuery* query)
                 res = spotter->subwordSpot_eval(gray, query->getNgram(), refinePortionQbE, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP, &resLock, GlobalK::knowledge()->MIN_SPOTTING_AP);
                 
 #else
-                res = spotter->subwordSpot(query->getNgram().length(),gray, refinePortion);
+                res = spotter->subwordSpot(query->getNgram(),gray, refinePortion);
 #endif
             }
         }

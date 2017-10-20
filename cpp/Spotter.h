@@ -2,6 +2,7 @@
 #define SPOTTER_H
 
 #include "SpottingQuery.h"
+#include "SubwordSpottingResult.h"
 #include "opencv2/core/core.hpp"
 
 struct SpottingResult {

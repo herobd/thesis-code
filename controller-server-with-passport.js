@@ -45,7 +45,7 @@ var pageImageDirs=[ "/home/brian/intel_index/data/gw_20p_wannot",
 var segmentationFiles=[ "/home/brian/intel_index/EmbAttSpotter/test/queries_test.gtp",
                         "/home/brian/intel_index/data/bentham/ben_cattss_c_corpus.gtp",
                         "/home/brian/intel_index/data/us1930_census/names_only/seg_names_corpus.gtp",
-                        "/home/brian/intel_index/data/bentham/ben_fixed_val.gtp"
+                        "/home/brian/intel_index/data/bentham/nn_valid.gtp"
                       ];
 var datasetNames=[  'GW',       //0
                     'BENTHAM',  //1
@@ -66,30 +66,30 @@ var contextPads=[ 0,
 //                            "model/CATTSS_NAMES"
 //                          ];
 var spottingModelPrefixes=[ "/home/brian/intel_index/data/gw_20p_wannot/network/phocnet_msf",
-                            "/home/brian/intel_index/data/bentham/network/phocnet_msf",
-                            "??",
-                            "/home/brian/intel_index/data/bentham/network/phocnet_msf"
+                            "/home/brian/intel_index/data/bentham/network/phocnet_msfNoLRN",
+                            "/home/brian/intel_index/data/us1930_census/names_only/network/phocnet_lessNoLRN",
+                            "/home/brian/intel_index/data/bentham/network/phocnet_msfNoLRN"
                           ];
 var ngramWWFiles=[  "/home/brian/intel_index/data/gw_20p_wannot/originalNgramWW.txt",
-                    "/home/brian/intel_index/data/bentham/originalNgramWW.txt",
-                    "/home/brian/intel_index/data/us1930_census/names_only/originalNgramWW.txt",
-                    "/home/brian/intel_index/data/bentham/originalNgramWW.txt"
+                    "/home/brian/intel_index/data/bentham/customWidths.txt",
+                    "/home/brian/intel_index/data/us1930_census/names_only/customWidths.txt",
+                    "/home/brian/intel_index/data/bentham/customWidths.txt"
                  ];
 
 //SET HERE
-var mode = 'fancy';//The mode, either trans method or spotting batch serving method. See SpottingAddon.cpp
+var mode = 'cluster_step';//The mode, either trans method or spotting batch serving method. See SpottingAddon.cpp
 var cluster = (mode.length>=5 && mode.substr(0,5)=="clust");
 var useAppName = cluster?"app_cluster":"app_full";
-var datasetNum=1;
+var datasetNum=3;
 var lexiconFile=lexiconFiles[datasetNum];
 var pageImageDir=pageImageDirs[datasetNum];
 var segmentationFile=segmentationFiles[datasetNum];
 var datasetName=datasetNames[datasetNum];
 var contextPad=contextPads[datasetNum];
-var avgCharWidth=avgCharWidths[datasetNum];
+//var avgCharWidth=avgCharWidths[datasetNum];
 var ngramWWFile=ngramWWFiles[datasetNum];
 var spottingModelPrefix=spottingModelPrefixes[datasetNum];
-var savePrefix="save/net_";
+var savePrefix="save/net_"+datasetName+'_mode';
 var numThreadsSpotting=5;
 var numThreadsUpdating=3;
 var showWidth=2500;
@@ -104,8 +104,6 @@ var timingTestMode=false;
 var trainUsers=false;
 var debug=true;
 
-//if (saveMode)
-savePrefix+=datasetName
 if (timingTestMode)
 {
     numThreadsSpotting=0;
@@ -971,14 +969,15 @@ var ControllerApp = function(port) {
         self.setupTerminationHandlers();
         if (timingTestMode) {
             //spottingaddons={};
-            for (var i=1; i<datasetNames.length; i++)
+            for (var i=1; i<3; i++)
             {
                 //spottingaddons[datasetNames[i]]=require("./cpp/build/Debug/spottingaddon");
                 spottingaddon.loadTestingCorpus(
                                     datasetNames[i],
                                     pageImageDirs[i],
                                     segmentationFiles[i],
-                                    contextPads[i]);
+                                    contextPads[i],
+                                    ngramWWFiles[i]);
             }
 
         } else { 

@@ -43,8 +43,6 @@ var ondeckColors = ['#eed3ff','#b3d389','#ddb185','#dfb8b7','#bbcbd1'];
 var colorIndex=0;
 
 function menu() {
-    if (!ondeck)
-        highlightLast();
     var m = document.getElementById('menu');
     m.classList.toggle('hidden');
     m.classList.toggle('show');
@@ -217,6 +215,52 @@ function batchShiftAndSend(batchId,callback) {
         batches[batchId].sent=true;
     }
 
+
+    //handle training things
+    if (trainingMode && batchQueue.length>0) {
+        var right=false;
+        if (lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].type=='s') {
+            for (spottingId in batches[batchId].spottings) {
+                if (batches[batchId].spottings.hasOwnProperty(spottingId) && batches[batchId].spottings[spottingId]==lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].correct) {
+                    right = true;
+                }
+            }
+        } else if (lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].type=='t' || lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].type=='m') {
+                right =  lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].transcription.toLowerCase() == lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].correct;
+        }
+        
+        if (batchQueue[0].lastTraining) {
+            trainingMode=false;
+            allReceived=false;
+            batchQueue[0].type='x';
+            document.getElementById('instructionsButton').hidden=true;
+        }
+        if (right || batchQueue[0].lastTraining) {
+            if (batchQueue[0].instructions.length>0) {
+                instructionsText.innerHTML=batchQueue[0].instructions;
+                instructions.hidden=false;
+                instructions.style.display='flex';
+                setTimeout(function(){instructions.ready=true;},100);
+            }
+
+
+            //This is ridged, but was easy
+            if (batchQueue[0].trainingNum==0) {
+                swipeRightGif.toShow=true;
+            } else if (batchQueue[0].trainingNum==1) {
+                //swipeLeftGif.toShow=true;
+                swipeLeftGif.hidden=false;
+            } else if (batchQueue[0].trainingNum==8) {
+                tapGif.toShow=true;
+            }
+        } else {
+            instructionsText.innerHTML='<p>Opps, that was incorrect. :(</p><p>Use the <b>undo</b> button to try again.</p>';
+
+            instructions.hidden=false;
+            instructions.style.display='flex';
+            setTimeout(function(){instructions.ready=true;},100);
+        }
+    }
 
     showNextBatch();
 }
@@ -434,7 +478,7 @@ function undo() {
     }
     if (lastRemovedBatchInfo.length>0){
         batchQueue = [lastRemovedBatchInfo.pop()].concat(batchQueue);
-        TODO, clear current batch?;
+        theWindow.innerHTML = ""; //clear the current batch.
         showNextBatch();
     }
     
@@ -475,7 +519,9 @@ function setup() {
     var windows = document.getElementsByClassName('window');
     theWindow=windows[0];
     gradient = document.getElementById("overlay");
+    gradient.hidden=true;
     icons = document.getElementById("icons");
+    icons.hidden=true;
     showX = document.getElementById("showX");
     showCheck = document.getElementById("showCheck");
     if (trainingMode) {
@@ -636,28 +682,6 @@ function handleSpottingsBatch(jres) {
     //console.log("got batch "+jres.batchId);
     batches['s'+jres.batchId]={sent:false, ngram:jres.ngram, spottings:{}};
 
-    
-    var lastBatch = batchQueue[batchQueue.length-1]; 
-    if (batchQueue.length>0 && jres.ngram == lastBatch.ngram) {// || 
-                //lastBatch.type=='e' && batches[lastBatch.type+lastBatch.id].) {
-        //batchHeader.hidden=true
-        var lastHeader = document.getElementById(lastBatch.type+lastBatch.id);
-        lastHeader.id='s'+jres.batchId;
-    
-    } else {
-        colorIndex = (++colorIndex)%headerColors.length;
-        lastNgram=jres.ngram;
-
-
-        var batchHeader = document.createElement("div");
-        //batchHeader.classList.toggle('spotting');
-        batchHeader.classList.toggle('batchHeader');
-        batchHeader.id='s'+jres.batchId;
-        batchHeader.classList.toggle('s'+jres.batchId);
-        batchHeader.innerHTML='<div>'+jres.ngram+'</div>';
-        batchHeader.style.background=headerColors[colorIndex];
-        theWindow.insertBefore(batchHeader,theWindow.childNodes[0]);
-    }
     var debugInfo;
     if (jres.debug!=undefined)
         debugInfo = jres.debug;
@@ -843,6 +867,13 @@ function getNextBatch() {
 }
 
 function showNextBatch() {
+    //var oldElement = document.getElementById(batchId);
+    //if (oldElement) {
+    //    oldElement.addEventListener("webkitAnimationEnd", function(e){if(e.animationName=='collapseH') theWindow.removeChild(this);}, false);
+    //    oldElement.addEventListener("animationend", function(e){if(e.animationName=='collapseH') theWindow.removeChild(this);}, false);
+    //    oldElement.classList.toggle('batchHeader');
+    //    oldElement.classList.toggle('collapserH');
+    //}
     switch (batchQueue[0].type) {
         case 's':
             showSpottingsBatch(batchQueue[0]);
@@ -858,11 +889,64 @@ function showNextBatch() {
     }
 }
 
+function remove(e) {
+    theWindow.removeChild(this);
+}
+
+function batchOnclick(evt) {
+    if (this.id == 'badButton')
+    {
+        //flip all classifications
+        for (var spottingId in batches[this.batchId].spottings)
+            if (batches[this.batchId].spottings.hasOwnProperty(spottingId))
+                batches[this.batchId].spottings[spottingId] = !batches[this.batchId].spottings[spottingId];
+        document.getElementById('goodButton').visibility='hidden';
+    }
+    else
+        document.getElementById('badButton').visibility='hidden';
+
+    this.parent.addEventListener("webkitAnimationEnd", remove, false);
+    this.parent.addEventListener("animationEnd", remove, false);
+    this.parent.classList.toggle('fader');
+
+    var header = document.getElementById(this.batchId);
+    header.addEventListener("webkitAnimationEnd", remove, false);
+    header.addEventListener("animationEnd", remove, false);
+    header.classList.toggle('fader');
+
+    //draw visual feedback
+    for (var spottingId in batches[this.batchId].spottings)
+        if (batches[this.batchId].spottings.hasOwnProperty(spottingId))
+        {
+            var spotting = document.getElementById(spottingId);
+            //spotting.addEventListener("webkitAnimationEnd", function(e){if(e.animationName.substr(0,5)=='flash') theWindow.removeChild(this);}, false);
+            //spotting.addEventListener("animationend", function(e){if(e.animationName.substr(0,5)=='flash') theWindow.removeChild(this);}, false);
+            spotting.addEventListener("webkitAnimationEnd", remove, false);
+            spotting.addEventListener("animationend", remove, false);
+            if (batches[this.batchId].spottings[spottingId])
+                spotting.classList.toggle('flasherGreen');
+            else
+                spotting.classList.toggle('flasherRed');
+        }
+
+    batchShiftAndSend(this.batchId,getNextBatch);
+}
+
 function showSpottingsBatch(batch)
 {
+    //theWindow.innerHTML = "";
+
+    colorIndex = (++colorIndex)%headerColors.length;
 
     //header
-TODO
+    var batchHeader = document.createElement("div");
+    //batchHeader.classList.toggle('spotting');
+    batchHeader.classList.toggle('batchHeader');
+    batchHeader.id='s'+batch.id;
+    batchHeader.classList.toggle('s'+batch.id);
+    batchHeader.innerHTML='<div>'+batch.ngram+'</div>';
+    batchHeader.style.background=headerColors[colorIndex];
+    theWindow.appendChild(batchHeader,theWindow.childNodes[0]);
 
     //spottings
     for (var index=0; index<batch.spottings.length; index++) {
@@ -872,11 +956,26 @@ TODO
         var widget = createSpotting(im,i.id,'s'+batch.batchId);
         //theWindow.insertBefore(widget,theWindow.childNodes[0]);
         theWindow.appendChild(widget);
-        batches['s'+batch.batchId].spottings[i.id]=true;
+        batches['s'+batch.id].spottings[i.id]=true;
     }
 
     //buttons
-TODO
+    var buttonBar = document.createElement("div");
+    var goodButton = document.createElement("button");
+    goodButton.id='goodButton';
+    goodButton.batchId='s'+batch.id;
+    goodButton.innerHTML='good';
+    goodButton.addEventListener('onclick', batchOnclick, false);
+    buttonBar.appendChild(goodButton);
+
+    var badButton = document.createElement("button");
+    badButton.id='badButton';
+    badButton.batchId='s'+batch.id;
+    badButton.innerHTML='bad';
+    badButton.addEventListener('onclick', batchOnclick, false);
+    buttonBar.appendChild(badButton);
+
+    theWindow.appendChild(buttonBar);
 }
 /*function highlightLast() {
     var spottings = theWindow.getElementsByClassName('batchEl');
@@ -908,7 +1007,7 @@ TODO
             }
         }
     }
-}*/
+}
 
 function typeSetup(ele) {
     if (ele.classList.contains('spotting')) {
@@ -921,71 +1020,8 @@ function typeSetup(ele) {
         icons.hidden=true;
         swipeOn=false;
     }
-}
+}*/
 
-function isBatchDone(batchId) {
-    
-    if (batchQueue[0].type == 's' || batchQueue[0].type == 'e')
-        for (spottingId in batches[batchId].spottings)
-            if (batches[batchId].spottings.hasOwnProperty(spottingId) && batches[batchId].spottings[spottingId]==null)
-                return;
-    
-    //base
-    batchShiftAndSend(batchId,getNextBatch);
-    //base
-    var oldElement = document.getElementById(batchId);
-    if (oldElement) {
-        oldElement.addEventListener("webkitAnimationEnd", function(e){if(e.animationName=='collapseH') theWindow.removeChild(this);}, false);
-        oldElement.addEventListener("animationend", function(e){if(e.animationName=='collapseH') theWindow.removeChild(this);}, false);
-        oldElement.classList.toggle('batchHeader');
-        oldElement.classList.toggle('collapserH');
-    }
-
-    if (trainingMode && batchQueue.length>0) {
-        var right=false;
-        if (lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].type=='s') {
-            for (spottingId in batches[batchId].spottings) {
-                if (batches[batchId].spottings.hasOwnProperty(spottingId) && batches[batchId].spottings[spottingId]==lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].correct) {
-                    right = true;
-                }
-            }
-        } else if (lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].type=='t' || lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].type=='m') {
-                right =  lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].transcription.toLowerCase() == lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].correct;
-        }
-        
-        if (batchQueue[0].lastTraining) {
-            trainingMode=false;
-            allReceived=false;
-            batchQueue[0].type='x';
-            document.getElementById('instructionsButton').hidden=true;
-        }
-        if (right || batchQueue[0].lastTraining) {
-            if (batchQueue[0].instructions.length>0) {
-                instructionsText.innerHTML=batchQueue[0].instructions;
-                instructions.hidden=false;
-                instructions.style.display='flex';
-                setTimeout(function(){instructions.ready=true;},100);
-            }
-
-
-            //This is ridged, but was easy
-            if (batchQueue[0].trainingNum==0) {
-                swipeRightGif.toShow=true;
-            } else if (batchQueue[0].trainingNum==1) {
-                //swipeLeftGif.toShow=true;
-                swipeLeftGif.hidden=false;
-            } else if (batchQueue[0].trainingNum==8) {
-                tapGif.toShow=true;
-            }
-        } else {
-            instructionsText.innerHTML='<p>Opps, that was incorrect. :(</p><p>Use the <b>undo</b> button to try again.</p>';
-
-            instructions.hidden=false;
-            instructions.style.display='flex';
-            setTimeout(function(){instructions.ready=true;},100);
-        }
-    }
-}
 
 function classify(id,word) {
     return classifyR(id,function(){return word;});
@@ -1010,9 +1046,9 @@ function classifyR(id,vFunc) {
             console.log(batchQueue);
         }
         batchQueue[0].transcription=vFunc();
-        ondeck.classList.toggle('batchEl');
-        ondeck.classList.toggle('collapser');
-        isBatchDone(id);
+        //ondeck.classList.toggle('batchEl');
+        //ondeck.classList.toggle('collapser');
+        //isBatchDone(id);
         //highlightLast();
         batchShiftAndSend(batchId,getNextBatch);
     };
@@ -1250,11 +1286,17 @@ function createTranscriptionSelector(id,wordImg,ngrams,possibilities) {
 function pass() {
     //if (!ondeck)
     //    highlightLast();
-    if (ondeck.classList.contains('transcription')) {
-        classify(batchQueue[0].type+batchQueue[0].id,'$PASS$')();
-    } else if (ondeck.classList.contains('spotting')) {
-        //removeSpotting(-1);//-1 means pass to spottingAddon
-        TODO, pass spottings batch
+    var curBatch = batchQueue[0];
+    if (curBatch.type=='s' || curBatch=='m') {
+        classify(curBatch.type+curBatch.id,'$PASS$')();
+    } else if (curBatch.type=='s') {
+        var bid = 's'+curBatch.id;
+        for (var spottingId in batches[bid].spottings)
+            if (batches[bid].spottings.hasOwnProperty(spottingId))
+                batches[bid].spottings[spottingId] = -1;
+        
+        batchShiftAndSend(bid,getNextBatch);
+        
     }
 }
 

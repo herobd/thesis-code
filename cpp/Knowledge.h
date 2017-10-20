@@ -502,6 +502,7 @@ private:
     void recreateDatasetVectors(bool lockPages);
 
     int minWordImageLen, maxWordImageLen;
+    string name;
 
 public:
     Corpus(int contextPad, string ngramWWFile, vector<string>* ngrams=NULL);
@@ -569,7 +570,7 @@ public:
 
     static void mouseCallBackFunc(int event, int x, int y, int flags, void* page_p);
     void showInteractive(int pageId);
-    string getName() const {return "CORPUS";}
+    string getName() const {return name;}
     Spotting wrapSpotting(int imIdx, int startX, int endX, float score, string ngram);
     vector<SpottingLoc> massSpot(const vector<string>& ngrams, Mat& crossScores);
 };
