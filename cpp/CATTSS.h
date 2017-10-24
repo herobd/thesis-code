@@ -165,5 +165,6 @@ class CATTSS
     }
     void printFinalStats();
     void printBatchStats(string ngram, string file);
+    int getMaxImageWidth() {return corpus->getMaxImageWidth();}
 };
 #endif

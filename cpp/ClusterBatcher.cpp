@@ -106,7 +106,7 @@ SpottingsBatch* ClusterBatcher::getBatch(int* done, unsigned int num, bool hard,
             for (int i : clusterLevels.at(curLevel)[clusterI])
             {
                 if (spottingRes.at(i).type == SPOTTING_TYPE_NONE &&
-                        starts.find(i+1)==starts.end())
+                        starts.find(spottingRes.at(i).id)==starts.end())
                 {
                     count++;
                     avgScore += spottingRes.at(i).scoreQbS;
@@ -140,7 +140,7 @@ SpottingsBatch* ClusterBatcher::getBatch(int* done, unsigned int num, bool hard,
             for (int i : clust)
             {
                 if (spottingRes.at(i).type == SPOTTING_TYPE_NONE &&  //only include unlabeled instances in cluster comparison
-                        starts.find(i+1)==starts.end() && 
+                        starts.find(spottingRes.at(i).id)==starts.end() && 
                         crossScores.at<float>(seedInstance,i) < minDist)
                     minDist=crossScores.at<float>(seedInstance,i);
             }
@@ -167,10 +167,7 @@ SpottingsBatch* ClusterBatcher::getBatch(int* done, unsigned int num, bool hard,
 
     for (int inst : clusterLevels.at(curLevel).at(clusterToReturn))
     {
-        bool a = spottingRes.at(inst).type == SPOTTING_TYPE_NONE;
-        bool b = starts.find(inst+1)==starts.end();
-        bool c = starts.size()>0;
-        if (spottingRes.at(inst).type == SPOTTING_TYPE_NONE && starts.find(inst+1)==starts.end()) 
+        if (spottingRes.at(inst).type == SPOTTING_TYPE_NONE && starts.find(spottingRes.at(inst).id)==starts.end()) 
         {
             ret->emplace_back(spottingRes.at(inst),maxWidth,contextPad,color,prevNgram);
         }
@@ -186,14 +183,20 @@ SpottingsBatch* ClusterBatcher::getBatch(int* done, unsigned int num, bool hard,
 
 
 
+#ifdef TEST_MODE
+    cout<<"["<<ngram<<"] sending cluster/batch of size "<<ret->size()<<" from level "<<curLevel<<", ids: ";
+#endif 
     for (int i=0; i<ret->size(); i++)
     {
         starts[ret->at(i).id] = chrono::system_clock::now();
-    }
-
 #ifdef TEST_MODE
-    cout<<"["<<ngram<<"] sending cluster/batch of size "<<ret->size()<<" from level "<<curLevel<<endl;
+        cout<<ret->at(i).id<<", ";
 #endif 
+    }
+#ifdef TEST_MODE
+    cout<<endl;
+#endif 
+
 
     batchesOut++;
 
@@ -211,10 +214,17 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
     int numTrue=0;
     int numFalse=0;
 
+#ifdef TEST_MODE
+    cout<<"["<<ngram<<"] revieved feedback: ";
+#endif
+
     vector<Spotting>* ret = new vector<Spotting>();
     assert(ids.size()<spottingRes.size());
     for (unsigned int i=0; i< ids.size(); i++)
     {
+#ifdef TEST_MODE
+        cout<<userClassifications[i]<<", ";
+#endif
         int sid = stoi(ids[i]);
         int sindex = spottingIdToIndex[sid];
         int check = starts.erase(sid);
@@ -257,6 +267,9 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
         //    readd cluster
         //}
     }
+#ifdef TEST_MODE
+    cout<<endl;
+#endif
 
     if (numTrue+numFalse==0)
         return ret;
@@ -594,6 +607,8 @@ ClusterBatcher::ClusterBatcher(ifstream& in, PageRef* pageRef, string saveDir)
     {
         spottingRes.emplace_back(in,pageRef);
     }
+    for (int i=0; i<spottingRes.size(); i++)
+        spottingIdToIndex[spottingRes[i].id]=i;
 
     getline(in,line);
     int sz = stoi(line);
@@ -635,24 +650,9 @@ ClusterBatcher::ClusterBatcher(ifstream& in, PageRef* pageRef, string saveDir)
         getline(in,line);
         float a = stof(line);
         getline(in,line);
-        //fix prev error
-        int loc = line.find('.');
-        int s;
-        float rp;
-        if (loc==string::npos)
-        {
-            loc=line.length();
-            //s = stoi(line);
-            //assert(s<spottingRes.size());
-            //getline(in,line);
-            //rp = stof(line);
-        }
-        //else
-        {
-            s = stoi(line.substr(0,loc-1));
-            assert(s<spottingRes.size());
-            rp = stof(line.substr(loc-1));
-        }
+        int s = stoi(line);
+        getline(in,line);
+        int rp = stof(line);
         getline(in,line);
         float ra = stof(line);
         batchTracking.emplace_back(p,a,s,rp,ra);

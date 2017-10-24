@@ -1,7 +1,8 @@
 
 var menuHeaderHeight=50;
 var removeNgramButtonWidth=40;
-var maxImgWidth=700;
+var maxColumns=4
+var maxImgWidth=700;//maxColumns*minWidth;
 //var OK_THRESH=85;
 //var BAD_THRESH=-85;
 
@@ -368,7 +369,7 @@ function handleOnclick(evt){
     
     this.classList.toggle('selected');
     
-    batches[this.batch][this.id]= !batches[this.batch][this.id];
+    batches[this.batch].spottings[this.id]= !batches[this.batch].spottings[this.id];
 }
 
 /*
@@ -518,6 +519,9 @@ function setup() {
     spinner = document.getElementById("spinner");
     var windows = document.getElementsByClassName('window');
     theWindow=windows[0];
+    theWindow.style.maxWidth='100%';
+    theWindow.style.top='0';
+    theWindow.style.padding='50px 0 0 0';
     gradient = document.getElementById("overlay");
     gradient.hidden=true;
     icons = document.getElementById("icons");
@@ -556,10 +560,7 @@ function setup() {
         var dif = y-screenHeight;
         screenHeight=y;
         screenWidth=x;
-        if (screenHeight>700)
-            toBeInQueue=7;
-        else
-            toBeInQueue=4;
+        toBeInQueue=4;
         imgWidth=Math.min(x,maxImgWidth);
         //console.log('resize: '+x+', '+y);
         //SHould this be for all transcriptions, and not just ondeck?
@@ -639,21 +640,26 @@ function closeInstructions(e) {
 
 
 
-function createSpotting(im,id,batchId) {
-    var genDiv = document.createElement("div");
+function createSpotting(im,id,batchId,maxImWidth) {
+    var genDiv = document.createElement("li");
     genDiv.classList.toggle('spotting');
     genDiv.classList.toggle('batchEl');
+    genDiv.style.width=maxImWidth+'px';
+    if (im.width > maxImWidth) {
+        difSide = (im.width-maxImWidth)/2;
+        im.style.margin='0 0 0 -'+difSide+'px'
+    }
     genDiv.appendChild(im);
     genDiv.id=id;
     genDiv.batch=batchId;
     //initSlider(genDiv);
-    genDiv.style.background=spottingColors[colorIndex];
+    //genDiv.style.background=spottingColors[colorIndex];
     genDiv.colorIndex=colorIndex;
     genDiv.addEventListener("webkitAnimationEnd", function(e){if(e.animationName=='collapse') theWindow.removeChild(this);}, false);
     genDiv.addEventListener("animationend", function(e){if(e.animationName=='collapse') theWindow.removeChild(this);}, false);
 
     //Change to 
-    genDiv.addEventListener('onclick', handleOnclick, false);
+    genDiv.addEventListener('click', handleOnclick, false);
     //genDiv.addEventListener('touchstart', handleTouchStart, false);        
     //genDiv.addEventListener('touchmove', handleTouchMove, false);
     //genDiv.addEventListener('touchend', handleTouchEnd, false);
@@ -725,10 +731,6 @@ function handleTranscriptionBatch(jres) {
         location.reload(true);
     } 
     
-    //var wordImg = new Image();
-    //wordImg.src='data:image/png;base64,'+jres.wordImg;
-
-    //theWindow.insertBefore(createTranscriptionSelector('t'+jres.batchId,wordImg,jres.ngrams,jres.possibilities),theWindow.childNodes[0]);
     spinner.hidden=true;
 }
 function handleManualBatch(jres) {
@@ -874,18 +876,23 @@ function showNextBatch() {
     //    oldElement.classList.toggle('batchHeader');
     //    oldElement.classList.toggle('collapserH');
     //}
-    switch (batchQueue[0].type) {
-        case 's':
-            showSpottingsBatch(batchQueue[0]);
-            break;
-        case 't':
-            showTransBatch(batchQueue[0]);
-            break;
-        case 'm':
-            showManBatch(batchQueue[0]);
-            break;
-        default:
-            console.log('ERROR, bad batch type: '+batchQueue[0].type);
+    if (batchQueue.length>0) {
+        switch (batchQueue[0].type) {
+            case 's':
+                showSpottingsBatch(batchQueue[0]);
+                break;
+            case 't':
+                showTransBatch(batchQueue[0]);
+                break;
+            case 'm':
+                showManBatch(batchQueue[0]);
+                break;
+            default:
+                console.log('ERROR, bad batch type: '+batchQueue[0].type);
+        }
+    }
+    else {
+        setTimeout(showNextBatch,2000);
     }
 }
 
@@ -905,14 +912,14 @@ function batchOnclick(evt) {
     else
         document.getElementById('badButton').visibility='hidden';
 
-    this.parent.addEventListener("webkitAnimationEnd", remove, false);
-    this.parent.addEventListener("animationEnd", remove, false);
-    this.parent.classList.toggle('fader');
+    /*this.parentElement.addEventListener("webkitAnimationEnd", remove, false);
+    this.parentElement.addEventListener("animationEnd", remove, false);
+    this.parentElement.classList.toggle('fader');
 
     var header = document.getElementById(this.batchId);
     header.addEventListener("webkitAnimationEnd", remove, false);
     header.addEventListener("animationEnd", remove, false);
-    header.classList.toggle('fader');
+    header.classList.toggle('fader');*/
 
     //draw visual feedback
     for (var spottingId in batches[this.batchId].spottings)
@@ -921,13 +928,14 @@ function batchOnclick(evt) {
             var spotting = document.getElementById(spottingId);
             //spotting.addEventListener("webkitAnimationEnd", function(e){if(e.animationName.substr(0,5)=='flash') theWindow.removeChild(this);}, false);
             //spotting.addEventListener("animationend", function(e){if(e.animationName.substr(0,5)=='flash') theWindow.removeChild(this);}, false);
-            spotting.addEventListener("webkitAnimationEnd", remove, false);
-            spotting.addEventListener("animationend", remove, false);
+            //spotting.addEventListener("webkitAnimationEnd", remove, false);
+            //spotting.addEventListener("animationend", remove, false);
             if (batches[this.batchId].spottings[spottingId])
                 spotting.classList.toggle('flasherGreen');
             else
                 spotting.classList.toggle('flasherRed');
         }
+    document.getElementById(this.batchId).classList.toggle('fader');
 
     batchShiftAndSend(this.batchId,getNextBatch);
 }
@@ -937,45 +945,93 @@ function showSpottingsBatch(batch)
     //theWindow.innerHTML = "";
 
     colorIndex = (++colorIndex)%headerColors.length;
+    var batchDiv = document.createElement("div");
+    batchDiv.id='s'+batch.id;
+    batchDiv.addEventListener("webkitAnimationEnd", remove, false);
+    batchDiv.addEventListener("animationEnd", remove, false);
 
     //header
     var batchHeader = document.createElement("div");
     //batchHeader.classList.toggle('spotting');
     batchHeader.classList.toggle('batchHeader');
-    batchHeader.id='s'+batch.id;
-    batchHeader.classList.toggle('s'+batch.id);
+    //batchHeader.id='s'+batch.id;
+    //batchHeader.classList.toggle('s'+batch.id);
     batchHeader.innerHTML='<div>'+batch.ngram+'</div>';
     batchHeader.style.background=headerColors[colorIndex];
-    theWindow.appendChild(batchHeader,theWindow.childNodes[0]);
+    batchDiv.appendChild(batchHeader);
 
     //spottings
+    var ims=[];
+    //var totalH=0;
+    var holder = {counter:0, totalH:0};
     for (var index=0; index<batch.spottings.length; index++) {
         var i=batch.spottings[index];
-        var im = new Image();
-        im.src='data:image/png;base64,'+i.data;
-        var widget = createSpotting(im,i.id,'s'+batch.batchId);
-        //theWindow.insertBefore(widget,theWindow.childNodes[0]);
-        theWindow.appendChild(widget);
-        batches['s'+batch.id].spottings[i.id]=true;
+        ims[index] = new Image();
+        holder.index=index;
+        ims[index].onload =finishShowSpottingsBatch(index,batch,holder,ims,batchDiv);
+        ims[index].src='data:image/png;base64,'+i.data;
     }
+}
+function finishShowSpottingsBatch(index,batch,h,ims,batchDiv)
+{
+    return function() {
+        h.totalH+=ims[h.index].height;
+        //console.log((1+h.counter)+' / '+batch.spottings.length);
+        if (++h.counter == batch.spottings.length)
+        {
+            windowH=screenHeight-100;
+            var cols = Math.min(Math.ceil((h.totalH+0.0)/windowH),maxColumns);
+            var batchMaxWidth = (screenWidth/cols)-6;//-6 for padding (3+3)
 
-    //buttons
-    var buttonBar = document.createElement("div");
-    var goodButton = document.createElement("button");
-    goodButton.id='goodButton';
-    goodButton.batchId='s'+batch.id;
-    goodButton.innerHTML='good';
-    goodButton.addEventListener('onclick', batchOnclick, false);
-    buttonBar.appendChild(goodButton);
+            var list = document.createElement("ul");
+            list.classList.toggle('list');
+            //list.style.width=theWindow.clientWidth+'px';
+            for (var index=0; index<batch.spottings.length; index++) {
+                var i=batch.spottings[index];
+                var widget = createSpotting(ims[index],i.id,'s'+batch.id,batchMaxWidth);
+                //theWindow.insertBefore(widget,theWindow.childNodes[0]);
+                list.appendChild(widget);
+                batches['s'+batch.id].spottings[i.id]=true;
+            }
+            batchDiv.appendChild(list);
 
-    var badButton = document.createElement("button");
-    badButton.id='badButton';
-    badButton.batchId='s'+batch.id;
-    badButton.innerHTML='bad';
-    badButton.addEventListener('onclick', batchOnclick, false);
-    buttonBar.appendChild(badButton);
+            //buttons
+            var buttonBar = document.createElement("div");
+            var pre = document.createElement("span");
+            pre.innerHTML=batch.ngram+': The unmarked are ';
+            pre.style.background=headerColors[colorIndex];
+            buttonBar.appendChild(pre);
 
-    theWindow.appendChild(buttonBar);
+            var goodButton = document.createElement("button");
+            goodButton.id='goodButton';
+            goodButton.batchId='s'+batch.id;
+            goodButton.innerHTML='good';
+            goodButton.addEventListener('click', batchOnclick, false);
+            buttonBar.appendChild(goodButton);
+
+            var badButton = document.createElement("button");
+            badButton.id='badButton';
+            badButton.batchId='s'+batch.id;
+            badButton.innerHTML='bad';
+            badButton.addEventListener('click', batchOnclick, false);
+            buttonBar.appendChild(badButton);
+
+            batchDiv.appendChild(buttonBar);
+            theWindow.insertBefore(batchDiv,theWindow.firstChild);
+        }
+    }
+}
+
+function showTransBatch(batch) {
+    var wordImg = new Image();
+    wordImg.onload = function() {theWindow.insertBefore(createTranscriptionSelector('t'+batch.id,wordImg,batch.ngrams,batch.possibilities),theWindow.firstChild);};
+    wordImg.src='data:image/png;base64,'+batch.image;
+}
+
+function showManBatch(batch) {
+    var wordImg = new Image();
+    wordImg.onload = function() {theWindow.insertBefore(createManualTranscriptionSelector('m'+batch.id,wordImg,batch.ngrams,batch.possibilities),theWindow.firstChild);};
+    wordImg.src='data:image/png;base64,'+batch.image;
 }
 /*function highlightLast() {
     var spottings = theWindow.getElementsByClassName('batchEl');
@@ -1028,19 +1084,6 @@ function classify(id,word) {
 }
 function classifyR(id,vFunc) {
     return function(ele) {
-        if (!ondeck)
-            highlightLast();
-        lastRemovedEle.push(ondeck);
-        
-        if (lastRemovedEle.length>10) {
-            var removed=lastRemovedEle.shift();
-            //console.log('removed, of batch: '+removed.batch);
-            if (lastRemovedEle[0].batch!=lastRemovedBatchInfo[0].type+lastRemovedBatchInfo[0].id) {
-                //console.log('removing batch info of: '+lastRemovedBatchInfo[0].type+lastRemovedBatchInfo[0].id);
-                lastRemovedBatchInfo.shift();
-                //console.log(lastRemovedBatchInfo.length)
-            }
-        }
         if (batchQueue[0].type!='t' && batchQueue[0].type!='m') {
             console.log('ERROR, wrong inst in batchQueue');
             console.log(batchQueue);
@@ -1050,7 +1093,9 @@ function classifyR(id,vFunc) {
         //ondeck.classList.toggle('collapser');
         //isBatchDone(id);
         //highlightLast();
-        batchShiftAndSend(batchId,getNextBatch);
+        //document.getElementById(??).classList.toggle('fader');
+        theWindow.innerHTML='';
+        batchShiftAndSend(id,getNextBatch);
     };
 }
 
@@ -1101,7 +1146,8 @@ function makeTranscriptionDiv(id,wordImg,ngrams) {
         adjustChain(chain);
 
         var ngramDiv = document.createElement("div");
-        ngramDiv.classList.toggle('meat');
+        ngramDiv.style.width = maxImgWidth+'px';
+        //ngramDiv.classList.toggle('meat');
         ngramDiv.classList.toggle('spotteds');
         for (var i=0; i<ngrams.length; i++) {
             var ngramP = ngrams[i];
@@ -1215,7 +1261,7 @@ function createManualTranscriptionSelector(id,wordImg,ngrams,possibilities) {
     //    totalHeight += 75;//ngramDiv.offsetHeight;//ngramImg.height;
     var possDiv = document.createElement("div");
     possDiv.classList.toggle('selections');
-    possDiv.classList.toggle('meat');
+    //possDiv.classList.toggle('meat');
     //type box
     var input = document.createElement('input');
     input.id='in_'+id;
@@ -1265,8 +1311,9 @@ function createTranscriptionSelector(id,wordImg,ngrams,possibilities) {
     var totalHeight = wordImg.height + 75;//ngramDiv.offsetHeight;//ngramImg.height;
     var selectionDiv = document.createElement("div");
     selectionDiv.classList.toggle('selections');
-    selectionDiv.classList.toggle('meat');
+    //selectionDiv.classList.toggle('meat');
     selectionDiv.style.height = (screenHeight - totalHeight - menuHeaderHeight)+'px';
+    selectionDiv.style.width = maxImgWidth+'px';
     addWordButtons(selectionDiv,possibilities,id);
 
 
@@ -1287,7 +1334,7 @@ function pass() {
     //if (!ondeck)
     //    highlightLast();
     var curBatch = batchQueue[0];
-    if (curBatch.type=='s' || curBatch=='m') {
+    if (curBatch.type=='t' || curBatch=='m') {
         classify(curBatch.type+curBatch.id,'$PASS$')();
     } else if (curBatch.type=='s') {
         var bid = 's'+curBatch.id;
@@ -1295,8 +1342,8 @@ function pass() {
             if (batches[bid].spottings.hasOwnProperty(spottingId))
                 batches[bid].spottings[spottingId] = -1;
         
+        theWindow.innerHTML='';
         batchShiftAndSend(bid,getNextBatch);
-        
     }
 }
 

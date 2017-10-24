@@ -314,7 +314,7 @@ button {
 }
 
 .window {
-    background: #cc99ff;
+    background: #380B61;
     max-width: 700px;
     width: 100%;
     /*position: relative;*/
@@ -347,10 +347,7 @@ button {
     z-index: 3;
     text-align: center;
     border-width:0px;
-    
-    
-    pointer-events: none;
-    touch-action: none;
+    pointer-events: all;
 }
 
 .spotting img {
@@ -361,7 +358,7 @@ button {
     position: relative;
       left: 0;
 }
-.spotting .selected img {
+.selected img {
     filter: brightness(70%);
 }
 
@@ -541,32 +538,32 @@ div.selection.error {
 }
 
 .fader {
-    animation-duration: 0.3s;
+    animation-duration: 0.4s;
     animation-name: fade;
-    -webkit-animation-duration: 0.3s;
+    -webkit-animation-duration: 0.4s;
     -webkit-animation-name: fade;
 }
 .flashGreen {
     background: green;
-    animation-duration: 0.3s;
-    animation-name: fade;
-    -webkit-animation-duration: 0.3s;
-    -webkit-animation-name: fade;
+}
+.flashGreen img {
+    filter: hue-rotate(60deg);
 }
 .flashRed {
     background: red;
-    animation-duration: 0.3s;
-    animation-name: fade;
-    -webkit-animation-duration: 0.3s;
-    -webkit-animation-name: fade;
+}
+.flashRed img {
+    filter: hue-rotate(-40deg);
 }
 @keyframes fade {
-    from {opacity:1;}
-    to   {opacity:0;}
+    0% {opacity:1;}
+    80% {opacity:0.8;}
+    100%   {opacity:0;}
 }
 @-webkit-keyframes fade {
-    from {opacity:1;}
-    to   {opacity:0;}
+    0% {opacity:1;}
+    80% {opacity:0.8;}
+    100%   {opacity:0;}
 }
 
 
@@ -619,6 +616,34 @@ div.selection.error {
 .batchHeader.ondeck {
     height:80px !important;
     font-size: 30px;
+}
+
+ul {
+    overflow:hidden;
+    padding-left: 0;
+    list-style: none;
+    display: -webkit-box;
+    display: -moz-box;
+    display: -ms-flexbox;
+    display: -moz-flex;
+    display: -webkit-flex;
+    display: flex;
+
+    flex-wrap: wrap;
+}
+
+li {
+    float:left;
+    display:inline;
+    overflow:hidden;
+    margin: 0 3px 0 3px;
+}
+
+
+span {
+    float: left;
+    font-size: 28px;
+    padding-left: 4px;
 }
 
 

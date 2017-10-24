@@ -89,7 +89,7 @@ var contextPad=contextPads[datasetNum];
 //var avgCharWidth=avgCharWidths[datasetNum];
 var ngramWWFile=ngramWWFiles[datasetNum];
 var spottingModelPrefix=spottingModelPrefixes[datasetNum];
-var savePrefix="save/net_"+datasetName+'_mode';
+var savePrefix="save/net_"+datasetName+'_'+mode;
 var numThreadsSpotting=5;
 var numThreadsUpdating=3;
 var showWidth=2500;
@@ -270,7 +270,7 @@ var ControllerApp = function(port) {
                 //res.send(self.cache_get('app.html') );
                 var appName = "app_full";
                 if (!saveMode)
-                    res.render(appName, {app_version:useAppName, testMode:false, trainMode:false, save:saveMode, message: req.flash('error') });
+                    res.render(appName, {app_version:useAppName, testMode:false, trainMode:false, save:saveMode, minWidth:self.minWidth, message: req.flash('error') });
                 else
                     res.redirect('/');
             } else {
@@ -281,7 +281,7 @@ var ControllerApp = function(port) {
             //if (debug) {
                 var appName = "app_full";
                 if (!saveMode)
-                    res.render(appName, {app_version:useAppName, testMode:false, trainMode:true, save:false, message: req.flash('error') });
+                    res.render(appName, {app_version:useAppName, testMode:false, trainMode:true, save:false, minWidth:self.minWidth, message: req.flash('error') });
                 else
                     res.redirect('/');
             //} else {
@@ -293,7 +293,7 @@ var ControllerApp = function(port) {
 
                 var appName = 'app_prep';
                 if (!saveMode)
-                    res.render(appName, {app_version:'app_prep', testMode:false, trainMode:false, save:saveMode, message: req.flash('error') });
+                    res.render(appName, {app_version:'app_prep', testMode:false, trainMode:false, save:saveMode, minWidth:self.minWidth, message: req.flash('error') });
                 else
                     res.redirect('/');
             } else {
@@ -321,7 +321,7 @@ var ControllerApp = function(port) {
                 //res.send(self.cache_get('app.html') );
                 var appName = "app_full";
                 if (!saveMode)
-                    res.render(appName, {app_version:useAppName, testMode:false, trainMode:false, save:false, message: req.flash('error') });
+                    res.render(appName, {app_version:useAppName, testMode:false, trainMode:false, save:false, minWidth:self.minWidth, message: req.flash('error') });
                 else
                     res.redirect('/');
             } else {
@@ -333,7 +333,7 @@ var ControllerApp = function(port) {
                 if (req.user.datasetTiming && !saveMode) {
                     //console.log('[app] user:'+req.user.id+' hit app');
                     var appName = "app_full";
-                    res.render(appName, {app_version:useAppName, testMode:timingTestMode, trainMode:trainUsers, save:false, message: req.flash('error') });
+                    res.render(appName, {app_version:useAppName, testMode:timingTestMode, trainMode:trainUsers, save:false, minWidth:self.minWidth, message: req.flash('error') });
                 } else {
                     res.redirect('/home');
                 }
@@ -346,7 +346,7 @@ var ControllerApp = function(port) {
                 //console.log('[app] user:'+req.user.id+' hit app');
                 var appName = "app_full";
                 if (saveMode)
-                    res.render(appName, {app_version:useAppName, testMode:false, trainMode:false, save:true, message: req.flash('error') });
+                    res.render(appName, {app_version:useAppName, testMode:false, trainMode:false, save:true, minWidth:self.minWidth, message: req.flash('error') });
                 else
                     res.redirect('/home');
             } else {
@@ -358,7 +358,7 @@ var ControllerApp = function(port) {
                 //console.log('[app] user:'+req.user.id+' hit app');
                 var appName = "app_full";
                 if (saveMode)
-                    res.render(appName, {app_version:useAppName, testMode:false, trainMode:false, save:false, message: req.flash('error') });
+                    res.render(appName, {app_version:useAppName, testMode:false, trainMode:false, save:false, minWidth:self.minWidth, message: req.flash('error') });
                 else
                     res.redirect('/home');
             } else {
@@ -972,7 +972,7 @@ var ControllerApp = function(port) {
             for (var i=1; i<3; i++)
             {
                 //spottingaddons[datasetNames[i]]=require("./cpp/build/Debug/spottingaddon");
-                spottingaddon.loadTestingCorpus(
+                self.minWidth=spottingaddon.loadTestingCorpus(
                                     datasetNames[i],
                                     pageImageDirs[i],
                                     segmentationFiles[i],
@@ -981,7 +981,7 @@ var ControllerApp = function(port) {
             }
 
         } else { 
-            spottingaddon.start(lexiconFile,
+            self.minWidth=spottingaddon.start(lexiconFile,
                                 pageImageDir,
                                 segmentationFile,
                                 spottingModelPrefix,

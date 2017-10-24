@@ -131,7 +131,7 @@ CATTSS::CATTSS( string lexiconFile,
         corpus->loadSpotter(spottingModelPrefix);
         CorpusRef* corpusRef = corpus->getCorpusRef();
         PageRef* pageRef = corpus->getPageRef();
-        masterQueue = new MasterQueue(in,corpusRef,pageRef,savePrefix+"_CATTSS.sav");
+        masterQueue = new MasterQueue(in,corpusRef,pageRef,savePrefix);
         spottingQueue = new SpottingQueue(in,masterQueue,corpus);
 
         if (GlobalK::knowledge()->WEB_TRANS)
@@ -274,7 +274,7 @@ CATTSS::CATTSS( string lexiconFile,
                     vector<string> n = {ngram};
                     vector<SpottingLoc> massSpottingRes = corpus->massSpot(n,crossScores);
                     vector<Spotting> spottings;
-                    int tC=0;
+                    //int tC=0;
                     for (const SpottingLoc& s : massSpottingRes)
                     {
                         Knowledge::Word* word = corpus->getWord(s.imIdx);
@@ -285,6 +285,7 @@ CATTSS::CATTSS( string lexiconFile,
                         word->getBoundsAndDoneAndGT(&tlx,&tly,&brx,&bry,&done,&label);
                         brx=std::min(tlx+s.endX,brx);
                         tlx+=s.startX;
+                        
                         if (label.find(ngram) != string::npos)
                         {
 #if defined(TEST_MODE) || defined(NO_NAN)
@@ -293,8 +294,9 @@ CATTSS::CATTSS( string lexiconFile,
                             gt = -1;
 #endif
                         }
-                        if (gt>0)
-                            tC++;
+                        //if (gt>0)
+                        //    tC++;
+                            
                        
                         spottings.emplace_back(tlx,tly,brx,bry,word->getPageId(),word->getPage(),ngram,gt,s.imIdx,s.startX);
                         spottings.back().scoreQbS=s.score();

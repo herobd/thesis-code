@@ -42,7 +42,7 @@
 #define MAX_BATCH_SIZE 15
 
 #define MANUAL_ONLY 0
-#define NO_ERROR 1
+#define NO_ERROR 0
 
 #define PHOC_TRANS_TOP 10
 
@@ -99,7 +99,7 @@ class GlobalK
 
         map<int, vector<string> > ngramRanks;
         //int contextPad;
-#ifdef NO_NAN
+#if defined(NO_NAN)
         atomic_int badPrunes;
         atomic_int transSent;
         atomic_int transBadBatch;
@@ -126,7 +126,8 @@ class GlobalK
         map<string, vector<float> > spottingOthers;
         
         map<string, vector<SubwordSpottingResult>*> accumRes;
-
+#endif
+#if defined(NO_NAN) || defined(TEST_MODE)
         mutex xLock;
         const vector< vector<int> >* corpusXLetterStartBounds;
         const vector< vector<int> >* corpusXLetterEndBounds;
@@ -162,7 +163,7 @@ class GlobalK
                 return 20;
         }
 
-#ifdef NO_NAN
+#if defined(NO_NAN)
         void setSimSave(string file);
         void sentSpottings();
         void sentTrans();
@@ -177,7 +178,14 @@ class GlobalK
         void saveTrack(float accTrans, float pWordsTrans, float pWords80_100, float pWords60_80, float pWords40_60, float pWords20_40, float pWords0_20, float pWords0, float pWordsBad, string misTrans,
                        float accTrans_IV, float pWordsTrans_IV, float pWords80_100_IV, float pWords60_80_IV, float pWords40_60_IV, float pWords20_40_IV, float pWords0_20_IV, float pWords0_IV, string misTrans_IV);
         void writeTrack();       
+        void storeSpottingAccum(string ngram, float ap, int dif);
+        void storeSpottingExemplar(string ngram, float ap);
+        void storeSpottingNormal(string ngram, float ap);
+        void storeSpottingOther(string ngram, float ap);
+        vector<SubwordSpottingResult>* accumResFor(string ngram);
+#endif
 
+#if defined(TEST_MODE) || defined(NO_NAN)
         void setCorpusXLetterBounds(const vector< vector<int> >* start, const vector< vector<int> >* end, const vector<string>* words)
         {
             corpusXLetterStartBounds=start;
@@ -191,17 +199,10 @@ class GlobalK
         }
         const vector< vector<int> >* getCorpusXLetterStartBounds() {xLock.lock(); xLock.unlock(); return corpusXLetterStartBounds;}
         const vector< vector<int> >* getCorpusXLetterEndBounds() {xLock.lock(); xLock.unlock(); return corpusXLetterEndBounds;}
-        void storeSpottingAccum(string ngram, float ap, int dif);
-        void storeSpottingExemplar(string ngram, float ap);
-        void storeSpottingNormal(string ngram, float ap);
-        void storeSpottingOther(string ngram, float ap);
-        vector<SubwordSpottingResult>* accumResFor(string ngram);
-#endif
 
        
-#if defined(TEST_MODE) || defined(NO_NAN)
-        bool ngramAt(string ngram, int pageId, int tlx, int tly, int brx, int bry);
-        bool ngramAt_word(string ngram, int wordId, int startX, int endX);
+        int ngramAt(string ngram, int pageId, int tlx, int tly, int brx, int bry);
+        int ngramAt_word(string ngram, int wordId, int startX, int endX);
         map<int, multiset<WordBound,tlyComp> > wordBounds;//pageId -> set of words
         void addWordBound(string word, int pageId, int tlx, int tly, int brx, int bry, vector<int> startBounds, vector<int> endBounds);
 #endif

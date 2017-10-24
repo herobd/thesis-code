@@ -343,7 +343,7 @@ NAN_METHOD(start) {
                         width,
                         milli,
                         contextPad);
-                        
+    info.GetReturnValue().Set(cattss->getMaxImageWidth());
 }
 NAN_METHOD(stopSpotting) {
     Callback *callback = new Callback(info[0].As<Function>());
@@ -367,6 +367,8 @@ NAN_METHOD(loadTestingCorpus) {
     testingCorpi[datasetName] = new Knowledge::Corpus(contextPad,ngramWWFile);
     testingCorpi[datasetName]->addWordSegmentaionAndGT(pageImageDir, segmentationFile);
     testingInstances[datasetName]=new TestingInstances(testingCorpi[datasetName],contextPad);
+
+    info.GetReturnValue().Set(testingCorpi[datasetName]->getMaxImageWidth());
 }
 
 NAN_METHOD(loadLabeledSpotting) {

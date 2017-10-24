@@ -503,6 +503,7 @@ private:
 
     int minWordImageLen, maxWordImageLen;
     string name;
+    int maxImageWidth;
 
 public:
     Corpus(int contextPad, string ngramWWFile, vector<string>* ngrams=NULL);
@@ -573,6 +574,7 @@ public:
     string getName() const {return name;}
     Spotting wrapSpotting(int imIdx, int startX, int endX, float score, string ngram);
     vector<SpottingLoc> massSpot(const vector<string>& ngrams, Mat& crossScores);
+    int getMaxImageWidth() {return maxImageWidth;}
 };
 
 }

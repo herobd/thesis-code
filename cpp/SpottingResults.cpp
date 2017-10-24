@@ -277,9 +277,9 @@ int SpottingResults::setDebugInfo(SpottingsBatch* b)
         assert(instancesById.find(iter->second) != instancesById.end());
         Spotting& spotting = instancesById.at(iter->second);
         float score=spotting.score(useQbE);
-        bool t=false;
+        int t=0;
         if (spotting.gt==1)
-            t=true;
+            t=1;
         else if (spotting.gt!=0)
         {
             t = GlobalK::knowledge()->ngramAt(ngram, spotting.pageId, spotting.tlx, spotting.tly, spotting.brx, spotting.bry);
@@ -317,36 +317,36 @@ int SpottingResults::setDebugInfo(SpottingsBatch* b)
         if (atPull)
         {
             countAtPull++;
-            precAtPull+=t?1:0;
+            precAtPull+=t==1?1:0;
         }
         if (acceptT)
         {
             countAcceptT++;
-            precAcceptT+=t?1:0;
+            precAcceptT+=t==1?1:0;
         }
         if (rejectT)
         {
             countRejectT++;
-            precRejectT+=t?1:0;
+            precRejectT+=t==1?1:0;
         }
         if (betweenT)
         {
             countBetweenT++;
-            precBetweenT+=t?1:0;
+            precBetweenT+=t==1?1:0;
         }
         if (!acceptT && atPull)
         {
-            if (t)
+            if (t==1)
                 tBetBefore++;
-            else
+            else if (t==0)
                 fBetBefore++;
         }
 
         if (!rejectT && !atPull)
         {
-            if (t)
+            if (t==1)
                 tBetAfter++;
-            else
+            else if (t==0)
                 fBetAfter++;
         }
 #ifdef GRAPH_SPOTTING_RESULTS

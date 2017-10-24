@@ -14,17 +14,24 @@ Knowledge::Corpus::Corpus(int contextPad, string ngramWWFile, vector<string>* ng
     string line;
     float sum=0;
     int count=0;
+    maxImageWidth=0;
     while (getline(widths,line))
     {
         if (ngrams!=NULL)
             ngrams->push_back(GlobalK::lowercaseAndStrip(line));
         getline(widths,line);
-        sum+=stoi(line);
-        count++;
+        int w=stoi(line);
+        sum+=w;
+        maxImageWidth = max(maxImageWidth,w);
+        count+=ngrams->back().length();
         getline(widths,line);
     }
+    maxImageWidth*=1.2;
     widths.close();
     averageCharWidth=sum/count;
+#ifdef TEST_MODE
+    cout<<"Average character width: "<<averageCharWidth<<endl;
+#endif
     countCharWidth=0;
     threshScoring= 1.0;
     manQueue.setContextPad(contextPad);
@@ -157,7 +164,7 @@ Mat drawCPV(Mat cpv, Mat image, float netScale)
 vector<TranscribeBatch*> Knowledge::Corpus::cpvTransCTC(float keep, const vector<string>& ngrams)
 {
 #ifdef TEST_MODE
-    ofstream dout(DEBUG_DIR+"/topTrans.txt");
+    ofstream dout(DEBUG_DIR+string("/topTrans.txt"));
 #endif
     spotter->setNgrams(ngrams);
     //join
@@ -191,8 +198,8 @@ vector<TranscribeBatch*> Knowledge::Corpus::cpvTransCTC(float keep, const vector
         }
         */
 #ifdef TEST_MODE
-        Mat draw = drawCPV(cpv,getWord(i)->getImg(),0.25);
-        imwrite(DEBUG_DIR+"/cpv"+to_string(i)+".png",draw);
+        //Mat draw = drawCPV(cpv,getWord(i)->getImg(),0.25);
+        //imwrite(DEBUG_DIR+string("/cpv")+to_string(i)+".png",draw);
         //imshow("cpv",draw);
 #endif
         multimap<float,string> topMatches;// = Lexicon::instance()->ctc(cpv,THRESH_SCORING_COUNT);
@@ -3607,6 +3614,7 @@ void Knowledge::Corpus::save(ofstream& out)
     //string saveName = savePrefix+"_Corpus.sav";
     //ofstream out(saveName);
     out<<"CORPUS"<<endl;
+    out<<name<<endl;
     out<<averageCharWidth<<"\n"<<countCharWidth<<"\n"<<threshScoring<<"\n";
     pthread_rwlock_rdlock(&pagesLock);
     out<<"minmax\n"<<minWordImageLen<<"\n"<<maxWordImageLen<<endl;
@@ -3647,6 +3655,7 @@ void Knowledge::Corpus::save(ofstream& out)
     //just call recreateDatasetVectors
     //out.close();
     out<<ngramWWFile<<endl;
+    out<<maxImageWidth<<endl;
 }
 
 Knowledge::Corpus::Corpus(ifstream& in)
@@ -3660,6 +3669,7 @@ Knowledge::Corpus::Corpus(ifstream& in)
     string line;
     getline(in,line);
     assert(line.compare("CORPUS")==0);
+    getline(in,name);
     getline(in,line);
     averageCharWidth = stof(line);
     getline(in,line);
@@ -3723,6 +3733,8 @@ Knowledge::Corpus::Corpus(ifstream& in)
     delete cr;
 
     getline(in,ngramWWFile);
+    getline(in,line);
+    maxImageWidth=stoi(line);
 
     //in.close();
 }
