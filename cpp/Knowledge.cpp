@@ -4,7 +4,7 @@
 int Knowledge::Page::_id=0;
 atomic_uint Knowledge::Word::_id(0);
 
-Knowledge::Corpus::Corpus(int contextPad, string ngramWWFile, vector<string>* ngrams) : ngramWWFile(ngramWWFile)  //int averageCharWidth) 
+Knowledge::Corpus::Corpus(int contextPad, string ngramWWFile, set<string>* ngrams) : ngramWWFile(ngramWWFile)  //int averageCharWidth) 
 {
     pthread_rwlock_init(&pagesLock,NULL);
     pthread_rwlock_init(&spottingsMapLock,NULL);
@@ -17,13 +17,14 @@ Knowledge::Corpus::Corpus(int contextPad, string ngramWWFile, vector<string>* ng
     maxImageWidth=0;
     while (getline(widths,line))
     {
+        string ngram = GlobalK::lowercaseAndStrip(line);
         if (ngrams!=NULL)
-            ngrams->push_back(GlobalK::lowercaseAndStrip(line));
+            ngrams->insert(ngram);
         getline(widths,line);
         int w=stoi(line);
         sum+=w;
         maxImageWidth = max(maxImageWidth,w);
-        count+=ngrams->back().length();
+        count+=ngram.length();
         getline(widths,line);
     }
     maxImageWidth*=1.2;
@@ -3179,7 +3180,7 @@ void Knowledge::Corpus::showProgress(int height, int width)
                 }
             }
         }
-        cv::resize(workingIm,workingIm,cv::Size(),resizeScale,resizeScale);
+        cv::resize(workingIm,workingIm,cv::Size(workingIm.cols*resizeScale,workingIm.rows*resizeScale));
         //cout <<"page dims: "<<workingIm.rows<<", "<<workingIm.cols<<"  at: "<<xPos<<", "<<yPos<<endl;
         //cv::imshow("test",workingIm);
         //cv::waitKey();

@@ -137,7 +137,7 @@ MasterQueue::MasterQueue(int contextPad, string savePre) : contextPad(contextPad
     addSpottingResults(r0);*/
 #if ROTATE 
     testIter=0;	
-    test_rotate=0;
+    rotate_pos=0;
 #endif
     //addTestSpottings();
     //accuracyAvg= recallAvg= manualAvg= effortAvg= 0;
@@ -348,10 +348,10 @@ BatchWraper* MasterQueue::getBatch(unsigned int numberOfInstances, bool hard, un
 
 SpottingsBatch* MasterQueue::getSpottingsBatch(unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need) 
 {
-    //TODO, not use prevNgram?
     if (GlobalK::knowledge()->CLUSTER)
     {
-        return _getSpottingsBatch<ClusterBatcher>(clusterBatchersQueue,numberOfInstances,hard,maxWidth,color,prevNgram,need);
+        //we don't enforce using the same ngram as previous
+        return _getSpottingsBatch<ClusterBatcher>(clusterBatchersQueue,numberOfInstances,hard,maxWidth,color,".",need);
     }
     else
     {
@@ -399,12 +399,20 @@ SpottingsBatch* MasterQueue::_getSpottingsBatch(map<unsigned long, pair<sem_t*,T
 #if ROTATE
         int test_loc=0;
         pthread_rwlock_rdlock(&semRotate);
-        int use_test_rotate=test_rotate;
-        if (test_rotate>=2*(batcherQueue.size()-1))
-            use_test_rotate=0;
-        for (; iter!=batcherQueue.end(); iter++,indexHolder++)
-            if (test_loc++>=use_test_rotate/2 - 1) //TODO add var to control
-                break;
+        int use_rotate_pos=rotate_pos;
+        if (rotate_pos>BEFORE_ROT*batcherQueue.size())
+            use_rotate_pos=0;//in case elements are removed from the queue
+        //for (; iter!=batcherQueue.end(); iter++,indexHolder++)
+        //    if (++test_loc>use_rotate_pos/2) //TODO add var to control
+        //        break;
+
+        //rotate_pos actually holds position in an extended rot space
+        
+        for (int use=0; use<use_rotate_pos/BEFORE_ROT; use++)
+        {
+            iter++;
+            indexHolder++;
+        }
         assert(iter!=batcherQueue.end());
         pthread_rwlock_unlock(&semRotate);
 #endif
@@ -427,9 +435,20 @@ SpottingsBatch* MasterQueue::_getSpottingsBatch(map<unsigned long, pair<sem_t*,T
 #if ROTATE
             int qSize = batcherQueue.size();
             pthread_rwlock_wrlock(&semRotate);
-            if (test_rotate++>2*(qSize-1))
-                test_rotate=0;
-            //cout<<"rotated to "<<test_rotate<<endl;
+#if LARGE_ROT
+            if ((1+rotate_pos)%BEFORE_ROT==0)
+            {
+                int largeStep=qSize/5;
+                while (qSize%largeStep==0 && largeStep!=1)
+                    largeStep--;
+                rotate_pos=(rotate_pos+largeStep-1)%(BEFORE_ROT*qSize);
+                //TODO ensure %VEFORE==0
+                ??
+            }
+#endif
+            if (++rotate_pos>BEFORE_ROT*qSize)
+                rotate_pos=0;
+            //cout<<"rotated to "<<rotate_pos<<endl;
             pthread_rwlock_unlock(&semRotate);
 #endif
             //test
@@ -598,7 +617,13 @@ vector<Spotting>* MasterQueue::_feedback(map<unsigned long, pair<sem_t*,T*> >& b
         sem_wait(sem);
         int done=0;
         //cout <<"res feedback"<<endl;
+#ifdef AUTO_APPROVE
+        map<string,vector<Spotting> > forAutoApproval;
+        ret = res->feedback(&done,ids,userClassifications,resent,remove,&forAutoApproval);
+        autoApprove(batchers,forAutoApproval,ret);
+#else
         ret = res->feedback(&done,ids,userClassifications,resent,remove);
+#endif
         //cout <<"END res feedback"<<endl;
         sem_post(sem);
         
@@ -624,6 +649,38 @@ vector<Spotting>* MasterQueue::_feedback(map<unsigned long, pair<sem_t*,T*> >& b
         pthread_rwlock_unlock(&semResults);
     }
     return ret;
+}
+
+template <class T>
+void MasterQueue::autoApprove(map<unsigned long, pair<sem_t*,T*> >& batchers, map<string,vector<Spotting> >& forAutoApproval, vector<Spotting>* ret)
+{
+    map<string, pair<sem_t*,T*> > neededBatchers;
+
+    pthread_rwlock_rdlock(&semResults);
+    for (auto p : batchers)
+    {
+        for (auto& p2 : forAutoApproval)
+        {
+            if (p2.first.compare(p.second.second->ngram)==0)
+            {
+                neededBatchers[p2.first]=p.second;
+                break;
+            }
+        }
+    }
+    pthread_rwlock_unlock(&semResults);
+
+    for (auto& p2 : forAutoApproval)
+    {
+        if (neededBatchers.find(p2.first) != neededBatchers.end())
+        {
+            sem_t* sem=neededBatchers[p2.first].first;
+            T* res = neededBatchers[p2.first].second;
+            sem_wait(sem);
+            res->autoApprove(p2.second,ret);
+            sem_post(sem);
+        }
+    }
 }
 
 /*void MasterQueue::addSpottingResults(SpottingResults* res, bool hasSemResults, bool toQueue)
@@ -903,7 +960,7 @@ MasterQueue::MasterQueue(ifstream& in, CorpusRef* corpusRef, PageRef* pageRef, s
 #if ROTATE
     pthread_rwlock_init(&semRotate,NULL);
     testIter=0;	
-    test_rotate=0;
+    rotate_pos=0;
 #endif
     kill.store(false);
     

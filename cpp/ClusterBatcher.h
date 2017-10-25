@@ -49,8 +49,8 @@ public:
 
     SpottingsBatch* getBatch(int* done, unsigned int num, bool hard, unsigned int maxWidth,int color,string prevNgram, bool need=true);
     
-    vector<Spotting>* feedback(int* done, const vector<string>& ids, const vector<int>& userClassifications, int resent=false, vector<pair<unsigned long,string> >* retRemove=NULL);
-    
+    vector<Spotting>* feedback(int* done, const vector<string>& ids, const vector<int>& userClassifications, int resent=false, vector<pair<unsigned long,string> >* retRemove=NULL, map<string,vector<Spotting> >* forAutoApproval=NULL);
+    void autoApprove(vector<Spotting> toApprove, vector<Spotting>* ret);
     bool checkIncomplete();
 
     unsigned long getId() {return id;}

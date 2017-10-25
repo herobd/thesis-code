@@ -803,7 +803,7 @@ void SpottingResults::resetRunningClassifications()
     runningClassifications.clear();
 }
 
-vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long,string> >* retRemove)
+vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long,string> >* retRemove, map<string,vector<Spotting> >* forAutoApproval)
 {
     //debugState();
     /*cout << "fed: ";
@@ -877,6 +877,20 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
                 ret->push_back(instancesById.at(id)); //otherwise we've already sent it
             }
             classById[id]=true;
+
+#ifdef AUTO_APPROVE
+            for (int subLen=ngram.length()-1; subLen>0; subLen--)
+            {
+                for (int subPos=0; subPos<=ngram.length()-subLen; subPos++)
+                {
+                    string sub = ngram.substr(subPos,subLen);
+                    int width = (instancesById.at(id).brx-instancesById.at(id).tlx+1)*subLen/(0.0+ngram.length());
+                    int xStart = width*subPos + instancesById.at(id).brx;
+                    int xEnd = xStart+width-1;
+                    (*forAutoApproval)[sub].emplace_back(instancesById.at(id).pageId,xStart,instancesById.at(id).tly,xEnd,instancesById.at(id).bry,instancesById.at(id).wordId);
+                }
+            }
+#endif
         }
         else if (userClassifications[i]==0)
         {
@@ -2323,6 +2337,30 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
     return false;
 }
 #endif
+
+
+void SpottingResults::autoApprove(vector<Spotting> toApprove, vector<Spotting>* ret)
+{
+    for (auto iter=instancesByScore.begin(); iter!=instancesByScore.end(); iter++)
+    {
+        Spotting& s = instancesById[iter->second];
+        for (auto bounds=toApprove.begin(); bounds!=toApprove.end(); bounds++)
+        {
+            if (s.wordId==bounds->wordId && (min(s.brx,bounds->brx)-max(s.tlx,bounds->tlx))/(s.brx-s.tlx) > AUTO_APPROVE_THRESH)
+            {
+                //approve(s);
+                s.type=SPOTTING_TYPE_AUTO_APPROVED;
+                ret->push_back(s);
+                instancesByScore.erase(iter);
+                classById[s.id]=true;
+                //
+                toApprove.erase(bounds);
+            }
+        }
+        if (toApprove.size()==0)
+            break;
+    }
+}
 
 void SpottingResults::save(ofstream& out)
 {

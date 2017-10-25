@@ -737,3 +737,16 @@ span {
     max-width: 50%;
     opacity: 0.75;
 }*/
+
+.skipinstruct {
+    float: none;
+    position: absolute;
+    z-index: 2;
+    font-size: 20px;
+    color: ghostwhite;
+    display: none;
+}
+
+.setForSkip .skipinstruct {
+    display: block;
+}

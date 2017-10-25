@@ -21,6 +21,11 @@
 #include "SubwordSpottingResult.h"
 #endif
 
+///////////////////// ! ! !
+//For actual running, LARGE_ROT should be off, and INTERLEAVE_NGRAMS may be. BEFORE_ROT may be bigger.
+///////////////////// ! ! !
+
+
 #define DONT_ASSUME_PAGE_SEG 0
 
 #if defined(TEST_MODE) || defined(NO_NAN)
@@ -30,16 +35,30 @@
 #define SIDE_NOT_INCLUDED_THRESH 0.80
 #endif
 
-#define SHOW_PROGRESS 0 
+#define SHOW_PROGRESS 1 
+
+//MASTER QUEUE PARAMS
+#define ROTATE 1 //forces it to feed up batches from different spotting results.
+#define BEFORE_ROT 5 //but it can do this many in a row
+#define LARGE_ROT 1 //causes rotation to skip ahead to get coverage of bottom ngrams
+
+#define NGRAM_Q_COUNT_THRESH_NEW 505//4 or 60? I think I raised this becuase using precomputed embeddings makes this very quick
+#define NGRAM_Q_COUNT_THRESH_WORD 505//6 or 80?
+#define TRANS_READY_THRESH 10//50
+
+#define AUTO_APPROVE 1 //Whether to use approved ngrams to approve instances of subngrams
+#define AUTO_APPROVE_THRESH 0.70 //Overlap needed for auto approve to happend
+
+#define INTERLEAVE_NGRAMS 1 //This is the order of ngrams for first starting. False means all trigrams go first, then bigrams, etc.
 
 #define TRANS_DONT_WAIT 0
 #define USE_QBE 1
 #define NO_EXEMPLARS 1
 
-#define MAX_BATCHES_OUT_PER_NGRAM 5
+#define MAX_BATCHES_OUT_PER_NGRAM 5 //to prevent step critiria from being misinformed
 #define HARD_MAX_BATCHES_OUT_PER_NGRAM 20
 
-#define MAX_BATCH_SIZE 15
+#define MAX_BATCH_SIZE 15 //for cluster mode, as clusters can be quite large
 
 #define MANUAL_ONLY 0
 #define NO_ERROR 0

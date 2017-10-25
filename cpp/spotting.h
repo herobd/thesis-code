@@ -26,7 +26,7 @@ using namespace std;
 #define SPOTTING_TYPE_EXEMPLAR 4
 #define SPOTTING_TYPE_TRANS_TRUE 5
 #define SPOTTING_TYPE_TRANS_FALSE 6*/
-enum SpottingType {SPOTTING_TYPE_NONE=0, SPOTTING_TYPE_APPROVED=1, SPOTTING_TYPE_THRESHED=2, SPOTTING_TYPE_EXEMPLAR=3, SPOTTING_TYPE_TRANS_TRUE=4, SPOTTING_TYPE_TRANS_FALSE=5, SPOTTING_TYPE_REJECTED=6};
+enum SpottingType {SPOTTING_TYPE_NONE=0, SPOTTING_TYPE_APPROVED=1, SPOTTING_TYPE_THRESHED=2, SPOTTING_TYPE_EXEMPLAR=3, SPOTTING_TYPE_TRANS_TRUE=4, SPOTTING_TYPE_TRANS_FALSE=5, SPOTTING_TYPE_REJECTED=6, SPOTTING_TYPE_AUTO_APPROVED=7, SPOTTING_TYPE_AUTO_REJECTED=8};
 
 class Spotting {
 public:
@@ -36,6 +36,8 @@ public:
         tlx(tlx), tly(tly), brx(brx), bry(bry), pageId(pageId), pagePnt(NULL), ngram(""), scoreQbE(nan("")), scoreQbS(nan("")), id(-1), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(UNKNOWN_GT), wordId(-1), wordX0(-1) {}
     Spotting(int pageId, int tlx, int tly) :
         tlx(tlx), tly(tly), brx(-1), bry(-1), pageId(pageId), pagePnt(NULL), ngram(""), scoreQbE(nan("")), scoreQbS(nan("")), id(-1), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(UNKNOWN_GT), wordId(-1), wordX0(-1) {}
+    Spotting(int pageId, int tlx, int tly, int brx, int bry, int wordId) :
+        tlx(tlx), tly(tly), brx(brx), bry(bry), pageId(pageId), pagePnt(NULL), ngram(""), scoreQbE(nan("")), scoreQbS(nan("")), id(-1), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(UNKNOWN_GT), wordId(wordId), wordX0(-1) {}
     
     //Spotting(int tlx, int tly, int brx, int bry, int pageId, const cv::Mat* pagePnt, string ngram, float scoreQbE) : 
     //    tlx(tlx), tly(tly), brx(brx), bry(bry), pageId(pageId), pagePnt(pagePnt), ngram(ngram), scoreQbE(scoreQbE), type(SPOTTING_TYPE_NONE), ngramRank(-1), gt(UNKNOWN_GT), wordId(-1), wordX0(-1)

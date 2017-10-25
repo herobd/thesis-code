@@ -506,7 +506,7 @@ private:
     int maxImageWidth;
 
 public:
-    Corpus(int contextPad, string ngramWWFile, vector<string>* ngrams=NULL);
+    Corpus(int contextPad, string ngramWWFile, set<string>* ngrams=NULL);
     Corpus(ifstream& in);
     void save(ofstream& out);
     ~Corpus()

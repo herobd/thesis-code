@@ -367,9 +367,16 @@ function handleTouchEnd(evt) {
 
 function handleOnclick(evt){
     
+    var prevSkip = document.getElementsByClassName('setForSkip');
+    for (i = 0; i < prevSkip.length; i++) {
+        prevSkip[i].classList.toggle('setForSkip');
+    }
+
     this.classList.toggle('selected');
+    this.classList.toggle('setForSkip');
     
-    batches[this.batch].spottings[this.id]= !batches[this.batch].spottings[this.id];
+    if (batches[this.batch].spottings[this.id] != -1)
+        batches[this.batch].spottings[this.id]= !batches[this.batch].spottings[this.id];
 }
 
 /*
@@ -410,7 +417,13 @@ function handleKeyPress(evt) {
         undo();
     } else if (charCode==38) { //up (skip)
         pass();
-    } 
+    } else if (charCode==32) { //space (skip instance in cluster)
+        var prevSkip = document.getElementsByClassName('setForSkip');
+        for (i = 0; i < prevSkip.length; i++) {
+            batches[prevSkip[i].batch].spottings[prevSkip[i].id]=-1;
+            prevSkip[i].style.visibility='hidden';
+        }
+    }
 }
 
 /*function removeSpotting(OK) {
@@ -649,6 +662,10 @@ function createSpotting(im,id,batchId,maxImWidth) {
         difSide = (im.width-maxImWidth)/2;
         im.style.margin='0 0 0 -'+difSide+'px'
     }
+    var instructSpan = document.createElement("span");
+    instructSpan.classList.toggle('skipinstruct');
+    instructSpan.innerHTML='press SPACE to skip this instance';
+    genDiv.appendChild(instructSpan);
     genDiv.appendChild(im);
     genDiv.id=id;
     genDiv.batch=batchId;
@@ -905,7 +922,7 @@ function batchOnclick(evt) {
     {
         //flip all classifications
         for (var spottingId in batches[this.batchId].spottings)
-            if (batches[this.batchId].spottings.hasOwnProperty(spottingId))
+            if (batches[this.batchId].spottings.hasOwnProperty(spottingId) && batches[this.batchId].spottings[spottingId]!=-1)
                 batches[this.batchId].spottings[spottingId] = !batches[this.batchId].spottings[spottingId];
         document.getElementById('goodButton').visibility='hidden';
     }
@@ -979,7 +996,7 @@ function finishShowSpottingsBatch(index,batch,h,ims,batchDiv)
         //console.log((1+h.counter)+' / '+batch.spottings.length);
         if (++h.counter == batch.spottings.length)
         {
-            windowH=screenHeight-100;
+            windowH=screenHeight-150;
             var cols = Math.min(Math.ceil((h.totalH+0.0)/windowH),maxColumns);
             var batchMaxWidth = (screenWidth/cols)-6;//-6 for padding (3+3)
 

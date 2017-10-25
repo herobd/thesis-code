@@ -166,8 +166,8 @@ CATTSS::CATTSS( string lexiconFile,
     
         masterQueue = new MasterQueue(contextPad,savePrefix);
         Lexicon::instance()->readIn(lexiconFile);
-        vector<string> ngrams;
-        corpus = new Knowledge::Corpus(contextPad, ngramWWFile, &ngrams);//the ngrams happen to be read in, so we just get them as a convience
+        set<string> ngramsToUse;
+        corpus = new Knowledge::Corpus(contextPad, ngramWWFile, &ngramsToUse);//the ngrams happen to be read in, so we just get them as a convience
         corpus->addWordSegmentaionAndGT(pageImageDir, segmentationFile);
         corpus->loadSpotter(spottingModelPrefix);
         spottingQueue = new SpottingQueue(masterQueue,corpus);
@@ -186,6 +186,55 @@ CATTSS::CATTSS( string lexiconFile,
         vector<Spotting* > init = {er1};
         spottingQueue->addQueries(init);
 #else
+        //We want the ngrams ordered
+        vector<string> ngrams;
+        ngrams.reserve(ngramsToUse.size());
+#ifdef INTERLEAVE_NGRAMS
+        float uniPerTri = (0.0+GlobalK::knowledge()->unigrams.size()) / GlobalK::knowledge()->trigrams.size();
+        float biPerTri = (0.0+GlobalK::knowledge()->bigrams.size()) / GlobalK::knowledge()->trigrams.size();
+        float uniCounter=0;
+        int uniI=0;
+        float biCounter=0;
+        int biI=0;
+        for (int i=0; i<GlobalK::knowledge()->trigrams.size(); i++)
+        {
+            if (ngramsToUse.find(GlobalK::knowledge()->trigrams[i]) != ngramsToUse.end())
+                ngrams.push_back(GlobalK::knowledge()->trigrams[i]);
+
+            biCounter+=biPerTri;
+            if (biCounter>1)
+            {
+                biCounter-=1;
+                if (biI<GlobalK::knowledge()->bigrams.size() && ngramsToUse.find(GlobalK::knowledge()->bigrams[biI]) != ngramsToUse.end())
+                    ngrams.push_back(GlobalK::knowledge()->bigrams[biI]);
+                biI++;
+            }
+
+            uniCounter+=uniPerTri;
+            if (uniCounter>1)
+            {
+                uniCounter-=1;
+                if (uniI<GlobalK::knowledge()->unigrams.size() && ngramsToUse.find(GlobalK::knowledge()->unigrams[uniI]) != ngramsToUse.end())
+                    ngrams.push_back(GlobalK::knowledge()->unigrams[uniI]);
+                uniI++;
+            }
+        }
+        for (; uniI<GlobalK::knowledge()->unigrams.size(); uniI++)
+        {
+            if (ngramsToUse.find(GlobalK::knowledge()->unigrams[uniI]) != ngramsToUse.end())
+                ngrams.push_back(GlobalK::knowledge()->unigrams[uniI]);
+        }
+        for (; uniI<GlobalK::knowledge()->unigrams.size(); uniI++)
+        {
+            if (ngramsToUse.find(GlobalK::knowledge()->unigrams[uniI]) != ngramsToUse.end())
+                ngrams.push_back(GlobalK::knowledge()->unigrams[uniI]);
+        }
+#else
+        ngrams.insert(ngrams.end(),GlobalK::knowledge()->trigrams.begin(),GlobalK::knowledge()->trigrams.end());
+        ngrams.insert(ngrams.end(),GlobalK::knowledge()->bigrams.begin(),GlobalK::knowledge()->bigrams.end());
+        ngrams.insert(ngrams.end(),GlobalK::knowledge()->unigrams.begin(),GlobalK::knowledge()->unigrams.end());
+#endif
+
         if (GlobalK::knowledge()->PHOC_TRANS)
         {
             float transKeep = numSpottingThreads/100.0;

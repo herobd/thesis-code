@@ -32,12 +32,7 @@
 
 using namespace std;
 
-#define ROTATE 1 //this is for testing, forcing it to feed up batches from different spotting results.
-
-#define NGRAM_Q_COUNT_THRESH_NEW 505//4 or 60?
-#define NGRAM_Q_COUNT_THRESH_WORD 505//6 or 80?
-#define TRANS_READY_THRESH 10//50
-
+//params moved to Global.h
 
 class MasterQueue {
 private:
@@ -57,7 +52,7 @@ private:
 #if ROTATE
     pthread_rwlock_t semRotate;
     int testIter;
-    int test_rotate;
+    int rotate_pos;
 #endif
     //cv::Mat page;
     /*map<string,cv::Mat> pages;
@@ -95,6 +90,8 @@ public:
     vector<Spotting>* feedback(unsigned long id, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long,string> >* remove);
     template <class T>
     vector<Spotting>* _feedback(map<unsigned long, pair<sem_t*,T*> >& batchers, map<unsigned long, pair<sem_t*,T*> >& batchersQueue, unsigned long id, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long, string> >* remove);
+    template <class T>
+    void autoApprove(map<unsigned long, pair<sem_t*,T*> >& batchers, map<string,vector<Spotting> >& forAutoApproval, vector<Spotting>* ret);
 
     virtual unsigned long updateSpottingResults(vector<Spotting>* spottings, unsigned long id=0);//a negative id means add a new spottingresult
     //void addSpottingResults(SpottingResults* res, bool hasSemResults=false, bool toQueue=true);

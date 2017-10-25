@@ -203,7 +203,7 @@ SpottingsBatch* ClusterBatcher::getBatch(int* done, unsigned int num, bool hard,
     return ret;
 }
 
-vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long,string> >* retRemove)
+vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long,string> >* retRemove, map<string,vector<Spotting> >* forAutoApproval)
 {
     batchesOut--;
     //Evaluate purity and accuracy and update clusterLeve
@@ -236,11 +236,27 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
 #endif
             if (spottingRes.at(sindex).type!=SPOTTING_TYPE_APPROVED)
             {
+                if (spottingRes.at(sindex).type!=SPOTTING_TYPE_AUTO_APPROVED)
+                {
+                    ret->push_back(spottingRes.at(sindex));
+#ifdef AUTO_APPROVE
+                    for (int subLen=ngram.length()-1; subLen>0; subLen--)
+                    {
+                        for (int subPos=0; subPos<=ngram.length()-subLen; subPos++)
+                        {
+                            string sub = ngram.substr(subPos,subLen);
+                            int width = (spottingRes.at(sindex).brx-spottingRes.at(sindex).tlx+1)*subLen/(0.0+ngram.length());
+                            int xStart = width*subPos + spottingRes.at(sindex).brx;
+                            int xEnd = xStart+width-1;
+                            (*forAutoApproval)[sub].emplace_back(spottingRes.at(sindex).pageId,xStart,spottingRes.at(sindex).tly,xEnd,spottingRes.at(sindex).bry,spottingRes.at(sindex).wordId);
+                        }
+                    }
+#endif
+                }
                 spottingRes.at(sindex).type=SPOTTING_TYPE_APPROVED;
 #if NO_ERROR
                 assert(spottingRes.at(sindex).gt==1 || spottingRes.at(sindex).gt==UNKNOWN_GT);
 #endif
-                ret->push_back(spottingRes.at(sindex));
                 if (stepMode && trueInstancesToSeed.size()<1000)
                     trueInstancesToSeed.push_back(sindex);
             }
@@ -439,6 +455,27 @@ void ClusterBatcher::CL_cluster(vector< list<int> >& clusters, Mat& minSimilarit
             averageClusterSize.push_back(meanClusterSize);
         }
         //    minSimilarities[clusterLevels.size()-1]=minSimilarity;
+    }
+}
+
+
+void ClusterBatcher::autoApprove(vector<Spotting> toApprove, vector<Spotting>* ret)
+{
+    for (Spotting& s : spottingRes)
+    {
+        for (auto bounds=toApprove.begin(); bounds!=toApprove.end(); bounds++)
+        {
+            if (s.wordId==bounds->wordId && (min(s.brx,bounds->brx)-max(s.tlx,bounds->tlx))/(s.brx-s.tlx) > AUTO_APPROVE_THRESH)
+            {
+                //approve(s);
+                s.type=SPOTTING_TYPE_AUTO_APPROVED;
+                ret->push_back(s);
+                //
+                toApprove.erase(bounds);
+            }
+        }
+        if (toApprove.size()==0)
+            break;
     }
 }
 
