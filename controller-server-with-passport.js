@@ -77,7 +77,7 @@ var ngramWWFiles=[  "/home/brian/intel_index/data/gw_20p_wannot/originalNgramWW.
                  ];
 
 //SET HERE
-var mode = 'cluster_step';//The mode, either trans method or spotting batch serving method. See SpottingAddon.cpp
+var mode = 'fancy';//The mode, either trans method or spotting batch serving method. See SpottingAddon.cpp
 var cluster = (mode.length>=5 && mode.substr(0,5)=="clust");
 var useAppName = cluster?"app_cluster":"app_full";
 var datasetNum=3;

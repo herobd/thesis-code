@@ -844,8 +844,7 @@ TranscribeBatch* Knowledge::Word::queryForBatch(vector<Spotting*>* newExemplars)
                 iter++;
         }
 #endif*/
-#if AUTO_TRANS_ON_ONE
-        if (matches.size() == 1)
+        if (matches.size() == 1 && matches[0].length()<=AUTO_TRANS_LEN_THRESH)
         {
             transcription=matches[0];
             done=true;
@@ -855,9 +854,7 @@ TranscribeBatch* Knowledge::Word::queryForBatch(vector<Spotting*>* newExemplars)
                 newExemplars->insert(newExemplars->end(),newE.begin(),newE.end());
             }
         }
-        else
-#endif 
-         if (matches.size() < THRESH_LEXICON_LOOKUP_COUNT)
+        else if (matches.size() < THRESH_LEXICON_LOOKUP_COUNT)
         {
             multimap<float,string> scored = scoreAndThresh(matches);//,*threshScoring);
 #if TRANS_DONT_WAIT

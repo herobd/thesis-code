@@ -438,12 +438,12 @@ SpottingsBatch* MasterQueue::_getSpottingsBatch(map<unsigned long, pair<sem_t*,T
 #if LARGE_ROT
             if ((1+rotate_pos)%BEFORE_ROT==0)
             {
-                int largeStep=qSize/5;
-                while (qSize%largeStep==0 && largeStep!=1)
+                int largeStep=BEFORE_ROT*qSize/5;
+                while ((BEFORE_ROT*qSize)%largeStep==0 && largeStep!=1)
                     largeStep--;
                 rotate_pos=(rotate_pos+largeStep-1)%(BEFORE_ROT*qSize);
-                //TODO ensure %VEFORE==0
-                ??
+                //ensure +1%BEFORE==0
+                rotate_pos -= (rotate_pos+1)%BEFORE_ROT;
             }
 #endif
             if (++rotate_pos>BEFORE_ROT*qSize)

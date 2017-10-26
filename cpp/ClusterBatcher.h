@@ -80,11 +80,11 @@ private:
     //vector< vector< int > > instanceToCluster;
     vector<float> averageClusterSize;
     //map<int,Mat> minSimilarities;
-    Mat crossScores;
+    Mat crossScores;//Scores of spottings against eachother. This is saved seperately only once.
 
-    vector<Spotting> spottingRes;
-    deque<int> trueInstancesToSeed;
-    map<unsigned long, int> spottingIdToIndex;
+    vector<Spotting> spottingRes;//The spottings are stored here
+    deque<int> trueInstancesToSeed;//During step mode these are the instances we want to find clusters near to batch
+    map<unsigned long, int> spottingIdToIndex;//helper look-up
 
     map<unsigned long, chrono::system_clock::time_point > starts; //For tracking sent batches
 
@@ -96,7 +96,9 @@ private:
     int curLevel; //Current cluster level we are drawing from. Adjusted to maintain purity
 
     int batchesOut; //Number of batches sent, used to prevent wierd things
-    vector< tuple<float,float,int,float,float> > batchTracking;
+    vector< tuple<float,float,int,float,float> > batchTracking;//stats tracking
+
+    int incompleteCluster;//used to track a cluster only partially batched. We want to finish it with the next batch(es)
 
     void CL_cluster(vector< list<int> >& clusters, Mat& minSimilarity, int numClusters, const vector<bool>& gt);
 };

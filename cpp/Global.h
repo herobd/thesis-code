@@ -51,9 +51,10 @@
 
 #define INTERLEAVE_NGRAMS 1 //This is the order of ngrams for first starting. False means all trigrams go first, then bigrams, etc.
 
-#define TRANS_DONT_WAIT 0
+#define TRANS_DONT_WAIT 0 //if there are too many lexical matches, just send a batch (ordered) and see if its there
+#define AUTO_TRANS_LEN_THRESH 3 //all words this length and below are auto trans if there is only 1 lexical match
 #define USE_QBE 1
-#define NO_EXEMPLARS 1
+#define NO_EXEMPLARS 1 //whether to use exemplars extracted from transcd words. Doesn't work well.
 
 #define MAX_BATCHES_OUT_PER_NGRAM 5 //to prevent step critiria from being misinformed
 #define HARD_MAX_BATCHES_OUT_PER_NGRAM 20

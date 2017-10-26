@@ -996,7 +996,7 @@ function finishShowSpottingsBatch(index,batch,h,ims,batchDiv)
         //console.log((1+h.counter)+' / '+batch.spottings.length);
         if (++h.counter == batch.spottings.length)
         {
-            windowH=screenHeight-150;
+            windowH=screenHeight-210;
             var cols = Math.min(Math.ceil((h.totalH+0.0)/windowH),maxColumns);
             var batchMaxWidth = (screenWidth/cols)-6;//-6 for padding (3+3)
 

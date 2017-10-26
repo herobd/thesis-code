@@ -59,7 +59,6 @@ typedef Graph<float,float,float> GraphType;
 
 #define SHOW 0
 
-#define AUTO_TRANS_ON_ONE 0
 
 //#ifndef TEST_MODE_LONG
 //#define averageCharWidth 40 //TODO GW, totally just making this up

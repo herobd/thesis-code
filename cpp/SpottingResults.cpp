@@ -885,7 +885,7 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
                 {
                     string sub = ngram.substr(subPos,subLen);
                     int width = (instancesById.at(id).brx-instancesById.at(id).tlx+1)*subLen/(0.0+ngram.length());
-                    int xStart = width*subPos + instancesById.at(id).brx;
+                    int xStart = width*subPos + instancesById.at(id).tlx;
                     int xEnd = xStart+width-1;
                     (*forAutoApproval)[sub].emplace_back(instancesById.at(id).pageId,xStart,instancesById.at(id).tly,xEnd,instancesById.at(id).bry,instancesById.at(id).wordId);
                 }
@@ -2344,9 +2344,11 @@ void SpottingResults::autoApprove(vector<Spotting> toApprove, vector<Spotting>* 
     for (auto iter=instancesByScore.begin(); iter!=instancesByScore.end(); iter++)
     {
         Spotting& s = instancesById[iter->second];
-        for (auto bounds=toApprove.begin(); bounds!=toApprove.end(); bounds++)
+        for (auto bounds=toApprove.begin(); bounds!=toApprove.end();)
         {
-            if (s.wordId==bounds->wordId && (min(s.brx,bounds->brx)-max(s.tlx,bounds->tlx))/(s.brx-s.tlx) > AUTO_APPROVE_THRESH)
+            if (s.type == SPOTTING_TYPE_NONE &&
+                    s.wordId==bounds->wordId && 
+                    (min(s.brx,bounds->brx)-max(s.tlx,bounds->tlx))/(s.brx-s.tlx) > AUTO_APPROVE_THRESH)
             {
                 //approve(s);
                 s.type=SPOTTING_TYPE_AUTO_APPROVED;
@@ -2354,8 +2356,10 @@ void SpottingResults::autoApprove(vector<Spotting> toApprove, vector<Spotting>* 
                 instancesByScore.erase(iter);
                 classById[s.id]=true;
                 //
-                toApprove.erase(bounds);
+                bounds=toApprove.erase(bounds);
             }
+            else
+                bounds++;
         }
         if (toApprove.size()==0)
             break;
