@@ -6,6 +6,7 @@ module.exports =  function() {
    34,435,1,0,7,65,4,80,644,5,7,9,6,44,6,8,7,544,5,7,88,456,6,54,5,77,45624,456,6,56,
    34,435,1,0,7,65,4,830,644,5,7,9,6,44,6,8,5,544,5,7,88,456,6,54,5,77,45624,456,6,5];
    var fs = require('fs');
+   var ObjectID = require('mongodb').ObjectID;
     function Database(address,dataNames,callback) {
         
         var self=this;
@@ -45,11 +46,11 @@ module.exports =  function() {
             self.timingTransCollection={};
             self.timingManualCollection={};
             dataNames.forEach( function(dataName) {
-                var savedSpottings='SAVED_SPOTTINGS_'+dataName;
-                var savedTrans = 'SAVED_TRANS_'+dataName;
-                var timingSpottings = 'TIMING_SPOTTINGS_'+dataName;
-                var timingManual = 'TIMING_MANUAL_'+dataName;
-                var timingTrans = 'TIMING_TRANS_'+dataName;
+                var savedSpottings='SAVED_SPOTTINGS_'+dataName+'2';
+                var savedTrans = 'SAVED_TRANS_'+dataName+'2';
+                var timingSpottings = 'TIMING_SPOTTINGS_'+dataName+'2';
+                var timingManual = 'TIMING_MANUAL_'+dataName+'2';
+                var timingTrans = 'TIMING_TRANS_'+dataName+'2';
                 db.collection(savedSpottings, function(err, collection) {
                     if(!err) {
                         self.savedSpottingsCollection[dataName]=collection;
@@ -300,6 +301,67 @@ module.exports =  function() {
             }
         });
     }
+    Database.prototype.getNewSpottingTimings = function(dataname,callback) {
+        var ret=[];
+        var self=this;
+        var cursor = self.timingSpottingsCollection[dataname].find({userId:{$ne:'herobd@gmail.com'}});
+        cursor.each(function(err, doc) {
+            if (err) {
+                callback(err,ret);
+                return;
+            } else if (doc!=null) {
+                var skipped=0;
+                var accCount=0;
+                var accSum=0;
+                var numT=0;
+                var numF=0;
+                var numA=0;//ambigious
+                var numLabeledT=0;
+                var numLabeledF=0;
+                for (var i=0; i<doc.ids.length; i++) {
+                    if (doc.gt[i]==-1)
+                        numA++;
+                    else {
+                        if (doc.gt[i]==1)
+                            numT++;
+                        else if (doc.gt[i]==0)
+                            numF++;
+                        else
+                            console.log('ERROR, bad gt label: '+doc.gt[i]);
+
+                        if (doc.label[i]!=-1)
+                        {
+                            accCount++;
+                            accSum += (doc.gt[i]==doc.label[i])?1:0;
+                        }
+                    }
+                    if (doc.label[i]==-1)
+                        skipped++;
+                    else if (doc.label[i]==1)
+                        numLabeledT++;
+                    else
+                        numLabeledF++;
+                }
+                var accuracy=accSum/(0.0+accCount);
+                ret.push(   {
+                                ngram:doc.ngram,
+                                numSkip:skipped,
+                                numT:numT,
+                                numF:numF,
+                                numA:numA,
+                                total:numT+numF+numA,
+                                prevSame:doc.prevNgramSame,
+                                accuracy:accuracy,
+                                numLabeledT:numLabeledT,
+                                numLabeledF:numLabeledF,
+                                time:doc.batchTime,
+                                user:doc.userId
+                            });
+            } else {
+                callback(err,ret);
+            }
+        });
+    }
     Database.prototype.getTransTimings = function(dataname,callback) {
         var ret=[];
         var self=this;
@@ -478,6 +540,49 @@ module.exports =  function() {
             }
         });
     }
+
+    Database.prototype.getNextUnknownIds = function(dataname,callback) {
+        var self=this;
+        
+        self.timingSpottingsCollection[dataname].findOne({unknownIds:{$ne:null}, userId:{$ne:'herobd@gmail.com'}}, function(err, doc) {
+            if (err) {
+                callback(err,ret);
+                return;
+            } else if (doc!=null) {
+                return      {
+                                id:doc._id.toHexString(),
+                                ngram:doc.ngram,
+                                spottingIds:doc.unknownIds,
+                                batcherId:doc.resultsId
+                            };
+            } else {
+                callback(err,null);
+            }
+        });
+    };
+
+    Database.prototype.saveGT = function(dataName,id,spottingIds,labels,callback) {
+        var self=this;
+        var idob = new ObjectID.createFromHexString(id);
+        self.timingManualCollection[dataName].findOne({_id:idob}, function(err, item) {
+            if (err) {
+                callback(err);
+            } else if (item==null) {
+                callback('DB ERROR: could not find spottings batch');
+            } else {
+                for (var i=0; i<spottingIds.length; i++) {
+                    for (var j=0; j<item.ids.length; j++) {
+                        if (spottingIds[i] == item.ids[j])
+                            item.gt[j]=labels[i];
+                    }
+                }
+                    
+                self.timingManualCollection[dataName].update({_id:idob},{$set:{gt:item.gt}},{w:1}, callback);
+                //self.timingManualCollection.update({userId:info.userId, batchNum:info.batchNum},{$set:info},{w:1}, callback);
+            }
+        });
+    };
+            
 
     return Database
 };

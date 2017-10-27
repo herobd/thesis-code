@@ -101,10 +101,12 @@ var endN=2;
 
 var saveMode=false;
 var timingTestMode=false;
+var newTimingTestMode=true;
+var labelUnknownMode=false;
 var trainUsers=false;
 var debug=true;
 
-if (timingTestMode)
+if (timingTestMode || newTimingTestMode)
 {
     numThreadsSpotting=0;
     savePrefix+='_tt';
@@ -133,7 +135,7 @@ var ControllerApp = function(port) {
         self.saveSpottingsQueue={};
         self.saveTransQueue={};
     }    
-    if (timingTestMode) {
+    if (timingTestMode || newTimingTestMode) {
         self.testSpottingsLabels={};
         self.testTransLabels={};
     }
@@ -330,10 +332,10 @@ var ControllerApp = function(port) {
         });
         self.app.get('/app-test', function(req, res) {
             if (req.user || debug) {
-                if (req.user.datasetTiming && !saveMode) {
+                if ((req.user.datasetTiming||newTimingTestMode) && !saveMode) {
                     //console.log('[app] user:'+req.user.id+' hit app');
                     var appName = "app_full";
-                    res.render(appName, {app_version:useAppName, testMode:timingTestMode, trainMode:trainUsers, save:false, minWidth:self.minWidth, message: req.flash('error') });
+                    res.render(appName, {app_version:useAppName, testMode:timingTestMode||newTimingTestMode, trainMode:trainUsers, save:false, minWidth:self.minWidth, message: req.flash('error') });
                 } else {
                     res.redirect('/home');
                 }
@@ -542,6 +544,26 @@ var ControllerApp = function(port) {
                 res.redirect('/login');
             }
         });
+        self.app.get('/xxx/add_unknown_spotting', function(req, res) {
+            var info = {userId:'herobd@gmail.com',
+                        batchNum:0,
+                        //dataset:req.user.datasetTiming, 
+                        ngram:'test', 
+                        prevNgramSame:false,
+                        gt:['UNKNOWN'],
+                        labels:[1],
+                        unknownIds:[req.query.spotting],
+                        ids:[req.query.spotting],
+                        resultsId:req.query.batcher,
+                        resend:false,
+                        batchTime:33};
+            self.database.saveTimingTestSpotting(datasetName+mode,info,function(err) {
+                if (err!=null)
+                    console.log(err);
+                else
+                    res.send('ok');
+            });
+        });
         self.nextBatch =  function(req, res) {
             res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate"); // HTTP 1.1.
             res.setHeader("Pragma", "no-cache"); // HTTP 1.0.
@@ -630,6 +652,17 @@ var ControllerApp = function(port) {
                                     res.send({batchType:'ERROR',batchId:-1,err:err});
                                 
                             });
+                } else if (labelUnknownMode) {
+                    self.database.getNextUnknownIds(datasetName+mode,function(err,batch) {
+                        if (err==null)
+                        {
+                            spottingaddon.getSpottingsAsBatch(+req.query.width,+req.query.color,req.query.prevNgram,batch.batcherId,batch.spottingIds, function(err,spottings) {
+                                res.send({batchType:'spottings',batchId:batch.id,resultsId:batch.batcherId,ngram:batch.ngram,spottings:spottings, debug:err});
+                            });
+                        }
+                        else
+                            res.send({batchType:'ERROR',batchId:-1,err:err});
+                    });
                 } else {
                     spottingaddon.getNextBatch(+req.query.width,+req.query.color,req.query.prevNgram,num,
                             function (err,batchType,batchId,arg3,arg4,arg5,loc,correct) {
@@ -663,6 +696,12 @@ var ControllerApp = function(port) {
                                         }
                                     } else {
                                         res.send({batchType:batchType,batchId:batchId,resultsId:arg3,ngram:arg4,spottings:arg5, debug:err});
+                                        if (newTimingTestMode) {
+                                            for (var index=0; index<arg5.length; index++) {
+                                                var spotting = arg5[index];
+                                                self.testSpottingsLabels[spotting.id] = correct[index];
+                                            }
+                                        }
                                     }
                                 }
                                 else if (batchType==='transcription' || batchType==='manual') {
@@ -675,6 +714,8 @@ var ControllerApp = function(port) {
                                                                         label:correct, 
                                                                         manual:(batchType==='manual')};
                                     }
+                                    else if (newTimingTestMode)
+                                        self.testTransLabels[batchId] = correct;
                                 }
                                 else if (batchType==='newExemplars') {
                                     res.send({batchType:batchType,batchId:batchId,exemplars:arg3});
@@ -807,6 +848,9 @@ var ControllerApp = function(port) {
                     else
                         res.send({done:false, err:'timingTest not running'});
                     //END TEST//////////////////////////////////////////////////////////////
+                } else if (labelUnknownMode) {
+                    self.database.saveGT(datasetName+mode,req.body.resultsId,req.body.ids,req.body.labels,printErr);
+                    res.send({done:false});
                 } else { 
                     //Normal behavior
                     if (req.query.type=='spottings') {
@@ -827,6 +871,31 @@ var ControllerApp = function(port) {
                                 }
                             }
                         }
+                        else if (newTimingTestMode && !(req.query.exit)) {
+                            gt=[];
+                            unknownIds=[];
+                            for (var index=0; index<req.body.ids.length; index++) {
+                                gt[index] = self.testSpottingsLabels[req.body.ids[index]]; //'UNKNOWN' is possible
+                                if (gt[index][0] == 'U')
+                                    unknownIds.push(req.body.ids[index]);
+                            }
+                            if (unknownIds.length==0)
+                                unknownIds=null;
+
+                            var info = {userId:req.user.id,
+                                        batchNum:+req.query.testingNum,
+                                        //dataset:req.user.datasetTiming, 
+                                        ngram:req.body.ngram, 
+                                        prevNgramSame:req.body.prevNgramSame,
+                                        gt:gt,
+                                        labels:req.body.labels,
+                                        unknownIds:unknownIds,
+                                        ids:req.body.ids,
+                                        resultsId:req.body.resultsId,
+                                        resend:resend,
+                                        batchTime:req.body.batchTime};
+                            self.database.saveTimingTestSpotting(datasetName+mode,info,printErr);
+                        }
                     }
                     else if (req.query.type=='transcription') {
                         spottingaddon.transcriptionBatchDone(req.body.batchId,req.body.label,printErr);
@@ -839,6 +908,40 @@ var ControllerApp = function(port) {
                             self.saveTransQueue[req.body.batchId].label=req.body.label;
                             self.database.saveTrans(datasetName,req.body.batchId,self.saveTransQueue[req.body.batchId]);
                             self.saveTransQueue[req.body.batchId]=null; 
+                        }
+                        else if (newTimingTestMode && !(req.query.exit)) {
+                            var accuracy = ( self.testTransLabels[req.body.batchId].toLowerCase()==req.body.label.toLowerCase() )?1:0;
+                            if (accuracy=0 && req.body.positionCorrect<0) {
+                                if ((self.testTransLabels[req.body.batchId]=='$ERROR$' && req.body.label.substr(0,7)=='$REMOVE') ||
+                                    (self.testTransLabels[req.body.batchId] =='REMOVE' && req.body.label.substr(0,7)=='$REMOVE'))
+                                    accuracy=1;
+                            }
+                            var wasBadNgram=false;
+                            var wasError=false;
+                            var skipped=false;
+                            if (self.testTransLabels[req.body.batchId]=='REMOVE' || (accuracy==1 && req.body.label.substr(0,7)=='$REMOVE'))
+                                wasBadNgram=true;
+                            else if (self.testTransLabels[req.body.batchId]=='$ERROR$')
+                                wasError=true;
+                            if (req.body.label=='$PASS$') {
+                                skipped=true;
+                                accuracy=null;
+                            }
+
+                            var info = {userId:req.user.id,
+                                        batchNum:+req.query.testingNum,
+                                        batchId:req.body.batchId,
+                                        //dataset:req.user.datasetTiming, 
+                                        prevWasTrans:req.body.prevWasTrans,
+                                        numPossible:req.body.numPossible, 
+                                        positionCorrect:req.body.positionCorrect,
+                                        accuracy:accuracy, 
+                                        wasBadNgram:wasBadNgram,
+                                        wasError:wasError,
+                                        skipped:skipped,
+                                        undos:req.body.undos,
+                                        batchTime:req.body.batchTime};
+                            self.database.saveTimingTestTrans(datasetName+mode,info,printErr);
                         }
                     }
                     else if (req.query.type=='newExemplars') {
@@ -866,6 +969,23 @@ var ControllerApp = function(port) {
                             self.saveTransQueue[req.body.batchId].label=req.body.label;
                             self.database.saveTrans(datasetName,req.body.batchId,self.saveTransQueue[req.body.batchId]);
                             self.saveTransQueue[req.body.batchId]=null; 
+                        }
+                        else if (newTimingTestMode && !(req.query.exit)) {
+                            var skipped = req.body.label=='$PASS$';
+                            var accuracy = ( self.testTransLabels[req.body.batchId].toLowerCase()==req.body.label.toLowerCase() )?1:0;
+                            if (skipped)
+                                accuracy=null;
+                            var info = {userId:req.user.id,
+                                        batchNum:+req.query.testingNum,
+                                        batchId:req.body.batchId,
+                                        //dataset:req.user.datasetTiming, 
+                                        prevWasManual:req.body.prevWasManual,
+                                        numChar:req.body.label.length, 
+                                        accuracy:accuracy, 
+                                        skipped:skipped,
+                                        undos:req.body.undos,
+                                        batchTime:req.body.batchTime};
+                            self.database.saveTimingTestManual(datasetName+mode,info,printErr);
                         }
                     }
 
@@ -998,8 +1118,13 @@ var ControllerApp = function(port) {
                                 showMilli,
                                 contextPad);
         }
-
-        self.database=new Database('localhost:27017/cattss', datasetNames, function(database) {
+        var datasetNamesMod=[];
+        for (var i=0; i<datasetNamesMod.length; i++) {
+            datasetNamesMod[i]=datasetNames[i];
+            if (newTimingTestMode || labelUnknownMode)
+                datasetNamesMod[i]+=mode;
+        }
+        self.database=new Database('localhost:27017/cattss', datasetNamesMod, function(database) {
             if (timingTestMode) {
                 //for (var i=1; i<datasetNames.length; i++) {
                 self.loadLabeled(database,1);

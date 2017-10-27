@@ -464,6 +464,32 @@ NAN_METHOD(testingLabelsAllLoaded) {
         testingInstances[datasetName]->allLoaded();
     }
 }
+NAN_METHOD(getSpottingsAsBatch) {
+    int width = To<int>(info[0]).FromJust();
+    int color = To<int>(info[1]).FromJust();
+    //string prevNgram = To<string>(info[2]).FromJust();
+    //v8::String::Utf8Value str(args[0]->ToString());
+    string prevNgram;
+    if (info[2]->IsString())
+    {
+        v8::String::Utf8Value str(info[2]->ToString());
+        prevNgram = string(*str);
+        
+    }
+    
+    //String::Utf8Value str = To<String::Utf8Value>(info[2]).FromJust();
+    v8::String::Utf8Value str3(info[3]->ToString());
+    string batcherId = string(*str3);
+    
+    Handle<Array> jsArray = Handle<Array>::Cast(info[4]);
+    for (unsigned int i = 0; i < jsArray->Length(); i++) {
+        Handle<Value> val = jsArray2->Get(i);
+        string ???
+    
+    Callback *callback = new Callback(info[4].As<Function>());
+
+    AsyncQueueWorker(new BatchRetrieveWorker(callback,cattss, width,color,prevNgram,batcherId,spottingIds));
+}
 /*NAN_METHOD(getNextTestBatch) {
     //cout<<"request for test batch"<<endl;
     int width = To<int>(info[0]).FromJust();
@@ -596,6 +622,9 @@ NAN_MODULE_INIT(Init) {
         GetFunction(New<FunctionTemplate>(clearTestUsers)).ToLocalChecked());*/
     Nan::Set(target, New<v8::String>("getNextTrainingBatch").ToLocalChecked(),
         GetFunction(New<FunctionTemplate>(getNextTrainingBatch)).ToLocalChecked());
+    
+    Nan::Set(target, New<v8::String>("getSpottingsAsBatch").ToLocalChecked(),
+        GetFunction(New<FunctionTemplate>(getSpottingsAsBatch)).ToLocalChecked());
 }
 
 NODE_MODULE(SpottingAddon, Init)

@@ -728,6 +728,7 @@ TranscribeBatch* Knowledge::Word::addSpotting(Spotting s, vector<Spotting*>* new
 #endif
     if (done && (s.type==SPOTTING_TYPE_TRANS_FALSE || transcription.find(s.ngram) == string::npos))
     {
+        pthread_rwlock_unlock(&lock);
         return NULL;
     }
     //decide if it should be merge with another

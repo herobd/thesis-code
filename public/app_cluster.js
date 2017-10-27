@@ -37,6 +37,8 @@ var startTime = new Date().getTime();
 var testingNum=0;
 var trainingNum=0;
 
+var exiting=false;
+
 //pink,green, orange, pink, blue
 var headerColors = ['#E0B0FF','#7fb13d','#CD7F32','#C5908E','#95B9C7'];
 var spottingColors = ['#f3e5fb','#cad6bb','#eedece','#e7d6d5','#d7e6ec'];
@@ -57,6 +59,8 @@ function standardQuery(batchInfo) {
         query+='&testingNum='+batchInfo.testingNum;
     if (save)
         query+='&save=1';
+    if (exiting)
+        query+='&exit=1';
     return query;
 }
 
@@ -726,7 +730,7 @@ function handleSpottingsBatch(jres) {
     } else if (jres.batchId=='R') {
         location.reload(true);
     } else {
-        allReceived=true;
+        //allReceived=true;
         //console.log("all recieved")
     }
     spinner.hidden=true;
@@ -844,7 +848,7 @@ function getNextBatch() {
                 handleManualBatch(jres);
                 cont=true;
             } else if (jres.batchType=='EMPTY' && timingTestMode) {
-                allReceived=true;
+                //allReceived=true;
             }
             else {
                 console.log('bad batch '+jres.batchType);
@@ -1365,6 +1369,7 @@ function pass() {
 }
 
 function exit() {
+    exiting=true;
     allReceived=true;
     toBeInQueue=0;
     while (batchQueue.length>0){

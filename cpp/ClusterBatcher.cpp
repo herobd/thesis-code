@@ -621,8 +621,9 @@ ClusterBatcher::ClusterBatcher(ifstream& in, PageRef* pageRef, string saveDir)
     meanCPurity.resize(numLevels);
     for (int i=0; i<numLevels; i++)
     {
+        in >> meanCPurity[i];
         getline(in,line);
-        meanCPurity[i] = stof(line);
+        //meanCPurity[i] = stof(line);
     }
 
     clusterLevels.resize(numLevels);
@@ -658,8 +659,9 @@ ClusterBatcher::ClusterBatcher(ifstream& in, PageRef* pageRef, string saveDir)
     averageClusterSize.resize(numLevels);
     for (int i=0; i<numLevels; i++)
     {
+        in >> averageClusterSize[i];
         getline(in,line);
-        averageClusterSize[i]=stof(line);
+        //averageClusterSize[i]=stof(line);
     }
 //
     string crossFile = saveDir+"/crossScores_"+ngram+".dat";
@@ -684,8 +686,9 @@ ClusterBatcher::ClusterBatcher(ifstream& in, PageRef* pageRef, string saveDir)
         trueInstancesToSeed.push_back(stoi(line));
     }
 
+    in >> runningPurity;
     getline(in,line);
-    runningPurity = stof(line);
+    //runningPurity = stof(line);
     getline(in,line);
     sz = stoi(line);
     for (int i=0; i<sz; i++)
@@ -693,8 +696,9 @@ ClusterBatcher::ClusterBatcher(ifstream& in, PageRef* pageRef, string saveDir)
         getline(in,line);
         windowPurity.push_back(stoi(line));
     }
+    in >> runningAccuracy;
     getline(in,line);
-    runningAccuracy = stof(line);
+    //runningAccuracy = stof(line);
     getline(in,line);
     sz = stoi(line);
     for (int i=0; i<sz; i++)
@@ -711,16 +715,10 @@ ClusterBatcher::ClusterBatcher(ifstream& in, PageRef* pageRef, string saveDir)
     batchTracking.reserve(sz);
     for (int i=0; i<sz; i++)
     {
+        float p,a,rp,ra;
+        int s;
+        in >> p >> a >> s >> rp >> ra;
         getline(in,line);
-        float p = stof(line);
-        getline(in,line);
-        float a = stof(line);
-        getline(in,line);
-        int s = stoi(line);
-        getline(in,line);
-        int rp = stof(line);
-        getline(in,line);
-        float ra = stof(line);
         batchTracking.emplace_back(p,a,s,rp,ra);
     }
 

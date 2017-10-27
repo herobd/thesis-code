@@ -20,11 +20,37 @@ TranscribeBatch::TranscribeBatch(WordBackPointer* origin, multimap<float,string>
 TranscribeBatch::TranscribeBatch(WordBackPointer* origin, multimap<float,string> scored, const cv::Mat* origImg, const multimap<int,Spotting>* spottings, int tlx, int tly, int brx, int bry, string gt, unsigned long id) : manual(false)
 #endif
 {
+    //check if gt is in poss
+    bool gtPoss=false;
     for (auto p : scored)
     {
         possibilities.push_back(p.second);
+        if (p.second.compare(gt)==0)
+            gtPoss=true;
     }
-    init(origin, origImg, spottings, tlx, tly, brx, bry, gt, id);
+#if !defined(NO_NAN)
+    if (!gtPoss) //for new timing test, we want to know what the error should be
+    {
+        bool badNgram=false;
+        for (auto& p : *spottings)
+        {
+            if (p.second.gt==0)
+            {
+                badNgram=true;
+                break;
+            }
+        }
+        if (badNgram)
+            this->gt="REMOVE";//we don't worry about which one they remove, to keep it general to where more than one is wrong
+        else
+            this->gt="$ERROR$";//we include the '$'s to allow extact string match
+    }
+    else
+#endif
+    {
+        this->gt=gt;
+    }
+    init(origin, origImg, spottings, tlx, tly, brx, bry, id);
 }
 
 bool icompare(const string& a, const string& b)
@@ -45,9 +71,10 @@ TranscribeBatch::TranscribeBatch(WordBackPointer* origin, vector<string> prunedD
 #endif
     possibilities=prunedDictionary;
     sort(possibilities.begin(), possibilities.end(), icompare);
-    init(origin, origImg, spottings, tlx, tly, brx, bry, gt, id);
+    this->gt=gt;
+    init(origin, origImg, spottings, tlx, tly, brx, bry, id);
 }
-void TranscribeBatch::init(WordBackPointer* origin, const cv::Mat* origImg, const multimap<int,Spotting>* spottings, int tlx, int tly, int brx, int bry, string gt, unsigned long id)
+void TranscribeBatch::init(WordBackPointer* origin, const cv::Mat* origImg, const multimap<int,Spotting>* spottings, int tlx, int tly, int brx, int bry, unsigned long id)
 {
     this->origin=origin;
     if (id!=0)
@@ -60,7 +87,6 @@ void TranscribeBatch::init(WordBackPointer* origin, const cv::Mat* origImg, cons
     this->tly=tly;
     this->brx=brx;
     this->bry=bry;
-    this->gt=gt;
 
 
     int wordH = bry-tly+1;
