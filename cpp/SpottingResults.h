@@ -16,6 +16,7 @@
 #include "Batcher.h"
 #include "Global.h"
 #include "PageRef.h"
+#include "BatchWraperSpottings.h"
 
 #define TAIL_DENSITY_TRUE_THRESHOLD 0.0139
 #define GOOD_TAIL_SCORE -0.01 //Hueristic
@@ -178,6 +179,7 @@ public:
     
     void autoApprove(vector<Spotting> toApprove, vector<Spotting>* ret);
     bool checkIncomplete();
+    BatchWraper* getSpottingsAsBatch(int width, int color, string prevNgram, vector<unsigned long> spottingIds);
 
 #ifdef TEST_MODE
     int setDebugInfo(SpottingsBatch* b);

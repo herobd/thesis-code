@@ -510,6 +510,32 @@ BatchWraper* CATTSS::getBatch(int num, int width, int color, string prevNgram)
 #endif
     return new BatchWraperBlank();
 }
+BatchWraper* CATTSS::getSpottingsAsBatch(int width, int color, string prevNgram, unsigned long batcherId, vector<unsigned long> spottingIds,string ngram)
+{
+#if !defined(TEST_MODE) && !defined(NO_NAN)
+    try
+    {
+#endif
+        BatchWraper* ret= masterQueue->getSpottingsAsBatch(width,color,prevNgram,batcherId,spottingIds,ngram);
+        if (ret!=NULL)
+            return ret;
+        else
+        {
+            return new BatchWraperBlank();
+        }
+#if !defined(TEST_MODE) && !defined(NO_NAN)
+    }
+    catch (exception& e)
+    {
+        cout <<"Exception in CATTSS::getBatch(), "<<e.what()<<endl;
+    }
+    catch (...)
+    {
+        cout <<"Exception in CATTSS::getBatch(), UNKNOWN"<<endl;
+    }
+#endif
+    return new BatchWraperBlank();
+}
 
 
 void CATTSS::updateSpottings(string resultsId, vector<string> ids, vector<int> labels, int resent)

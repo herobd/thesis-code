@@ -479,16 +479,23 @@ NAN_METHOD(getSpottingsAsBatch) {
     
     //String::Utf8Value str = To<String::Utf8Value>(info[2]).FromJust();
     v8::String::Utf8Value str3(info[3]->ToString());
-    string batcherId = string(*str3);
+    string strBatcherId = string(*str3);
+    unsigned long batcherId = stoul(strBatcherId);
+    vector<unsigned long> spottingIds;
     
     Handle<Array> jsArray = Handle<Array>::Cast(info[4]);
-    for (unsigned int i = 0; i < jsArray->Length(); i++) {
-        Handle<Value> val = jsArray2->Get(i);
-        string ???
+    for (unsigned int i = 0; i < jsArray->Length(); i++)
+    {
+        Handle<Value> val = jsArray->Get(i);
+        string strId(*v8::String::Utf8Value(val));
+        spottingIds.push_back(stoul(strId));
+    }
+    v8::String::Utf8Value str5(info[5]->ToString());
+    string ngram = string(*str5);
     
-    Callback *callback = new Callback(info[4].As<Function>());
+    Callback *callback = new Callback(info[6].As<Function>());
 
-    AsyncQueueWorker(new BatchRetrieveWorker(callback,cattss, width,color,prevNgram,batcherId,spottingIds));
+    AsyncQueueWorker(new BatchRetrieveWorker(callback,cattss, width,color,prevNgram,batcherId,spottingIds,ngram));
 }
 /*NAN_METHOD(getNextTestBatch) {
     //cout<<"request for test batch"<<endl;

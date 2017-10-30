@@ -14,6 +14,7 @@
 #include "Batcher.h"
 #include "Global.h"
 #include "PageRef.h"
+#include "BatchWraperSpottings.h"
 
 using namespace std;
 using namespace cv;
@@ -54,6 +55,7 @@ public:
     bool checkIncomplete();
 
     unsigned long getId() {return id;}
+    BatchWraper* getSpottingsAsBatch(int width, int color, string prevNgram, vector<unsigned long> spottingIds);
 
     string ngram;
 

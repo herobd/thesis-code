@@ -45,6 +45,14 @@ private:
     TranscribeBatchQueue transcribeBatchQueue;
     NewExemplarsBatchQueue newExemplarsBatchQueue;
     
+    template <class T>
+    SpottingsBatch* _getSpottingsBatch(map<unsigned long, pair<sem_t*,T*> >& batcherQueue,unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need);
+    template <class T>
+    vector<Spotting>* _feedback(map<unsigned long, pair<sem_t*,T*> >& batchers, map<unsigned long, pair<sem_t*,T*> >& batchersQueue, unsigned long id, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long, string> >* remove);
+    template <class T>
+    void autoApprove(map<unsigned long, pair<sem_t*,T*> >& batchers, map<string,vector<Spotting> >& forAutoApproval, vector<Spotting>* ret);
+    template <class T>
+    BatchWraper* _getSpottingsAsBatch(map<unsigned long, pair<sem_t*,T*> >& batchers, int width, int color, string prevNgram, unsigned long batcherId, vector<unsigned long> spottingIds, string ngram);
     //int atID;
     //map<unsigned long,unsigned long> batchToResults;
     
@@ -83,15 +91,12 @@ public:
     void save(ofstream& out);
 
     BatchWraper* getBatch(unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram);
+    BatchWraper* getSpottingsAsBatch(int width, int color, string prevNgram, unsigned long batcherId, vector<unsigned long> spottingIds, string ngram);
     SpottingsBatch* getSpottingsBatch(unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need=true);
-    template <class T>
-    SpottingsBatch* _getSpottingsBatch(map<unsigned long, pair<sem_t*,T*> >& batcherQueue,unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need);
 
     vector<Spotting>* feedback(unsigned long id, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long,string> >* remove);
-    template <class T>
-    vector<Spotting>* _feedback(map<unsigned long, pair<sem_t*,T*> >& batchers, map<unsigned long, pair<sem_t*,T*> >& batchersQueue, unsigned long id, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long, string> >* remove);
-    template <class T>
-    void autoApprove(map<unsigned long, pair<sem_t*,T*> >& batchers, map<string,vector<Spotting> >& forAutoApproval, vector<Spotting>* ret);
+
+    void autoApprove(vector<Spotting> toApprove, vector<Spotting>* ret);
 
     virtual unsigned long updateSpottingResults(vector<Spotting>* spottings, unsigned long id=0);//a negative id means add a new spottingresult
     //void addSpottingResults(SpottingResults* res, bool hasSemResults=false, bool toQueue=true);

@@ -143,6 +143,7 @@ class CATTSS
     void save();
 
     BatchWraper* getBatch(int num, int width, int color, string prevNgram);
+    BatchWraper* getSpottingsAsBatch(int width, int color, string prevNgram, unsigned long batcherId, vector<unsigned long> spottingIds, string ngram);
     void updateSpottings(string resultsId, vector<string> ids, vector<int> labels, int resent);
     void updateTranscription(string id, string transcription, bool manual);
     void updateNewExemplars(string resultsId,  vector<int> labels, int resent);

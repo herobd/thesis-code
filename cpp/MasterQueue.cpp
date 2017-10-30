@@ -1,5 +1,9 @@
 #include "MasterQueue.h"
 
+#ifdef TEST_MODE
+#include <csignal>
+#endif
+
 
 void MasterQueue::checkIncomplete()
 {
@@ -262,7 +266,13 @@ BatchWraper* MasterQueue::getBatch(unsigned int numberOfInstances, bool hard, un
     ngramQueueCount=(GlobalK::knowledge()->CLUSTER)?clusterBatchersQueue.size():resultsQueue.size();
     pthread_rwlock_unlock(&semResultsQueue);
     if (ngramQueueCount==0 && !finish.load())
-        return NULL;
+    {
+        //return NULL;
+        cout<<"MasterQueue case hit, ngramQueueCount==0 && !finish.load(), that was returning null, but IDK why.."<<endl;
+#ifdef TEST_MODE
+        raise(SIGINT);
+#endif
+    }
 
     //for setting up, just do some spottings
     if (prevNgram.compare("~")==0)
@@ -344,7 +354,38 @@ BatchWraper* MasterQueue::getBatch(unsigned int numberOfInstances, bool hard, un
 #endif
 
     return ret;
-} 
+}
+
+BatchWraper* MasterQueue::getSpottingsAsBatch(int width, int color, string prevNgram, unsigned long batcherId, vector<unsigned long> spottingIds, string ngram)
+{
+    if (GlobalK::knowledge()->CLUSTER)
+        return _getSpottingsAsBatch(clusterBatchers,width,color,prevNgram,batcherId,spottingIds,ngram);
+    else
+        return _getSpottingsAsBatch(results,width,color,prevNgram,batcherId,spottingIds,ngram);
+}
+template <class T>
+BatchWraper* MasterQueue::_getSpottingsAsBatch(map<unsigned long, pair<sem_t*,T*> >& batchers, int width, int color, string prevNgram, unsigned long batcherId, vector<unsigned long> spottingIds, string ngram)
+{
+    BatchWraper* ret;
+    pthread_rwlock_rdlock(&semResults);
+    if (batchers.find(batcherId)!=batchers.end())
+    {
+        sem_t* sem=batchers.at(batcherId).first;
+        T* res = batchers.at(batcherId).second;
+        pthread_rwlock_unlock(&semResults);
+        assert(res->ngram.compare(ngram)==0);
+        sem_wait(sem);
+        ret = res->getSpottingsAsBatch(width,color,prevNgram,spottingIds);
+       
+        sem_post(sem);
+    }
+    else
+    {
+        cout <<"Results not found for: "<<batcherId<<endl;
+        pthread_rwlock_unlock(&semResults);
+    }
+    return ret;
+}
 
 SpottingsBatch* MasterQueue::getSpottingsBatch(unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need) 
 {

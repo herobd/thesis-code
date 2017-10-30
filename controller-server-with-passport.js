@@ -106,9 +106,10 @@ var labelUnknownMode=false;
 var trainUsers=false;
 var debug=true;
 
-if (timingTestMode || newTimingTestMode)
-{
+if (timingTestMode)
     numThreadsSpotting=0;
+if (timingTestMode || newTimingTestMode || labelUnknownMode)
+{
     savePrefix+='_tt';
 }
 
@@ -332,7 +333,7 @@ var ControllerApp = function(port) {
         });
         self.app.get('/app-test', function(req, res) {
             if (req.user || debug) {
-                if ((req.user.datasetTiming||newTimingTestMode) && !saveMode) {
+                if ((newTimingTestMode||req.user.datasetTiming) && !saveMode) {
                     //console.log('[app] user:'+req.user.id+' hit app');
                     var appName = "app_full";
                     res.render(appName, {app_version:useAppName, testMode:timingTestMode||newTimingTestMode, trainMode:trainUsers, save:false, minWidth:self.minWidth, message: req.flash('error') });
@@ -509,7 +510,7 @@ var ControllerApp = function(port) {
         });
         self.app.get('/xxx/save', function(req, res) {
             if ((req.user && req.user.id=='herobd@gmail.com') || debug) {
-                spottingaddon.save(page,function (err) {
+                spottingaddon.save(function (err) {
                     if (err) console.log(err);
                     res.send('ok');
                 });
@@ -656,7 +657,8 @@ var ControllerApp = function(port) {
                     self.database.getNextUnknownIds(datasetName+mode,function(err,batch) {
                         if (err==null)
                         {
-                            spottingaddon.getSpottingsAsBatch(+req.query.width,+req.query.color,req.query.prevNgram,batch.batcherId,batch.spottingIds, function(err,spottings) {
+                            console.log('got ub: '+batch);
+                            spottingaddon.getSpottingsAsBatch(+req.query.width,+req.query.color,req.query.prevNgram,batch.batcherId,batch.spottingIds, batch.ngram, function(err,spottings) {
                                 res.send({batchType:'spottings',batchId:batch.id,resultsId:batch.batcherId,ngram:batch.ngram,spottings:spottings, debug:err});
                             });
                         }
@@ -753,9 +755,9 @@ var ControllerApp = function(port) {
                 if (req.query.trainingNum) {
                     //nothing
                     res.send({done:false});
-                } else if (req.query.testingNum) {
+                } else if (timingTestMode && req.user.datasetTiming) {
                     //TIMING TEST/////////////////////////////////////////////////////////////
-                    if (timingTestMode && req.user.datasetTiming) {
+                    
                         if (req.query.type=='spottings') {
                             var accuracy=0;
                             var trueRatioDid=0;
@@ -844,15 +846,15 @@ var ControllerApp = function(port) {
                             self.database.saveTimingTestManual(req.user.datasetTiming,info,printErr);
                         }
                         res.send({done:false});
-                    }
-                    else
-                        res.send({done:false, err:'timingTest not running'});
                     //END TEST//////////////////////////////////////////////////////////////
                 } else if (labelUnknownMode) {
-                    self.database.saveGT(datasetName+mode,req.body.resultsId,req.body.ids,req.body.labels,printErr);
+                    if (!(req.query.exit)) {
+                        self.database.saveGT(datasetName+mode,req.body.resultsId,req.body.ids,req.body.labels,printErr);
+                    }
                     res.send({done:false});
                 } else { 
                     //Normal behavior
+                    console.log('DEBUG, batch recieved: '+newTimingTestMode+' '+(!(req.query.exit)));
                     if (req.query.type=='spottings') {
                         spottingaddon.spottingBatchDone(req.body.resultsId,req.body.ids,req.body.labels,resend,printErr);
                         if (saveMode && req.query.save) {
@@ -1119,7 +1121,7 @@ var ControllerApp = function(port) {
                                 contextPad);
         }
         var datasetNamesMod=[];
-        for (var i=0; i<datasetNamesMod.length; i++) {
+        for (var i=0; i<datasetNames.length; i++) {
             datasetNamesMod[i]=datasetNames[i];
             if (newTimingTestMode || labelUnknownMode)
                 datasetNamesMod[i]+=mode;

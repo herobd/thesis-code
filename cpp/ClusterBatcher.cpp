@@ -12,7 +12,9 @@ ClusterBatcher::ClusterBatcher(string ngram, int contextPad, bool stepMode, cons
     vector<bool> gt(massSpottingRes.size());
     //spottingRes = massSpottingRes;
     for (int i=0; i<massSpottingRes.size(); i++)
-        gt[i] = massSpottingRes[i].gt==1;
+    {
+        gt[i] = (massSpottingRes[i].gt==1 || (massSpottingRes[i].gt==UNKNOWN_GT && i%2==0));
+    }
     //this->crossScores=crossScores;
     assert(clusterLevels.size()==0);
     //now cluster!
@@ -224,6 +226,18 @@ SpottingsBatch* ClusterBatcher::getBatch(int* done, unsigned int num, bool hard,
 
     batchesOut++;
 
+    return ret;
+}
+
+BatchWraper* ClusterBatcher::getSpottingsAsBatch(int width, int color, string prevNgram, vector<unsigned long> spottingIds)
+{
+    SpottingsBatch* batch = new SpottingsBatch(ngram,id);
+    for (unsigned long sid : spottingIds)
+    {
+        int inst = spottingIdToIndex[sid];
+        batch->emplace_back(spottingRes.at(inst),width,contextPad,color,prevNgram);
+    }
+    BatchWraperSpottings* ret = new BatchWraperSpottings(batch);
     return ret;
 }
 

@@ -56,8 +56,10 @@ function standardQuery(batchInfo) {
     var query='';
     if (trainingMode)
         query+='&trainingNum='+batchInfo.trainingNum;
-    else if (timingTestMode)
-        query+='&testingNum='+batchInfo.testingNum;
+    else if (timingTestMode) {
+        //query+='&testingNum='+batchInfo.testingNum;
+        query+='&testingNum='+batchInfo.id;
+    }
     if (save)
         query+='&save=1';
     if (exiting)

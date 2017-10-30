@@ -579,7 +579,7 @@ SpottingsBatch* SpottingResults::getBatch(int* done, unsigned int num, bool hard
     }
     SpottingsBatch* ret = new SpottingsBatch(ngram,id);
 #ifdef TEST_MODE
-    setDebugInfo(ret);
+    //setDebugInfo(ret);
 #endif
     set<float> scoresToDraw;
     if (GlobalK::knowledge()->SR_TAKE_FROM_TOP)
@@ -763,6 +763,17 @@ SpottingsBatch* SpottingResults::getBatch(int* done, unsigned int num, bool hard
     //numBatches++;
     
     //debugState();
+    return ret;
+}
+
+BatchWraper* SpottingResults::getSpottingsAsBatch(int width, int color, string prevNgram, vector<unsigned long> spottingIds)
+{
+    SpottingsBatch* batch = new SpottingsBatch(ngram,id);
+    for (unsigned long sid : spottingIds)
+    {
+        batch->emplace_back(instancesById.at(sid),width,contextPad,color,prevNgram);
+    }
+    BatchWraperSpottings* ret = new BatchWraperSpottings(batch);
     return ret;
 }
 
@@ -1545,8 +1556,10 @@ void SpottingResults::EM_fancy(bool init)
         }
         //assert(rejectThreshold>acceptThreshold);
 #ifdef TEST_MODE
+#ifdef NO_NAN
         if (init)
             saveHistogram(actualModelDif);
+#endif
 #ifdef GRAPH_SPOTTING_RESULTS
         if (swaped)
         {

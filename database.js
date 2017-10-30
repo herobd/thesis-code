@@ -46,6 +46,7 @@ module.exports =  function() {
             self.timingTransCollection={};
             self.timingManualCollection={};
             dataNames.forEach( function(dataName) {
+                console.log('opening '+dataName);
                 var savedSpottings='SAVED_SPOTTINGS_'+dataName+'2';
                 var savedTrans = 'SAVED_TRANS_'+dataName+'2';
                 var timingSpottings = 'TIMING_SPOTTINGS_'+dataName+'2';
@@ -543,18 +544,22 @@ module.exports =  function() {
 
     Database.prototype.getNextUnknownIds = function(dataname,callback) {
         var self=this;
+        //var forbiddenUser='herobd@gmail.com';
+        var forbiddenUser='xxx';
+        console.log('getting ub');
         
-        self.timingSpottingsCollection[dataname].findOne({unknownIds:{$ne:null}, userId:{$ne:'herobd@gmail.com'}}, function(err, doc) {
+        self.timingSpottingsCollection[dataname].findOne({unknownIds:{$ne:null}, userId:{$ne:forbiddenUser}}, function(err, doc) {
             if (err) {
                 callback(err,ret);
                 return;
             } else if (doc!=null) {
-                return      {
+                callback(err,{
                                 id:doc._id.toHexString(),
                                 ngram:doc.ngram,
                                 spottingIds:doc.unknownIds,
-                                batcherId:doc.resultsId
-                            };
+                                batcherId:doc.resultsId,
+                                ngram:doc.ngram
+                             });
             } else {
                 callback(err,null);
             }
