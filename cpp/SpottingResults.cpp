@@ -930,7 +930,8 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
             this->done=true;
     }
 
-    batchTracking.emplace_back(-1,numTrue/(0.0+numTrue+numFalse),numTrue+numFalse,0,runningClassificationTrueAverage());
+    if (numTrue+numFalse>0)
+        batchTracking.emplace_back(-1,numTrue/(0.0+numTrue+numFalse),numTrue+numFalse,0,runningClassificationTrueAverage());
 
     if (this->done)
     {
@@ -2401,6 +2402,8 @@ void SpottingResults::save(ofstream& out)
     out<<falseProbWeight<<endl;
     out<<distCheckCounter<<endl;
     out<<lastDifPullFromScore<<"\n"<<momentum<<"\n";
+    if (pullFromScore!=pullFromScore)
+        pullFromScore = (acceptThreshold+rejectThreshold)/2.0;
     out<<pullFromScore<<"\n"<<takeStd<<"\n";
     out<<maxScoreQbE<<"\n"<<minScoreQbE<<"\n";
     out<<maxScoreQbS<<"\n"<<minScoreQbS<<"\n";
@@ -2488,7 +2491,7 @@ void SpottingResults::save(ofstream& out)
     out<<batchTracking.size()<<endl;
     for (auto t : batchTracking)
     {
-        out<<get<0>(t)<<"\n"<<get<1>(t)<<"\n"<<get<2>(t)<<get<3>(t)<<"\n"<<get<4>(t)<<endl;
+        out<<get<0>(t)<<"\n"<<get<1>(t)<<"\n"<<get<2>(t)<<"\n"<<get<3>(t)<<"\n"<<get<4>(t)<<endl;
     }
     //debugState();
 }

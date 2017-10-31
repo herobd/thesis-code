@@ -574,6 +574,18 @@ public:
     Spotting wrapSpotting(int imIdx, int startX, int endX, float score, string ngram);
     vector<SpottingLoc> massSpot(const vector<string>& ngrams, Mat& crossScores);
     int getMaxImageWidth() {return maxImageWidth;}
+    vector<Page*> pages()
+    {
+        vector<Page*> ret;
+        ret.reserve(pages.size());//doesn't matter if the size is wront
+        pthread_rwlock_rdlock(&pagesLock);
+        
+        for (auto& p : pages)
+            ret.push_back(p.second);
+        
+        pthread_rwlock_unlock(&pagesLock);
+        return ret;
+    }
 };
 
 }

@@ -678,7 +678,8 @@ function handleSpottingsBatch(jres) {
                 //lastBatch.type=='e' && batches[lastBatch.type+lastBatch.id].) {
         //batchHeader.hidden=true
         var lastHeader = document.getElementById(lastBatch.type+lastBatch.id);
-        lastHeader.id='s'+jres.batchId;
+        if (lastHeader)
+            lastHeader.id='s'+jres.batchId;
     
     } else {
         colorIndex = (++colorIndex)%headerColors.length;

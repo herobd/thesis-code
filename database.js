@@ -116,6 +116,8 @@ module.exports =  function() {
         if (teststr!=back)
             console.log('Email scramble failed');
 
+
+        self.unknownsCursor={};
         
     }
     
@@ -544,32 +546,57 @@ module.exports =  function() {
 
     Database.prototype.getNextUnknownIds = function(dataname,callback) {
         var self=this;
+
+        if (self.unknownsCursor[dataname]) {
+            self.unknownsCursor[dataname].hasNext(function(err,has) {
+                if (err)
+                    callback(err,null);
+                else if (has)
+                    self.unknownsCursor[dataname].next(self.returnSpotDoc(callback));
+                else
+                    self.startUnknowns(dataname,callback);
+            });
+        } else
+            self.startUnknowns(dataname,callback);
+    }
+
+    Database.prototype.startUnknowns = function(dataname,callback) {
+        var self=this;
         //var forbiddenUser='herobd@gmail.com';
         var forbiddenUser='xxx';
-        console.log('getting ub');
-        
-        self.timingSpottingsCollection[dataname].findOne({unknownIds:{$ne:null}, userId:{$ne:forbiddenUser}}, function(err, doc) {
-            if (err) {
-                callback(err,ret);
-                return;
-            } else if (doc!=null) {
-                callback(err,{
-                                id:doc._id.toHexString(),
-                                ngram:doc.ngram,
-                                spottingIds:doc.unknownIds,
-                                batcherId:doc.resultsId,
-                                ngram:doc.ngram
-                             });
-            } else {
-                callback(err,null);
+        self.unknownsCursor[dataname] = self.timingSpottingsCollection[dataname].find({unknownIds:{$ne:null}, userId:{$ne:forbiddenUser}});
+        self.unknownsCursor[dataname].hasNext( function(err,has) {
+            if (!has) {
+                callback('No unknowns left',null);
+            }
+            else {
+                self.unknownsCursor[dataname].next(self.returnSpotDoc(callback));
             }
         });
     };
 
+    Database.prototype.returnSpotDoc = function(callback) {
+        var self=this;
+        return function (err,doc) {
+            if (err)
+                callback(err,null);
+            else
+                callback(err,{
+                            id:doc._id.toHexString(),
+                            ngram:doc.ngram,
+                            spottingIds:doc.unknownIds,
+                            batcherId:doc.resultsId,
+                            ngram:doc.ngram
+                         });
+        };
+    };
+
     Database.prototype.saveGT = function(dataName,id,spottingIds,labels,callback) {
         var self=this;
-        var idob = new ObjectID.createFromHexString(id);
-        self.timingManualCollection[dataName].findOne({_id:idob}, function(err, item) {
+        //console.log(dataName);
+        //console.log(id);
+        var idob = new ObjectID(id);
+        self.timingSpottingsCollection[dataName].findOne({'_id':idob}, function(err, item) {
             if (err) {
                 callback(err);
             } else if (item==null) {
@@ -582,8 +609,7 @@ module.exports =  function() {
                     }
                 }
                     
-                self.timingManualCollection[dataName].update({_id:idob},{$set:{gt:item.gt}},{w:1}, callback);
-                //self.timingManualCollection.update({userId:info.userId, batchNum:info.batchNum},{$set:info},{w:1}, callback);
+                self.timingSpottingsCollection[dataName].update({'_id':idob},{$set:{gt:item.gt, unknownIds:null}},{w:1}, callback);
             }
         });
     };

@@ -361,39 +361,42 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
     }
 
 
-    float accuracy = numTrue/(0.0+numTrue+numFalse);
-    windowAccuracy.push_back(accuracy);
-    if (windowAccuracy.size()>RUNNING_ACCURACY_COUNT)
+    if (numTrue+numFalse>0)
     {
-        float popped = windowAccuracy.front();
-        windowAccuracy.pop_front();
-        runningAccuracy += (accuracy-popped)/RUNNING_ACCURACY_COUNT;
-    }
-    else
-    {
-        runningAccuracy=0;
-        for (float p : windowAccuracy)
-            runningAccuracy+=p;
-        runningAccuracy/=windowAccuracy.size();
-    }
-    assert(windowAccuracy.size()<=RUNNING_ACCURACY_COUNT);
+        float accuracy = numTrue/(0.0+numTrue+numFalse);
+        windowAccuracy.push_back(accuracy);
+        if (windowAccuracy.size()>RUNNING_ACCURACY_COUNT)
+        {
+            float popped = windowAccuracy.front();
+            windowAccuracy.pop_front();
+            runningAccuracy += (accuracy-popped)/RUNNING_ACCURACY_COUNT;
+        }
+        else
+        {
+            runningAccuracy=0;
+            for (float p : windowAccuracy)
+                runningAccuracy+=p;
+            runningAccuracy/=windowAccuracy.size();
+        }
+        assert(windowAccuracy.size()<=RUNNING_ACCURACY_COUNT);
 
 #ifdef TEST_MODE
-    cout<<", Window acc: "<<runningAccuracy<<", batch acc: "<<accuracy<<endl;
+        cout<<", Window acc: "<<runningAccuracy<<", batch acc: "<<accuracy<<endl;
 #endif
 
-    if (windowAccuracy.size()>=RUNNING_ACCURACY_COUNT && runningAccuracy<ACCURACY_STOP_THRESH)
-    {
+        if (windowAccuracy.size()>=RUNNING_ACCURACY_COUNT && runningAccuracy<ACCURACY_STOP_THRESH)
+        {
 #ifdef TEST_MODE
-        cout<<"["<<ngram<<"] running acc: "<<runningAccuracy<<" below thresh: "<<ACCURACY_STOP_THRESH<<endl;
+            cout<<"["<<ngram<<"] running acc: "<<runningAccuracy<<" below thresh: "<<ACCURACY_STOP_THRESH<<endl;
 #endif
-        *done=finished?1:2;//-1 resurrect, 0 not done, 1 done, 2 just finished
-        finished=true;
-    }
+            *done=finished?1:2;//-1 resurrect, 0 not done, 1 done, 2 just finished
+            finished=true;
+        }
 
-    //Tracking for debugging
-    assert(numTrue+numFalse<spottingRes.size());
-    batchTracking.emplace_back(purity,accuracy,numTrue+numFalse,runningPurity,runningAccuracy);
+        //Tracking for debugging
+        assert(numTrue+numFalse<spottingRes.size());
+        batchTracking.emplace_back(purity,accuracy,numTrue+numFalse,runningPurity,runningAccuracy);
+    }
 
 
     return ret;

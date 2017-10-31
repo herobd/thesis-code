@@ -280,7 +280,7 @@ function findParams2(err,spottingTimingInstances) {
     var meanT=0.0;
     var meanS=0.0;
     var meanE=0.0;
-    var allCSV='numTrue,skip,error,acc,time,n,prev,user\n';
+    var allCSV='numTrue,numFalse,numAmbig,skip,error,acc,time,total,prev,user\n';
     var avgN={};
     var countN={};
     var avgTime=0;
@@ -288,35 +288,35 @@ function findParams2(err,spottingTimingInstances) {
     var avgSkipT = [0,0,0,0,0,0];
     var avgErrorT = [0,0,0,0,0,0];
     var counterT = [0,0,0,0,0,0];
-    for (var inst of spottingTimingInstances)
-    {
-        meanT += inst.numT;
-        meanS += inst.numSkip;
-        meanE += 1-inst.accuracy;
-        allCSV += inst.numT+','+inst.numSkip+','+( 1-inst.accuracy)+','+inst.accuracy+','+inst.time+','+inst.n+','+(inst.prevSame?1:0)+','+inst.user+'\n';
-        if (!avgN.hasOwnProperty(inst.n)) {
-            avgN[inst.n]=0;
-            countN[inst.n]=0.0;
+    for (var inst of spottingTimingInstances) {
+        var accuracy = inst.accuracy;
+        meanT += inst.numT/(inst.total+0.0);
+        meanS += inst.numSkip/(inst.total+0.0);
+        meanE += 1-accuracy;
+        allCSV += inst.numT+','+inst.numF+','+inst.numA+','+inst.numSkip+','+( 1-accuracy)+','+accuracy+','+inst.time+','+inst.total+','+(inst.prevSame?1:0)+','+inst.user+'\n';
+        if (!avgN.hasOwnProperty(inst.ngram.length)) {
+            avgN[inst.ngram.length]=0;
+            countN[inst.ngram.length]=0.0;
         }
-        avgN[inst.n]+=inst.time;
-        countN[inst.n]+=1.0;
+        avgN[inst.ngram.length]+=inst.time;
+        countN[inst.ngram.length]+=(0.0+inst.total);
         avgTime+=inst.time;
-        countTime+=1.0;
+        countTime+=(0.0+inst.total);
 
         avgSkipT[inst.numT] += inst.numSkip;
-        avgErrorT[inst.numT] += ( 1-inst.accuracy);
+        avgErrorT[inst.numT] += ( 1-accuracy);
         counterT[inst.numT] += 1;
     }
     meanT /= spottingTimingInstances.length;
     meanS /= spottingTimingInstances.length;
     meanE /= spottingTimingInstances.length;
     console.log('T:'+meanT+' S:'+meanS+' E:'+meanE);
-    console.log('numT,skip,error');
+    console.log('numT (per inst),skip (per inst),error');
     for (var t=0; t<=5; t++) {
         console.log(t+','+(avgSkipT[t]/counterT[t])+','+(avgErrorT[t]/counterT[t]));
     }
 
-    console.log('times');
+    console.log('times, per instance');
     console.log('ALL: '+(avgTime/countTime));
     for (var n in avgN) {
         console.log(n+': '+(avgN[n]/countN[n]));

@@ -657,8 +657,7 @@ var ControllerApp = function(port) {
                     self.database.getNextUnknownIds(datasetName+mode,function(err,batch) {
                         if (err==null)
                         {
-                            console.log('got ub: '+batch);
-                            spottingaddon.getSpottingsAsBatch(+req.query.width,+req.query.color,req.query.prevNgram,batch.batcherId,batch.spottingIds, batch.ngram, function(err,spottings) {
+                            spottingaddon.getSpottingsAsBatch(+req.query.width,+req.query.color,req.query.prevNgram,batch.batcherId,batch.spottingIds, batch.ngram, function(err,batchType,batchId,resultsId,ngram,spottings,loc,correct) {
                                 res.send({batchType:'spottings',batchId:batch.id,resultsId:batch.batcherId,ngram:batch.ngram,spottings:spottings, debug:err});
                             });
                         }
@@ -707,7 +706,7 @@ var ControllerApp = function(port) {
                                     }
                                 }
                                 else if (batchType==='transcription' || batchType==='manual') {
-                                    res.send({batchType:batchType,batchId:batchId,wordImg:arg3,ngrams:arg4,possibilities:arg5});
+                                    res.send({batchType:batchType,batchId:batchId,wordImg:arg3,ngrams:arg4,possibilities:arg5,correct:correct});
                                     if (saveMode && req.query.save) {
                                         //if (batchType==='transcription') {
                                         self.saveTransQueue[batchId] = {loc:loc,
@@ -849,7 +848,7 @@ var ControllerApp = function(port) {
                     //END TEST//////////////////////////////////////////////////////////////
                 } else if (labelUnknownMode) {
                     if (!(req.query.exit)) {
-                        self.database.saveGT(datasetName+mode,req.body.resultsId,req.body.ids,req.body.labels,printErr);
+                        self.database.saveGT(datasetName+mode,req.body.batchId,req.body.ids,req.body.labels,printErr);
                     }
                     res.send({done:false});
                 } else { 
