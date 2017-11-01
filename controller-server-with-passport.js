@@ -101,8 +101,8 @@ var endN=2;
 
 var saveMode=false;
 var timingTestMode=false;
-var newTimingTestMode=true;
-var labelUnknownMode=false;
+var newTimingTestMode=false;
+var labelUnknownMode=true;
 var trainUsers=false;
 var debug=true;
 
@@ -547,7 +547,7 @@ var ControllerApp = function(port) {
         });
         self.app.get('/xxx/add_unknown_spotting', function(req, res) {
             var info = {userId:'herobd@gmail.com',
-                        batchNum:0,
+                        batchId:0,
                         //dataset:req.user.datasetTiming, 
                         ngram:'test', 
                         prevNgramSame:false,
@@ -884,7 +884,8 @@ var ControllerApp = function(port) {
                                 unknownIds=null;
 
                             var info = {userId:req.user.id,
-                                        batchNum:+req.query.testingNum,
+                                        //batchNum:+req.query.testingNum,
+                                        batchId:req.body.batchId,
                                         //dataset:req.user.datasetTiming, 
                                         ngram:req.body.ngram, 
                                         prevNgramSame:req.body.prevNgramSame,
@@ -912,7 +913,7 @@ var ControllerApp = function(port) {
                         }
                         else if (newTimingTestMode && !(req.query.exit)) {
                             var accuracy = ( self.testTransLabels[req.body.batchId].toLowerCase()==req.body.label.toLowerCase() )?1:0;
-                            if (accuracy=0 && req.body.positionCorrect<0) {
+                            if (accuracy==0 && req.body.positionCorrect<0) {
                                 if ((self.testTransLabels[req.body.batchId]=='$ERROR$' && req.body.label.substr(0,7)=='$REMOVE') ||
                                     (self.testTransLabels[req.body.batchId] =='REMOVE' && req.body.label.substr(0,7)=='$REMOVE'))
                                     accuracy=1;
@@ -930,7 +931,7 @@ var ControllerApp = function(port) {
                             }
 
                             var info = {userId:req.user.id,
-                                        batchNum:+req.query.testingNum,
+                                        //batchNum:+req.query.testingNum,
                                         batchId:req.body.batchId,
                                         //dataset:req.user.datasetTiming, 
                                         prevWasTrans:req.body.prevWasTrans,
@@ -977,7 +978,7 @@ var ControllerApp = function(port) {
                             if (skipped)
                                 accuracy=null;
                             var info = {userId:req.user.id,
-                                        batchNum:+req.query.testingNum,
+                                        //batchNum:+req.query.testingNum,
                                         batchId:req.body.batchId,
                                         //dataset:req.user.datasetTiming, 
                                         prevWasManual:req.body.prevWasManual,

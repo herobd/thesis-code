@@ -35,6 +35,9 @@
                     "CTCWrapper.h", "CTCWrapper.cpp",
                     "Web.h", "Web.cpp",
 
+                    "LineManTrans.h", "LineManTrans.cpp",
+                    "LineQueue.h", "LineQueue.cpp",
+
                     "SpecialInstances.h",
                     "TestingInstances.h", "TestingInstances.cpp",
                     "TrainingInstances.h", "TrainingInstances.cpp",

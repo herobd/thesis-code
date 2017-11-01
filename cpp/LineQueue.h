@@ -11,6 +11,7 @@ using namespace std;
 class LineQueue
 {
     private:
+    Knowledge::Corpus* corpus;
     vector<TranscribeBatch> batches;
     atomic_uint on;
     vector<PsuedoWordBackPointer> origins;

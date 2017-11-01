@@ -97,7 +97,9 @@ module.exports =  function() {
                         self.timingManualCollection[dataName]=collection;
                         //self.timingManualCollection=collection;
                         if (--numCol <= 0)
+                        {
                             callback(self);
+                        }
                     } else {
                         console.log('ERROR: conencting to MongoDB colection TIMING_MANUAL_'+dataName+': '+err);
                     }
@@ -332,15 +334,15 @@ module.exports =  function() {
                         else
                             console.log('ERROR, bad gt label: '+doc.gt[i]);
 
-                        if (doc.label[i]!=-1)
+                        if (doc.labels[i]!=-1)
                         {
                             accCount++;
-                            accSum += (doc.gt[i]==doc.label[i])?1:0;
+                            accSum += (doc.gt[i]==doc.labels[i])?1:0;
                         }
                     }
-                    if (doc.label[i]==-1)
+                    if (doc.labels[i]==-1)
                         skipped++;
-                    else if (doc.label[i]==1)
+                    else if (doc.labels[i]==1)
                         numLabeledT++;
                     else
                         numLabeledF++;
@@ -361,7 +363,7 @@ module.exports =  function() {
                                 user:doc.userId
                             });
             } else {
-                callback(err,ret);
+                callback(err,ret,dataname);
             }
         });
     }
@@ -375,7 +377,7 @@ module.exports =  function() {
                 return;
             } else if (doc!=null) {
                 //console.log(doc);
-                if (doc.userId != 'herobd@gmail.com' && (doc.userId.length<9 || doc.userId.substr(doc.userId.length-9)!='@test.com')) {
+                if (doc.userId != 'herobd@gmail.com' ) {
                     if (+doc.batchTime<40000) {
                         ret.push(   {
                                         prev:doc.prevWasTrans,
@@ -386,15 +388,15 @@ module.exports =  function() {
                                         bad:doc.wasBadNgram,
                                         error:doc.wasError,
                                         skip:doc.skipped,
-                                        user:doc.userId,
-                                        n:doc.batchNum
+                                        user:doc.userId
+                                        //n:doc.batchNum
                                     });
                     }
                     else
                         console.log('outlier trans: '+doc.userId);
                 }
             } else {
-                callback(err,ret);
+                callback(err,ret,dataname);
             }
         });
     }
@@ -408,7 +410,7 @@ module.exports =  function() {
                 return;
             } else if (doc!=null) {
                 //console.log(doc);
-                if (doc.userId != 'herobd@gmail.com' && (doc.userId.length<9 || doc.userId.substr(doc.userId.length-9)!='@test.com')) {
+                if (doc.userId != 'herobd@gmail.com' ) {
                     if (+doc.batchTime<20000) {
                         ret.push(   {
                                         prev:doc.prevWasManual,
@@ -416,15 +418,15 @@ module.exports =  function() {
                                         time:doc.batchTime,
                                         numChar:doc.numChar,
                                         skip:doc.skipped,
-                                        user:doc.userId,
-                                        n:doc.batchNum
+                                        user:doc.userId
+                                        //n:doc.batchNum
                                     });
                     }
                     else
                         console.log('outlier man: '+doc.userId);
                 }
             } else {
-                callback(err,ret);
+                callback(err,ret,dataname);
             }
         });
     }
@@ -495,51 +497,50 @@ module.exports =  function() {
     Database.prototype.saveTimingTestSpotting = function(dataName,info,callback) {
         var self=this;
                     //self.timingSpottingsCollection[dataName].insert(info, {w:1}, callback);
-        //self.timingSpottingsCollection[dataName].update({userId:info.userId, batchNum:info.batchNum},{$set:info},{upsert:1, w:1}, callback);
-        self.timingSpottingsCollection[dataName].findOne({userId:info.userId, batchNum:info.batchNum}, function(err, item) {
-        //self.timingSpottingsCollection.findOne({userId:info.userId, batchNum:info.batchNum}, function(err, item) {
+        //self.timingSpottingsCollection[dataName].update({userId:info.userId, batchId:info.batchId},{$set:info},{upsert:1, w:1}, callback);
+        self.timingSpottingsCollection[dataName].findOne({userId:info.userId, batchId:info.batchId}, function(err, item) {
+        //self.timingSpottingsCollection.findOne({userId:info.userId, batchId:info.batchId}, function(err, item) {
             if (err) {
                 callback(err);
             } else if (item==null) {
                 self.timingSpottingsCollection[dataName].insert(info, {w:1}, callback);
                 //self.timingSpottingsCollection.insert(info, {w:1}, callback);
             } else {
-                self.timingSpottingsCollection[dataName].update({userId:info.userId, batchNum:info.batchNum},{$set:info},{w:1}, callback);
-                //self.timingSpottingsCollection.update({userId:info.userId, batchNum:info.batchNum},{$set:info},{w:1}, callback);
+                self.timingSpottingsCollection[dataName].update({userId:info.userId, batchId:info.batchId},{$set:info},{w:1}, callback);
+                //self.timingSpottingsCollection.update({userId:info.userId, batchId:info.batchId},{$set:info},{w:1}, callback);
             }
         });
     }
     Database.prototype.saveTimingTestTrans = function(dataName,info,callback) {
         var self=this;
         //self.timingTransCollection[dataName].update({userId:info.userId, batchId:info.batchId},{$set:info},{upsert:1, multi:false, w:1}, callback);
-        //console.log('saveTimingTrans '+dataName);
         //console.log(self.timingTransCollection);
-        self.timingTransCollection[dataName].findOne({userId:info.userId, batchNum:info.batchNum}, function(err, item) {
-        //self.timingTransCollection.findOne({userId:info.userId, batchNum:info.batchNum}, function(err, item) {
+        self.timingTransCollection[dataName].findOne({userId:info.userId, batchId:info.batchId}, function(err, item) {
+        //self.timingTransCollection.findOne({userId:info.userId, batchId:info.batchId}, function(err, item) {
             if (err) {
                 callback(err);
             } else if (item==null) {
                 self.timingTransCollection[dataName].insert(info, {w:1}, callback);
                 //self.timingTransCollection.insert(info, {w:1}, callback);
             } else {
-                self.timingTransCollection[dataName].update({userId:info.userId, batchNum:info.batchNum},{$set:info},{w:1}, callback);
-                //self.timingTransCollection.update({userId:info.userId, batchNum:info.batchNum},{$set:info},{w:1}, callback);
+                self.timingTransCollection[dataName].update({userId:info.userId, batchId:info.batchId},{$set:info},{w:1}, callback);
+                //self.timingTransCollection.update({userId:info.userId, batchId:info.batchId},{$set:info},{w:1}, callback);
             }
         });
     }
     Database.prototype.saveTimingTestManual = function(dataName,info,callback) {
         var self=this;
-        //self.timingManualCollection[dataName].update({userId:info.userId, batchNum:info.batchNum},{$set:info},{upsert:1, w:1}, callback);
-        self.timingManualCollection[dataName].findOne({userId:info.userId, batchNum:info.batchNum}, function(err, item) {
-        //self.timingManualCollection.findOne({userId:info.userId, batchNum:info.batchNum}, function(err, item) {
+        //self.timingManualCollection[dataName].update({userId:info.userId, batchId:info.batchId},{$set:info},{upsert:1, w:1}, callback);
+        self.timingManualCollection[dataName].findOne({userId:info.userId, batchId:info.batchId}, function(err, item) {
+        //self.timingManualCollection.findOne({userId:info.userId, batchId:info.batchId}, function(err, item) {
             if (err) {
                 callback(err);
             } else if (item==null) {
                 self.timingManualCollection[dataName].insert(info, {w:1}, callback);
                 //self.timingManualCollection.insert(info, {w:1}, callback);
             } else {
-                self.timingManualCollection[dataName].update({userId:info.userId, batchNum:info.batchNum},{$set:info},{w:1}, callback);
-                //self.timingManualCollection.update({userId:info.userId, batchNum:info.batchNum},{$set:info},{w:1}, callback);
+                self.timingManualCollection[dataName].update({userId:info.userId, batchId:info.batchId},{$set:info},{w:1}, callback);
+                //self.timingManualCollection.update({userId:info.userId, batchId:info.batchId},{$set:info},{w:1}, callback);
             }
         });
     }

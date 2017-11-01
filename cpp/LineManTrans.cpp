@@ -1,39 +1,57 @@
+#include "LineManTrans.h"
+
+void saveSleeper(LineManTrans* lineManTrans)
+{
+    //This is the lowest priority of the systems threads
+    nice(3);
+    while(lineManTrans->cont()) {
+        //cout <<"begin sleep"<<endl;
+        this_thread::sleep_for(chrono::minutes(CHECK_SAVE_TIME_LINE));
+        if (lineManTrans->cont())
+        {
+            lineManTrans->save();
+        }
+    }
+}
 
 LineManTrans::LineManTrans(
                 string pageImageDir, 
                 string segmentationFile, 
                 string savePrefix,
-                int numTaskThreads,
                 int contextPad
                 ) : savePrefix(savePrefix)
 {
+    cont_A=true;
     ifstream in (savePrefix+"_LineManTrans.sav");
     if (in.good())
     {
         cout<<"Load file found."<<endl;
-        Lexicon::instance()->load(in);
         corpus = new Knowledge::Corpus(in);
-        corpus->loadSpotter(spottingModelPrefix);
-        lineQueue = new LineQueue(in,corpus);
+        lineQueue = new LineQueue(in,contextPad,corpus);
 
+        string line;
+        getline(in,line);
+        cout<<"Loaded. Begins from time: "<<line<<endl;
+        in.close();
     }
     else
     {
-        Lexicon::instance()->readIn(lexiconFile);
-        corpus = new Knowledge::Corpus(contextPad, ngramWWFile);
+        corpus = new Knowledge::Corpus(contextPad, "none");
         corpus->addWordSegmentaionAndGT(pageImageDir, segmentationFile);
-        lineQueue = new lineQueue(contextPad,corpus);
+        lineQueue = new LineQueue(contextPad,corpus);
     }
+    saveThread = new thread(saveSleeper,this);
+    saveThread->detach();
 }
 
-BatchWraper* LineManTrans::getBatch()
+BatchWraper* LineManTrans::getBatch(int width)
 {
 #if !defined(TEST_MODE) && !defined(NO_NAN)
     try
     {
 #endif
 
-        BatchWraper* ret= lineQueue->getBatch();
+        BatchWraper* ret= lineQueue->getBatch(width);
         if (ret==NULL)
         {
             return new BatchWraperBlank();
@@ -51,4 +69,26 @@ BatchWraper* LineManTrans::getBatch()
     }
 #endif
     return new BatchWraperBlank();
+}
+
+void LineManTrans::save()
+{
+    if (savePrefix.length()>0)
+    {
+
+        time_t timeSec;
+        time(&timeSec);
+
+        string saveName = savePrefix+"_LineManTrans.sav";
+        //In the event of a crash while saveing, keep a backup of the last save
+        rename( saveName.c_str() , (saveName+".bck").c_str() );
+
+        ofstream out (saveName);
+
+        corpus->save(out);
+        lineQueue->save(out);
+        out<<timeSec<<"\n";
+
+        out.close();
+    }
 }

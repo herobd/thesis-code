@@ -4,22 +4,22 @@
 LineQueue::LineQueue(int contextPad, Knowledge::Corpus* corpus) : contextPad(contextPad), corpus(corpus)
 {
     int lineNum=0;
-    for (Page* page : corpus->pages())
+    for (Knowledge::Page* page : corpus->getPages())
     {
-        for (Line* line : page->lines())
+        for (Knowledge::Line* line : page->lines())
         {
             origins.emplace_back(lineNum++);
             int tlx=999999;
             int brx=-99999;
             int tly, bry;
-            vector<Word*> words = line->wordsAndBounds(&tly, &bry);
+            vector<Knowledge::Word*> words = line->wordsAndBounds(&tly, &bry);
             map<int,string> gts;
-            for (Word* word : words)
+            for (Knowledge::Word* word : words)
             {
                 int word_tlx, word_tly, word_brx, word_bry;
                 bool isDone;
                 string word_gt;
-                getBoundsAndDoneAndGT(&word_tlx, &word_tly, &word_brx, &word_bry, &isDone, &word_gt);
+                word->getBoundsAndDoneAndGT(&word_tlx, &word_tly, &word_brx, &word_bry, &isDone, &word_gt);
                 assert(gts.find(word_tlx)==gts.end());
                 gts[word_tlx]=word_gt;
                 if (word_tlx<tlx)

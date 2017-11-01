@@ -21,6 +21,9 @@ using namespace v8;
 #include "TrainingInstances.h"
 #include "TestingInstances.h"
 
+#include "LineManTrans.h"
+#include "LineBatchRetrieveWorker.cpp"
+
 //test
 #include "spotting.h"
 
@@ -28,6 +31,7 @@ CATTSS* cattss;
 TrainingInstances* trainingInstances;
 map<string, Knowledge::Corpus*> testingCorpi;
 map<string, TestingInstances*> testingInstances;
+LineManTrans* lineManTrans;
 
 NAN_METHOD(getNextBatch) {
     int width = To<int>(info[0]).FromJust();
@@ -346,6 +350,9 @@ NAN_METHOD(start) {
     info.GetReturnValue().Set(cattss->getMaxImageWidth());
 }
 NAN_METHOD(stopSpotting) {
+    if (lineManTrans!=NULL)
+        lineManTrans->stop();
+
     Callback *callback = new Callback(info[0].As<Function>());
 
     AsyncQueueWorker(new MiscWorker(callback,cattss, "stopSpotting"));
@@ -544,11 +551,35 @@ NAN_METHOD(clearTestUsers) {
     Callback *callback = new Callback(info[0].As<Function>());
     AsyncQueueWorker(new ClearTestUsersWorker(callback,testQueue));
 }*/
+NAN_METHOD(startLineManTrans) {
+    assert(lineManTrans==NULL);
+    v8::String::Utf8Value pageImageDirNAN(info[1]);
+    string pageImageDir = string(*pageImageDirNAN);
+    v8::String::Utf8Value segmentationFileNAN(info[2]);
+    string segmentationFile = string(*segmentationFileNAN);
+    v8::String::Utf8Value savePrefixNAN(info[3]);
+    string savePrefix = string(*savePrefixNAN);
+    int contextPad = To<int>(info[4]).FromJust();
+    lineManTrans = new LineManTrans(
+                        pageImageDir,
+                        segmentationFile,
+                        savePrefix,
+                        contextPad);
+}
+NAN_METHOD(getNextLineBatch) {
+    assert(lineManTrans!=NULL);
+    int width = To<int>(info[0]).FromJust();
+    
+    Callback *callback = new Callback(info[2].As<Function>());
+
+    AsyncQueueWorker(new LineBatchRetrieveWorker(callback,lineManTrans, width));
+}
 
 NAN_MODULE_INIT(Init) {
     signal(SIGPIPE, SIG_IGN);    
     cattss=NULL;
     trainingInstances=NULL;
+    lineManTrans=NULL;
 //#ifndef TEST_MODE
     //cattss = new CATTSS("/home/brian/intel_index/data/wordsEnWithNames.txt", 
     //                    "/home/brian/intel_index/data/gw_20p_wannot",
@@ -632,6 +663,12 @@ NAN_MODULE_INIT(Init) {
     
     Nan::Set(target, New<v8::String>("getSpottingsAsBatch").ToLocalChecked(),
         GetFunction(New<FunctionTemplate>(getSpottingsAsBatch)).ToLocalChecked());
+
+
+    Nan::Set(target, New<v8::String>("startLineManTrans").ToLocalChecked(),
+        GetFunction(New<FunctionTemplate>(startLineManTrans)).ToLocalChecked());
+    Nan::Set(target, New<v8::String>("getNextLineBatch").ToLocalChecked(),
+        GetFunction(New<FunctionTemplate>(getNextLineBatch)).ToLocalChecked());
 }
 
 NODE_MODULE(SpottingAddon, Init)

@@ -1,8 +1,7 @@
 const assert = require('assert');
 var fs = require('fs');
 
-var dataname='BENTHAM';
-var datanames=['?'];
+var datanames=['VALfancy'];
 
 
 function shuffle(array) { //from: http://stackoverflow.com/a/2450976/1018830
@@ -25,10 +24,13 @@ function shuffle(array) { //from: http://stackoverflow.com/a/2450976/1018830
 }
 
 //time = c + numChars*n + numPoss*p + position*i + prevTrans*t + 
-function findParamsMan(err,manTimingInstances) {
+function findParamsMan(err,manTimingInstances,dataname) {
     console.log('----MAN----');
     console.log(manTimingInstances.length+' instances');
-    assert(manTimingInstances.length>0,"manTimingInstances is empty");
+    if (manTimingInstances.length==0) {
+        console.log("maxTimingInstances is empty");
+        return;
+    }
     var meanTime=0.0;
 
     var minTime=999999;
@@ -66,14 +68,18 @@ function findParamsMan(err,manTimingInstances) {
         stream.close();
 
     });
+    console.log('---done man---');
     return;
 }
 
 //time = c + numChars*n + numPoss*p + position*i + prevTrans*t + 
-function findParamsTrans(err,transTimingInstances) {
+function findParamsTrans(err,transTimingInstances,dataname) {
     console.log('---TRANS----');
     console.log(transTimingInstances.length+' instances');
-    assert(transTimingInstances.length>0,"transTimingInstances is empty");
+    if (transTimingInstances.length==0) {
+        console.log("transTimingInstances is empty");
+        return;
+    }
     var meanTime=0.0;
     var meanTimeAvail=0.0;
     var meanTimeBad=0.0;
@@ -97,8 +103,8 @@ function findParamsTrans(err,transTimingInstances) {
     var availCSV='';
     var badCSV='';
     var errorCSV='';
-    var avgN={};
-    var countN={};
+    //var avgN={};
+    //var countN={};
     for (var inst of transTimingInstances)
     {
         position = inst.position==-1?10:inst.position;
@@ -135,12 +141,12 @@ function findParamsTrans(err,transTimingInstances) {
             countError+=1;
             errorCSV+=inst.accuracy+','+inst.time+','+inst.numPoss+','+position+','+(inst.prev?1:0)+','+inst.user+'\n';
         }
-        if (!avgN.hasOwnProperty(inst.n)) {
-            avgN[inst.n]=0;
-            countN[inst.n]=0.0;
-        }
-        avgN[inst.n]+=inst.time;
-        countN[inst.n]+=1.0;
+        //if (!avgN.hasOwnProperty(inst.n)) {
+        //    avgN[inst.n]=0;
+        //    countN[inst.n]=0.0;
+        //}
+        //avgN[inst.n]+=inst.time;
+        //countN[inst.n]+=1.0;
     }
     meanTime /= transTimingInstances.length;
     meanAcc /= transTimingInstances.length;
@@ -162,9 +168,9 @@ function findParamsTrans(err,transTimingInstances) {
     console.log('not avail: '+meanTimeNotAvail);
     console.log('bad  : '+meanTimeBad);
     console.log('error: '+meanTimeError);
-    for (var n in avgN) {
-        console.log(n+': '+(avgN[n]/countN[n]));
-    }
+    //for (var n in avgN) {
+    //    console.log(n+': '+(avgN[n]/countN[n]));
+    //}
     var stdTime=0.0;
     for (var inst of transTimingInstances)
     {
@@ -202,7 +208,9 @@ function findParamsTrans(err,transTimingInstances) {
             });
         });
     });
+
     return;
+    ////////////////////////////////////////////////////////
     var c=meanTime+1.5*stdTime;
     var t=-1*stdTime*1.5;
     var s=stdTime*1.0;
@@ -271,9 +279,10 @@ function findParamsTrans(err,transTimingInstances) {
     console.log('Real mean: '+meanTime);
     console.log('Est mean:  '+avgT/transTimingInstances.length);
 
+    console.log('---done trans---');
 }
 
-function findParams2(err,spottingTimingInstances) {
+function findParams2(err,spottingTimingInstances,dataname) {
     console.log('---SPOTTINGS---');
     console.log(spottingTimingInstances.length+' instances');
     assert(spottingTimingInstances.length>0,"spottingTimingInstances is empty");
@@ -327,6 +336,7 @@ function findParams2(err,spottingTimingInstances) {
         stream.write(allCSV);
         stream.close();
     });
+    console.log('---done spottings---');
 }
 
 
@@ -334,124 +344,15 @@ function findParams2(err,spottingTimingInstances) {
 
 var Database = require('./database')();
 var database=new Database('localhost:27017/cattss', datanames, function(db){
-
+    console.log('Start stats collecting');
     //store as such{ngram, numSkip, numT, numF, prevSame, numObv, accuracy, time}
     //
-    db.getSpottingTimings(dataname,findParams2);
-    db.getTransTimings(dataname,findParamsTrans);
-    db.getManTimings(dataname,findParamsMan);
-/*        function(err,spottingTimingInstances1) {
-
-        var meanTime=0.0;
-        for (var inst of spottingTimingInstances1)
-        {
-            meanTime += inst.time;
-        }
-        db.getSpottingTimings(dataname2,function(err,spottingTimingInstances2) {
-
-            for (var inst of spottingTimingInstances2)
-            {
-                meanTime += inst.time;
-            }
-            meanTime /= spottingTimingInstances2.length;
-        
-        
-        
-        /*function(err,spottingTimingInstances) {
-        if (err) {
-            console.log('err '+err);
-            return;
-        }
-        var meanTime=0.0;
-        var minTime=999999;
-        var maxTime=-1;
-        for (var inst of spottingTimingInstances)
-        {
-            meanTime += inst.time;
-            if (inst.time<minTime)
-                minTime=inst.time;
-            if (inst.time<maxTime)
-                maxTime=inst.time;
-        }
-        meanTime /= spottingTimingInstances.length;
-        var stdTime=0.0;
-        for (var inst of spottingTimingInstances)
-        {
-            stdTime += (inst.time-meanTime)*(inst.time-meanTime);
-        }
-        stdTime = Math.sqrt(stdTime/spottingTimingInstances.length);
-       
-        var aCode = 'a'.charCodeAt(0);
-        var totalLetters = 'z'.charCodeAt(0) - aCode +1;
-
-        /*var fs = require('fs');
-        var stream = fs.createWriteStream("timingTrainData_"+dataname+".spec");
-        stream.once('open', function(fd) {
-            /*stream.write("#ngram spotting timing set "+dataname+"\n");
-            stream.write("#milli mean: "+meanTime+"\n");
-            stream.write("#milli std: "+stdTime+"\n");
-
-            stream.write("#num inputs\n"+(totalLetters*2 + 5)+"\n");
-            stream.write("#num outputs\n1\n");
-            for (var inst of spottingTimingInstances) {
-                var line = '';
-                //one-hot encoding of each letter of ngram
-                for (var i=0; i<totalLetters; i++) {
-                    if (i==inst.ngram.charCodeAt(0)-aCode)
-                        line+='1.0 ';
-                    else
-                        line+='0.0 ';
-                }
-                for (var i=0; i<totalLetters; i++) {
-                    if (i==inst.ngram.charCodeAt(1)-aCode)
-                        line+='1.0 ';
-                    else
-                        line+='0.0 ';
-                }
-                line+=((inst.numSkip/5.0)*2.0-1.0)+' ';
-                line+=((inst.numT/5.0)*2.0-1.0)+' ';
-                line+=((inst.numF/5.0)*2.0-1.0)+' ';
-                line+=inst.prevSame?'1.0 ':'0.0 ';
-                //line+=((inst.numObv/5.0)*2.0-1.0)+' ';
-                line+=(2.0*inst.accuracy-1.0)+'\n';
-                //line+=(inst.time-minTime)/(maxTime-minTime)
-                line+=((inst.time-meanTime)/(2*stdTime) ) +'\n';
-                stream.write(line);
-            }*/
-            /*stream.write("%Ngram spotting timing set "+dataname+"\n");
-            stream.write("%milli mean: "+meanTime+"\n");
-            stream.write("%milli std: "+stdTime+"\n");
-            stream.write("@RELATION BENTHAM_TIME");
-            for (var i=0; i<totalLetters; i++)
-                stream.write("@ATTRIBUTE "+String.fromCharCode(aCode+i)+" NUMERIC);
-            for (var inst of spottingTimingInstances) {
-                var line = '';
-                //one-hot encoding of each letter of ngram
-                for (var i=0; i<totalLetters; i++) {
-                    if (i==inst.ngram.charCodeAt(0)-aCode)
-                        line+='1.0 ';
-                    else
-                        line+='0.0 ';
-                }
-                for (var i=0; i<totalLetters; i++) {
-                    if (i==inst.ngram.charCodeAt(1)-aCode)
-                        line+='1.0 ';
-                    else
-                        line+='0.0 ';
-                }
-                line+=((inst.numSkip/5.0)*2.0-1.0)+' ';
-                line+=((inst.numT/5.0)*2.0-1.0)+' ';
-                line+=((inst.numF/5.0)*2.0-1.0)+' ';
-                line+=inst.prevSame?'1.0 ':'0.0 ';
-                //line+=((inst.numObv/5.0)*2.0-1.0)+' ';
-                line+=(2.0*inst.accuracy-1.0)+'\n';
-                //line+=(inst.time-minTime)/(maxTime-minTime)
-                line+=((inst.time-meanTime)/(2*stdTime) ) +'\n';
-                stream.write(line);
-            }
-            stream.end();
-            console.log('COMPLETE');
-        });*/
-    //});
+    for (var i=0; i<datanames.length; i++)
+    {
+        console.log('--'+datanames[i]+'--');
+        db.getNewSpottingTimings(datanames[i],findParams2);
+        db.getTransTimings(datanames[i],findParamsTrans);
+        db.getManTimings(datanames[i],findParamsMan);
+    }
 });
 

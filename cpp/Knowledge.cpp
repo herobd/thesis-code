@@ -9,30 +9,38 @@ Knowledge::Corpus::Corpus(int contextPad, string ngramWWFile, set<string>* ngram
     pthread_rwlock_init(&pagesLock,NULL);
     pthread_rwlock_init(&spottingsMapLock,NULL);
     //this->averageCharWidth=averageCharWidth;
-    ifstream widths(ngramWWFile);
-    assert(widths.good());
-    string line;
-    float sum=0;
-    int count=0;
-    maxImageWidth=0;
-    while (getline(widths,line))
+    if (ngramWWFile.compare("none")!=0)
     {
-        string ngram = GlobalK::lowercaseAndStrip(line);
-        if (ngrams!=NULL)
-            ngrams->insert(ngram);
-        getline(widths,line);
-        int w=stoi(line);
-        sum+=w;
-        maxImageWidth = max(maxImageWidth,w);
-        count+=ngram.length();
-        getline(widths,line);
-    }
-    maxImageWidth*=1.2;
-    widths.close();
-    averageCharWidth=sum/count;
+        ifstream widths(ngramWWFile);
+        assert(widths.good());
+        string line;
+        float sum=0;
+        int count=0;
+        maxImageWidth=0;
+        while (getline(widths,line))
+        {
+            string ngram = GlobalK::lowercaseAndStrip(line);
+            if (ngrams!=NULL)
+                ngrams->insert(ngram);
+            getline(widths,line);
+            int w=stoi(line);
+            sum+=w;
+            maxImageWidth = max(maxImageWidth,w);
+            count+=ngram.length();
+            getline(widths,line);
+        }
+        maxImageWidth*=1.2;
+        widths.close();
+        averageCharWidth=sum/count;
 #ifdef TEST_MODE
-    cout<<"Average character width: "<<averageCharWidth<<endl;
+        cout<<"Average character width: "<<averageCharWidth<<endl;
 #endif
+    }
+    else
+    {
+        averageCharWidth=-1;
+        maxImageWidth=-1;
+    }
     countCharWidth=0;
     threshScoring= 1.0;
     manQueue.setContextPad(contextPad);
