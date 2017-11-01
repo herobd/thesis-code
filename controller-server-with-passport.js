@@ -77,7 +77,19 @@ var ngramWWFiles=[  "/home/brian/intel_index/data/gw_20p_wannot/originalNgramWW.
                  ];
 
 //SET HERE
+//old
+var saveMode=false;
+var timingTestMode=false;
+
+//modes
+var lineMode=true; //full-line annotation more
+var newTimingTestMode=false; //timimng test using system as is
+var labelUnknownMode=false; //gt unknown spottings
+var trainUsers=false;
+var debug=true;
 var mode = 'fancy';//The mode, either trans method or spotting batch serving method. See SpottingAddon.cpp
+if (lineMode)
+    mode='line';
 var cluster = (mode.length>=5 && mode.substr(0,5)=="clust");
 var useAppName = cluster?"app_cluster":"app_full";
 var datasetNum=3;
@@ -99,12 +111,6 @@ var showMilli=4000;
 var startN=2;//ngrams to spot
 var endN=2;
 
-var saveMode=false;
-var timingTestMode=false;
-var newTimingTestMode=false;
-var labelUnknownMode=true;
-var trainUsers=false;
-var debug=true;
 
 if (timingTestMode)
     numThreadsSpotting=0;
@@ -653,6 +659,15 @@ var ControllerApp = function(port) {
                                     res.send({batchType:'ERROR',batchId:-1,err:err});
                                 
                             });
+                } else if (lineMode) {
+                    spottingaddon.getNextLineBatch(+req.query.width,
+                            function(err,batchType,batchId,wordImg,ngrams,possibilities,loc,correct) {
+                                if (err==null) {
+                                    res.send({batchType:batchType,batchId:batchId,wordImg:wordImg,ngrams:ngrams,possibilities:possibilities,correct:correct});
+                                } else {
+                                    res.send({batchType:'ERROR',batchId:-1,err:err});
+                                }
+                            });
                 } else if (labelUnknownMode) {
                     self.database.getNextUnknownIds(datasetName+mode,function(err,batch) {
                         if (err==null)
@@ -846,6 +861,44 @@ var ControllerApp = function(port) {
                         }
                         res.send({done:false});
                     //END TEST//////////////////////////////////////////////////////////////
+                } else if (lineMode) {
+                    if (!(req.query.exit) && req.body.label!='$PASS$') {
+                        var strip = /[^ \w]/;
+                        var label = req.body.label.toLowerCase();
+                        var gt = self.testTransLabels[req.body.batchId].toLowerCase();
+                        //remove leading trailing whitespace, make all white space spaces, remove non-word characters, remove double spaces, split
+                        label = label.trip().replace(/\s/,' ').replace(/[^ \w]/,'').replace(/ +/,' ').split(' ');
+                        gt = gt.trip().replace(/\s/,' ').replace(/[^ \w]/,'').replace(/ +/,' ').split(' ');
+
+                        //Dymanic programming for word alignment
+                        var dtmap = [];
+                        dtmap[0]=(label[0]==gt[0]?0:1);
+                        for (var gtP=1; gtP<gt.length; gtP++) {
+                            dtmap[(gtP)] = gtP;
+                        }
+                        for (var labelP=1; labelP<label.length; labelP++) {
+                            dtmap[(labelP)*gt.length] = labelP;
+                        }
+                        for (var gtP=1; gtP<gt.length; gtP++) {
+                            for (var labelP=1; labelP<label.length; labelP++) {
+                                var stepScore = dtmap[(gtP-1)+(labelP-1)*gt.length] + (label[labelP]==gt[gtP]?0:1);
+                                var skipGtScore = dtmap[(gtP)+(labelP-1)*gt.length] + 1;
+                                var skipLabelScore = dtmap[(gtP-1)+(labelP)*gt.length] + 1;
+                                dtmap[(gtP)+(labelP)*gt.length] = Math.min(stepScore,skipGtScore,skipLabelScore);
+                            }
+                        }
+                        var score = dtmap[gt.length*label.length-1];
+                        var accuracy = Math.max(0,gt.length-score)/(0.0+gt.length);
+
+                        var info = {userId:req.user.id,
+                                    batchId:req.body.batchId,
+                                    numChar:req.body.label.length, 
+                                    accuracy:accuracy, 
+                                    undos:req.body.undos,
+                                    batchTime:req.body.batchTime};
+                        self.database.saveTimingTestManual(datasetName+mode,info,printErr);
+                    }
+                    res.send({done:false});
                 } else if (labelUnknownMode) {
                     if (!(req.query.exit)) {
                         self.database.saveGT(datasetName+mode,req.body.batchId,req.body.ids,req.body.labels,printErr);
@@ -1089,7 +1142,15 @@ var ControllerApp = function(port) {
         //self.setupVariables();
         self.populateCache();
         self.setupTerminationHandlers();
-        if (timingTestMode) {
+        if (lineMode) {
+            self.minWidth=-1;
+            spottingaddon.startLineManTrans(
+                                pageImageDir,
+                                segmentationFile,
+                                savePrefix,
+                                contextPad);
+                                
+        } else if (timingTestMode) {
             //spottingaddons={};
             for (var i=1; i<3; i++)
             {
@@ -1123,7 +1184,7 @@ var ControllerApp = function(port) {
         var datasetNamesMod=[];
         for (var i=0; i<datasetNames.length; i++) {
             datasetNamesMod[i]=datasetNames[i];
-            if (newTimingTestMode || labelUnknownMode)
+            if (newTimingTestMode || labelUnknownMode || lineMode)
                 datasetNamesMod[i]+=mode;
         }
         self.database=new Database('localhost:27017/cattss', datasetNamesMod, function(database) {
