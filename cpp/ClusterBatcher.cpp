@@ -395,6 +395,7 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
 
         //Tracking for debugging
         assert(numTrue+numFalse<spottingRes.size());
+        assert(purity==purity && accuracy==accuracy && runningPurity==runningPurity && runningAccuracy==runningAccuracy);
         batchTracking.emplace_back(purity,accuracy,numTrue+numFalse,runningPurity,runningAccuracy);
     }
 

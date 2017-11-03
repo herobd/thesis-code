@@ -117,7 +117,7 @@ CATTSS::CATTSS( string lexiconFile,
                 int showWidth,
                 int showMilli,
                 int contextPad,
-                bool noManual) : savePrefix(savePrefix), noManual(noManual) //nsOfInterest(nsOfInterest), 
+                bool noManual) : savePrefix(savePrefix), noManual(noManual), lineQueue(NULL)
 {
     cont.store(1);
     sem_init(&semLock, 0, 0);
@@ -412,6 +412,7 @@ CATTSS::CATTSS( string lexiconFile,
     spottingQueue->run(numSpottingThreads);
 //#endif
     run(numTaskThreads);
+
     //test
     /*
         Spotting s1(1000, 1458, 1154, 1497, 2720272, corpus->imgForPageId(2720272), "ma", 0.01);
@@ -854,6 +855,15 @@ void CATTSS::save()
         out<<TranscribeBatch::getIdCounter()<<"\n";
         out<<timeSec<<"\n";
         out.close();
+
+        if (lineQueue!=NULL)
+        {
+            string saveName2 = savePrefix+"_LineManTrans.sav";
+            rename( saveName2.c_str() , (saveName2+".bck").c_str() );
+            ofstream out (saveName2);
+            lineQueue->save(out);
+            out.close();
+        }
 #ifdef TEST_MODE
         t = clock() - t;
         cout<<"END save: "<<((float)t)/CLOCKS_PER_SEC<<" secs.    "<<endl;
@@ -1046,4 +1056,73 @@ void CATTSS::printBatchStats(string ngram, string file)
         else
             cout<<n++<<"\t"<<get<0>(t)<<"\t"<<get<1>(t)<<"\t"<<get<2>(t)<<get<3>(t)<<"\t"<<get<4>(t)<<endl;
     }
+}
+
+
+void CATTSS::initLines(int contextPad) 
+{   
+    ifstream in (savePrefix+"_LineManTrans.sav");
+    if (in.good())
+    {
+        lineQueue = new LineQueue(in,contextPad,corpus);
+
+        in.close(); 
+    }
+    else
+    {
+        lineQueue = new LineQueue(contextPad,corpus);
+    }
+}
+
+BatchWraper* CATTSS::getLineBatch(int width)
+{
+#if !defined(TEST_MODE) && !defined(NO_NAN)
+    try
+    {
+#endif
+        assert(lineQueue!=NULL);
+
+        BatchWraper* ret= lineQueue->getBatch(width);
+        if (ret==NULL)
+        {
+            return new BatchWraperBlank();
+        }
+        return ret;
+#if !defined(TEST_MODE) && !defined(NO_NAN)
+    }
+    catch (exception& e)
+    {
+        cout <<"Exception in CATTSS::getLineBatch(), "<<e.what()<<endl;
+    }
+    catch (...)
+    {
+        cout <<"Exception in CATTSS::getLineBatch(), UNKNOWN"<<endl;
+    }
+#endif
+    return new BatchWraperBlank();
+}
+BatchWraper* CATTSS::getManualBatch(int width)
+{
+#if !defined(TEST_MODE) && !defined(NO_NAN)
+    try
+    {
+#endif
+
+        TranscribeBatch* batSp = corpus->getManualBatch(width);
+        if (batSp!=NULL)
+            return new BatchWraperTranscription(batSp);
+        else
+            return new BatchWraperBlank();
+#if !defined(TEST_MODE) && !defined(NO_NAN)
+    }
+    catch (exception& e)
+    {
+        cout <<"Exception in CATTSS::getBatch(), "<<e.what()<<endl;
+    }
+    catch (...)
+    {
+        cout <<"Exception in CATTSS::getBatch(), UNKNOWN"<<endl;
+    }
+#endif
+    return new BatchWraperBlank();
 }

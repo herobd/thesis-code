@@ -16,6 +16,7 @@ module.exports =  function() {
         // Connect to the db (localhost:27017/exampleDb)
         self.mongo.connect("mongodb://"+address, function(err, db) {
           if(!err) {
+            self.db=db;
             console.log("We are connected to the database.");
             var numCol=1+5*dataNames.length;
 
@@ -531,18 +532,29 @@ module.exports =  function() {
     Database.prototype.saveTimingTestManual = function(dataName,info,callback) {
         var self=this;
         //self.timingManualCollection[dataName].update({userId:info.userId, batchId:info.batchId},{$set:info},{upsert:1, w:1}, callback);
-        self.timingManualCollection[dataName].findOne({userId:info.userId, batchId:info.batchId}, function(err, item) {
-        //self.timingManualCollection.findOne({userId:info.userId, batchId:info.batchId}, function(err, item) {
-            if (err) {
-                callback(err);
-            } else if (item==null) {
-                self.timingManualCollection[dataName].insert(info, {w:1}, callback);
-                //self.timingManualCollection.insert(info, {w:1}, callback);
-            } else {
-                self.timingManualCollection[dataName].update({userId:info.userId, batchId:info.batchId},{$set:info},{w:1}, callback);
-                //self.timingManualCollection.update({userId:info.userId, batchId:info.batchId},{$set:info},{w:1}, callback);
-            }
-        });
+        if (self.timingManualCollection[dataName]) {
+            self.timingManualCollection[dataName].findOne({userId:info.userId, batchId:info.batchId}, function(err, item) {
+            //self.timingManualCollection.findOne({userId:info.userId, batchId:info.batchId}, function(err, item) {
+                if (err) {
+                    callback(err);
+                } else if (item==null) {
+                    self.timingManualCollection[dataName].insert(info, {w:1}, callback);
+                    //self.timingManualCollection.insert(info, {w:1}, callback);
+                } else {
+                    self.timingManualCollection[dataName].update({userId:info.userId, batchId:info.batchId},{$set:info},{w:1}, callback);
+                    //self.timingManualCollection.update({userId:info.userId, batchId:info.batchId},{$set:info},{w:1}, callback);
+                }
+            });
+        } else {
+            self.db.collection('TIMING_MANUAL_'+dataName+'2', function(err, collection) {
+                if(!err) {
+                    self.timingManualCollection[dataName]=collection;
+                    self.timingManualCollection[dataName].insert(info, {w:1}, callback);
+                } else {
+                    console.log('ERROR: conencting to MongoDB colection TIMING_MANUAL_'+dataName+'2: '+err);
+                }
+            });
+        }
     }
 
     Database.prototype.getNextUnknownIds = function(dataname,callback) {

@@ -22,7 +22,7 @@ using namespace v8;
 #include "TestingInstances.h"
 
 #include "LineManTrans.h"
-#include "LineBatchRetrieveWorker.cpp"
+#include "ManualBatchRetrieveWorker.cpp"
 
 //test
 #include "spotting.h"
@@ -259,6 +259,7 @@ NAN_METHOD(start) {
     int width = To<int>(info[10]).FromJust();
     int milli = To<int>(info[11]).FromJust();
     int contextPad = To<int>(info[12]).FromJust();
+    int beginLines = To<int>(info[13]).FromJust();
     //set<int> nsOfInterest;
     //for (int i=startN; i<=endN; i++)
     //    nsOfInterest.insert(i);
@@ -328,9 +329,12 @@ NAN_METHOD(start) {
     else if (mode.compare("fancy")!=0)
     {
         cout<<"Error, unknown SpottingResults mode: "<<mode<<endl;
-        cout<<mode.substr(0,10)<<endl;
-        cout<<"Defaults to fancy"<<endl;
+        //cout<<mode.substr(0,10)<<endl;
+        //cout<<"Defaults to fancy"<<endl;
         //return 0;
+        assert(false);
+        info.GetReturnValue().Set(-1);
+        return;
     }
     assert(cattss==NULL);
     cattss = new CATTSS(lexiconFile,
@@ -347,6 +351,8 @@ NAN_METHOD(start) {
                         width,
                         milli,
                         contextPad);
+    if (beginLines)
+        cattss->initLines(contextPad);
     info.GetReturnValue().Set(cattss->getMaxImageWidth());
 }
 NAN_METHOD(stopSpotting) {
@@ -551,35 +557,43 @@ NAN_METHOD(clearTestUsers) {
     Callback *callback = new Callback(info[0].As<Function>());
     AsyncQueueWorker(new ClearTestUsersWorker(callback,testQueue));
 }*/
-NAN_METHOD(startLineManTrans) {
+/*NAN_METHOD(startLineManTrans) {
     assert(lineManTrans==NULL);
-    v8::String::Utf8Value pageImageDirNAN(info[1]);
+    v8::String::Utf8Value pageImageDirNAN(info[0]);
     string pageImageDir = string(*pageImageDirNAN);
-    v8::String::Utf8Value segmentationFileNAN(info[2]);
+    v8::String::Utf8Value segmentationFileNAN(info[1]);
     string segmentationFile = string(*segmentationFileNAN);
-    v8::String::Utf8Value savePrefixNAN(info[3]);
+    v8::String::Utf8Value savePrefixNAN(info[2]);
     string savePrefix = string(*savePrefixNAN);
-    int contextPad = To<int>(info[4]).FromJust();
+    int contextPad = To<int>(info[3]).FromJust();
     lineManTrans = new LineManTrans(
                         pageImageDir,
                         segmentationFile,
                         savePrefix,
                         contextPad);
-}
+}*/
 NAN_METHOD(getNextLineBatch) {
-    assert(lineManTrans!=NULL);
+    assert(cattss!=NULL);
     int width = To<int>(info[0]).FromJust();
     
-    Callback *callback = new Callback(info[2].As<Function>());
+    Callback *callback = new Callback(info[1].As<Function>());
 
-    AsyncQueueWorker(new LineBatchRetrieveWorker(callback,lineManTrans, width));
+    AsyncQueueWorker(new ManualBatchRetrieveWorker(callback,cattss, width,true));
+}
+NAN_METHOD(getNextManualBatch) {
+    assert(cattss!=NULL);
+    int width = To<int>(info[0]).FromJust();
+    
+    Callback *callback = new Callback(info[1].As<Function>());
+
+    AsyncQueueWorker(new ManualBatchRetrieveWorker(callback,cattss, width,false));
 }
 
 NAN_MODULE_INIT(Init) {
     signal(SIGPIPE, SIG_IGN);    
     cattss=NULL;
     trainingInstances=NULL;
-    lineManTrans=NULL;
+    //lineManTrans=NULL;
 //#ifndef TEST_MODE
     //cattss = new CATTSS("/home/brian/intel_index/data/wordsEnWithNames.txt", 
     //                    "/home/brian/intel_index/data/gw_20p_wannot",
@@ -665,10 +679,12 @@ NAN_MODULE_INIT(Init) {
         GetFunction(New<FunctionTemplate>(getSpottingsAsBatch)).ToLocalChecked());
 
 
-    Nan::Set(target, New<v8::String>("startLineManTrans").ToLocalChecked(),
-        GetFunction(New<FunctionTemplate>(startLineManTrans)).ToLocalChecked());
+    //Nan::Set(target, New<v8::String>("startLineManTrans").ToLocalChecked(),
+    //    GetFunction(New<FunctionTemplate>(startLineManTrans)).ToLocalChecked());
     Nan::Set(target, New<v8::String>("getNextLineBatch").ToLocalChecked(),
         GetFunction(New<FunctionTemplate>(getNextLineBatch)).ToLocalChecked());
+    Nan::Set(target, New<v8::String>("getNextManualBatch").ToLocalChecked(),
+        GetFunction(New<FunctionTemplate>(getNextManualBatch)).ToLocalChecked());
 }
 
 NODE_MODULE(SpottingAddon, Init)

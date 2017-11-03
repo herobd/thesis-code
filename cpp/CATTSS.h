@@ -5,6 +5,7 @@
 #include "Knowledge.h"
 #include "SpottingQueue.h"
 //#include "ClusterBatcher.h"
+#include "LineQueue.h"
 #include "spotting.h"
 #include "Lexicon.h"
 #include "BatchWraper.h"
@@ -86,6 +87,7 @@ class CATTSS
     SpottingQueue* spottingQueue;
     Knowledge::Corpus* corpus;
     Web* web;
+    LineQueue* lineQueue;
     thread* incompleteChecker;
     thread* showChecker;
 
@@ -135,6 +137,8 @@ class CATTSS
             delete t;
         if (GlobalK::knowledge()->WEB_TRANS && web!=NULL)
             delete web;
+        if (lineQueue!=NULL)
+            delete lineQueue;
     }
    //this is aux for extracting data from save file 
     CATTSS(     string save,
@@ -167,5 +171,9 @@ class CATTSS
     void printFinalStats();
     void printBatchStats(string ngram, string file);
     int getMaxImageWidth() {return corpus->getMaxImageWidth();}
+
+    void initLines(int contextPad);
+    BatchWraper* getLineBatch(int width);
+    BatchWraper* getManualBatch(int width);
 };
 #endif

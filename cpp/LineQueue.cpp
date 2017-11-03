@@ -8,7 +8,7 @@ LineQueue::LineQueue(int contextPad, Knowledge::Corpus* corpus) : contextPad(con
     {
         for (Knowledge::Line* line : page->lines())
         {
-            origins.emplace_back(lineNum++);
+            origins.push_back(new PsuedoWordBackPointer(lineNum++));
             int tlx=999999;
             int brx=-99999;
             int tly, bry;
@@ -32,10 +32,15 @@ LineQueue::LineQueue(int contextPad, Knowledge::Corpus* corpus) : contextPad(con
             iter++;
             for (; iter!=gts.end(); iter++)
                 gt+=" "+iter->second;
-            batches.emplace_back(&(origins.back()), vector<string>(), page->getImg(), &spottings, tlx, tly, brx, bry, gt);
+            batches.emplace_back(origins.back(), vector<string>(), page->getImg(), &spottings, tlx, tly, brx, bry, gt);
         }
     }
     on=0;
+}
+LineQueue::~LineQueue()
+{
+    for (auto pt : origins)
+        delete pt;
 }
 
 LineQueue::LineQueue(ifstream& in, int contextPad, Knowledge::Corpus* corpus) : LineQueue(contextPad,corpus)

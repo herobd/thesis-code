@@ -82,14 +82,15 @@ var saveMode=false;
 var timingTestMode=false;
 
 //modes
-var lineMode=true; //full-line annotation more
-var newTimingTestMode=false; //timimng test using system as is
+//var lineMode=true; //full-line annotation more
+var newTimingTestMode=true; //timimng test using system as is
 var labelUnknownMode=false; //gt unknown spottings
 var trainUsers=false;
 var debug=true;
-var mode = 'fancy';//The mode, either trans method or spotting batch serving method. See SpottingAddon.cpp
-if (lineMode)
-    mode='line';
+//The mode, either trans method or spotting batch serving method. See SpottingAddon.cpp
+var mode = 'fancy';//'cluster_step';
+//if (lineMode)
+//    mode='line';
 var cluster = (mode.length>=5 && mode.substr(0,5)=="clust");
 var useAppName = cluster?"app_cluster":"app_full";
 var datasetNum=3;
@@ -297,52 +298,46 @@ var ControllerApp = function(port) {
             //    res.redirect('/login');
             //}
         });
-        self.app.get('/app-prep', function(req, res) {
+        self.app.get('/app-normal', function(req, res) {
             if (req.user || debug) {
-
-                var appName = 'app_prep';
-                if (!saveMode)
-                    res.render(appName, {app_version:'app_prep', testMode:false, trainMode:false, save:saveMode, minWidth:self.minWidth, message: req.flash('error') });
-                else
-                    res.redirect('/');
-            } else {
-                res.redirect('/login');
-            }
-        });
-        
-        self.app.get('/app-tap', function(req, res) {
-            if (req.user || debug) {
-                //console.log('[app] user:'+req.user.id+' hit app');
-                //res.setHeader('Content-Type', 'text/html');
-                //res.send(self.cache_get('app.html') );
-                res.redirect('/');
-                //var appName = 'app_tap';
-                //res.render(appName, {app_version:'app_tap', testMode:false, trainingMode:false, message: req.flash('error') });
-            } else {
-                res.redirect('/login');
-            }
-        });
-        
-        self.app.get('/app-hardcore', function(req, res) {
-            if (req.user || debug) {
-                //console.log('[app] user:'+req.user.id+' hit app');
-                //res.setHeader('Content-Type', 'text/html');
-                //res.send(self.cache_get('app.html') );
-                var appName = "app_full";
-                if (!saveMode)
-                    res.render(appName, {app_version:useAppName, testMode:false, trainMode:false, save:false, minWidth:self.minWidth, message: req.flash('error') });
-                else
-                    res.redirect('/');
-            } else {
-                res.redirect('/login');
-            }
-        });
-        self.app.get('/app-test', function(req, res) {
-            if (req.user || debug) {
-                if ((newTimingTestMode||req.user.datasetTiming) && !saveMode) {
+               //if ((newTimingTestMode||req.user.datasetTiming) && !saveMode) {
                     //console.log('[app] user:'+req.user.id+' hit app');
                     var appName = "app_full";
-                    res.render(appName, {app_version:useAppName, testMode:timingTestMode||newTimingTestMode, trainMode:trainUsers, save:false, minWidth:self.minWidth, message: req.flash('error') });
+                    res.render(appName, {app_version:useAppName, testMode:timingTestMode||newTimingTestMode, labelMode:'normal', trainMode:trainUsers, save:false, minWidth:self.minWidth, message: req.flash('error') });
+                //} else {
+                //    res.redirect('/home');
+                //}
+            } else {
+                res.redirect('/login');
+            }
+        });
+        self.app.get('/app-normal-train', function(req, res) {
+            if (req.user || debug) {
+                    var appName = "app_full";
+                    res.render(appName, {app_version:useAppName, testMode:timingTestMode||newTimingTestMode, labelMode:'normal', trainMode:true, save:false, minWidth:self.minWidth, message: req.flash('error') });
+            } else {
+                res.redirect('/login');
+            }
+        });
+        self.app.get('/app-manual', function(req, res) {
+            if (req.user || debug) {
+                if (newTimingTestMode) {
+                    //console.log('[app] user:'+req.user.id+' hit app');
+                    var appName = "app_full";
+                    res.render(appName, {app_version:useAppName, testMode:timingTestMode||newTimingTestMode, labelMode:'manual', trainMode:trainUsers, save:false, minWidth:self.minWidth, message: req.flash('error') });
+                } else {
+                    res.redirect('/home');
+                }
+            } else {
+                res.redirect('/login');
+            }
+        });
+        self.app.get('/app-line', function(req, res) {
+            if (req.user || debug) {
+                if (newTimingTestMode) {
+                    //console.log('[app] user:'+req.user.id+' hit app');
+                    var appName = "app_full";
+                    res.render(appName, {app_version:'app_cluster', testMode:timingTestMode||newTimingTestMode, labelMode:'line', trainMode:trainUsers, save:false, minWidth:self.minWidth, message: req.flash('error') });
                 } else {
                     res.redirect('/home');
                 }
@@ -354,14 +349,15 @@ var ControllerApp = function(port) {
             if (req.user || debug) {
                 //console.log('[app] user:'+req.user.id+' hit app');
                 var appName = "app_full";
-                if (saveMode)
-                    res.render(appName, {app_version:useAppName, testMode:false, trainMode:false, save:true, minWidth:self.minWidth, message: req.flash('error') });
+                if (labelUnknownMode)
+                    res.render(appName, {app_version:useAppName, testMode:false, trainMode:false, save:false, minWidth:self.minWidth, message: req.flash('error') });
                 else
                     res.redirect('/home');
             } else {
                 res.redirect('/login');
             }
         });
+        /*
         self.app.get('/app-false-label', function(req, res) {
             if (req.user || debug) {
                 //console.log('[app] user:'+req.user.id+' hit app');
@@ -373,7 +369,7 @@ var ControllerApp = function(port) {
             } else {
                 res.redirect('/login');
             }
-        });
+        });*/
         
         self.app.get('/home', function(req, res) {
             if (req.user) {
@@ -659,7 +655,7 @@ var ControllerApp = function(port) {
                                     res.send({batchType:'ERROR',batchId:-1,err:err});
                                 
                             });
-                } else if (lineMode) {
+                } else if (newTimingTestMode && req.query.labelMode=='line') {
                     spottingaddon.getNextLineBatch(+req.query.width,
                             function(err,batchType,batchId,wordImg,ngrams,possibilities,loc,correct) {
                                 if (err==null) {
@@ -667,6 +663,17 @@ var ControllerApp = function(port) {
                                 } else {
                                     res.send({batchType:'ERROR',batchId:-1,err:err});
                                 }
+                                self.testTransLabels['l'+batchId] = correct;
+                            });
+                } else if (newTimingTestMode && req.query.labelMode=='manual') {
+                    spottingaddon.getNextManualBatch(+req.query.width,
+                            function (err,batchType,batchId,wordImg,ngrams,possibilities,loc,correct) {
+                                if (err==null) {
+                                    res.send({batchType:batchType,batchId:batchId,wordImg:wordImg,ngrams:ngrams,possibilities:possibilities,correct:correct});
+                                } else {
+                                    res.send({batchType:'ERROR',batchId:-1,err:err});
+                                }
+                                self.testTransLabels[batchId] = correct;
                             });
                 } else if (labelUnknownMode) {
                     self.database.getNextUnknownIds(datasetName+mode,function(err,batch) {
@@ -861,14 +868,14 @@ var ControllerApp = function(port) {
                         }
                         res.send({done:false});
                     //END TEST//////////////////////////////////////////////////////////////
-                } else if (lineMode) {
+                } else if (newTimingTestMode && req.query.labelMode=='line') {
                     if (!(req.query.exit) && req.body.label!='$PASS$') {
                         var strip = /[^ \w]/;
                         var label = req.body.label.toLowerCase();
-                        var gt = self.testTransLabels[req.body.batchId].toLowerCase();
+                        var gt = self.testTransLabels['l'+req.body.batchId].toLowerCase();
                         //remove leading trailing whitespace, make all white space spaces, remove non-word characters, remove double spaces, split
-                        label = label.trip().replace(/\s/,' ').replace(/[^ \w]/,'').replace(/ +/,' ').split(' ');
-                        gt = gt.trip().replace(/\s/,' ').replace(/[^ \w]/,'').replace(/ +/,' ').split(' ');
+                        label = label.trim().replace(/\s/g,' ').replace(/[^ \w]/g,'').replace(/ +/g,' ').split(' ');
+                        gt = gt.trim().replace(/\s/g,' ').replace(/[^ \w]/g,'').replace(/ +/g,' ').split(' ');
 
                         //Dymanic programming for word alignment
                         var dtmap = [];
@@ -896,7 +903,7 @@ var ControllerApp = function(port) {
                                     accuracy:accuracy, 
                                     undos:req.body.undos,
                                     batchTime:req.body.batchTime};
-                        self.database.saveTimingTestManual(datasetName+mode,info,printErr);
+                        self.database.saveTimingTestManual(datasetName+'line',info,printErr);
                     }
                     res.send({done:false});
                 } else if (labelUnknownMode) {
@@ -1142,7 +1149,7 @@ var ControllerApp = function(port) {
         //self.setupVariables();
         self.populateCache();
         self.setupTerminationHandlers();
-        if (lineMode) {
+        /*if (lineMode) {
             self.minWidth=-1;
             spottingaddon.startLineManTrans(
                                 pageImageDir,
@@ -1150,7 +1157,8 @@ var ControllerApp = function(port) {
                                 savePrefix,
                                 contextPad);
                                 
-        } else if (timingTestMode) {
+        } else */
+        if (timingTestMode) {
             //spottingaddons={};
             for (var i=1; i<3; i++)
             {
@@ -1179,12 +1187,13 @@ var ControllerApp = function(port) {
                                 showHeight,
                                 showWidth,
                                 showMilli,
-                                contextPad);
+                                contextPad,
+                                newTimingTestMode?1:0);
         }
         var datasetNamesMod=[];
         for (var i=0; i<datasetNames.length; i++) {
             datasetNamesMod[i]=datasetNames[i];
-            if (newTimingTestMode || labelUnknownMode || lineMode)
+            if (newTimingTestMode || labelUnknownMode)
                 datasetNamesMod[i]+=mode;
         }
         self.database=new Database('localhost:27017/cattss', datasetNamesMod, function(database) {

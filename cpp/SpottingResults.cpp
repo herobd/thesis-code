@@ -11,7 +11,37 @@ SpottingResults::SpottingResults(string ngram, int contextPad) :
     //instancesByScore(scoreCompById(&(this->instancesById),false)),
     ngram(ngram), contextPad(contextPad)
 {
-    id = ++_id;
+    //id = ++_id;
+    if (ngram.length()==1)
+    {
+        auto begin = GlobalK::knowledge()->unigrams.begin();
+        auto end = GlobalK::knowledge()->unigrams.end();
+        auto found = find(begin,end,ngram);
+        if (found!=end)
+            id = GlobalK::knowledge()->trigrams.size() + GlobalK::knowledge()->bigrams.size() + distance(begin,found);
+        else
+            id = ++_id;
+    }
+    else if (ngram.length()==2)
+    {
+        auto begin = GlobalK::knowledge()->bigrams.begin();
+        auto end = GlobalK::knowledge()->bigrams.end();
+        auto found = find(begin,end,ngram);
+        if (found!=end)
+            id = GlobalK::knowledge()->trigrams.size() + distance(begin,found);
+        else
+            id = ++_id;
+    }
+    else if (ngram.length()==3)
+    {
+        auto begin = GlobalK::knowledge()->trigrams.begin();
+        auto end = GlobalK::knowledge()->trigrams.end();
+        auto found = find(begin,end,ngram);
+        if (found!=end)
+            id = distance(begin,found);
+        else
+            id = ++_id;
+    }
     //sem_init(&mutexSem,false,1);
     //numBatches=0;
     allBatchesSent=true;

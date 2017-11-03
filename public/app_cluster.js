@@ -2,7 +2,7 @@
 var menuHeaderHeight=50;
 var removeNgramButtonWidth=40;
 var maxColumns=4
-var maxImgWidth=700;//maxColumns*minWidth;
+var maxImgWidth=900;//maxColumns*minWidth;
 //var OK_THRESH=85;
 //var BAD_THRESH=-85;
 
@@ -56,7 +56,7 @@ function standardQuery(batchInfo) {
     if (trainingMode)
         query+='&trainingNum='+batchInfo.trainingNum;
     else if (timingTestMode)
-        query+='&testingNum='+batchInfo.testingNum;
+        query+='&testingNum='+batchInfo.testingNum+'&labelMode='+labelMode;
     if (save)
         query+='&save=1';
     if (exiting)
@@ -496,6 +496,8 @@ function undo() {
     }
     if (lastRemovedBatchInfo.length>0){
         batchQueue = [lastRemovedBatchInfo.pop()].concat(batchQueue);
+        if (timingTestMode)
+            batchQueue[0].countUndos++;
         theWindow.innerHTML = ""; //clear the current batch.
         showNextBatch();
     }
@@ -627,7 +629,22 @@ function setup() {
         //instructions.addEventListener('touchstart', closeInstructions, false);
     }
 
-
+    if (timingTestMode)
+    {
+        var time;
+        if (labelMode=='normal')
+            time=14*60*1000;
+        else if (labelMode=='manual')
+            time=4*60*1000;
+        else if (labelMode=='line')
+            time=4*60*1000;
+        else
+            return;
+        setTimeout(function() {
+            alert("Time's up!");
+            exit();
+        },time);
+    }
 }
 
 function closeInstructions(e) {
@@ -823,7 +840,7 @@ function getNextBatch() {
     }
     else if (timingTestMode) {
         currentNum=testingNum;
-        query+='&testingNum='+testingNum;
+        query+='&testingNum='+testingNum+'&labelMode='+labelMode;
         testingNum+=1;
     }
 
@@ -952,9 +969,9 @@ function batchOnclick(evt) {
             //spotting.addEventListener("webkitAnimationEnd", remove, false);
             //spotting.addEventListener("animationend", remove, false);
             if (batches[this.batchId].spottings[spottingId])
-                spotting.classList.toggle('flasherGreen');
+                spotting.classList.toggle('flashGreen');
             else
-                spotting.classList.toggle('flasherRed');
+                spotting.classList.toggle('flashRed');
         }
     document.getElementById(this.batchId).classList.toggle('fader');
 
@@ -1038,20 +1055,25 @@ function finishShowSpottingsBatch(index,batch,h,ims,batchDiv)
             buttonBar.appendChild(badButton);
 
             batchDiv.appendChild(buttonBar);
-            theWindow.insertBefore(batchDiv,theWindow.firstChild);
+            //theWindow.insertBefore(batchDiv,theWindow.firstChild);
+            theWindow.appendChild(batchDiv);
         }
     }
 }
 
 function showTransBatch(batch) {
     var wordImg = new Image();
-    wordImg.onload = function() {theWindow.insertBefore(createTranscriptionSelector('t'+batch.id,wordImg,batch.ngrams,batch.possibilities),theWindow.firstChild);};
+    wordImg.onload = function() {theWindow.appendChild(createTranscriptionSelector('t'+batch.id,wordImg,batch.ngrams,batch.possibilities));};
     wordImg.src='data:image/png;base64,'+batch.image;
 }
 
 function showManBatch(batch) {
     var wordImg = new Image();
-    wordImg.onload = function() {theWindow.insertBefore(createManualTranscriptionSelector('m'+batch.id,wordImg,batch.ngrams,batch.possibilities),theWindow.firstChild);};
+    wordImg.onload = function() {
+        theWindow.appendChild(createManualTranscriptionSelector('m'+batch.id,wordImg,batch.ngrams,batch.possibilities));
+        var input = document.getElementById('in_m'+batch.id);
+        input.focus();
+    };
     wordImg.src='data:image/png;base64,'+batch.image;
 }
 /*function highlightLast() {
@@ -1220,7 +1242,6 @@ function inputBoxFunc(self,possibilities,possDiv,id,onEnter) {
                 while (true) {
                     i=Math.floor(lb +(ub-lb)/2);
                     var comp = cur.localeCompare(lcPossibilities[i]);
-                    console.log(i +' '+comp);
                     if (comp==0)
                         break;
                     else if (comp<0)

@@ -58,7 +58,7 @@ function standardQuery(batchInfo) {
         query+='&trainingNum='+batchInfo.trainingNum;
     else if (timingTestMode) {
         //query+='&testingNum='+batchInfo.testingNum;
-        query+='&testingNum='+batchInfo.id;
+        query+='&testingNum='+batchInfo.id+'&labelMode='+labelMode;
     }
     if (save)
         query+='&save=1';
@@ -814,7 +814,7 @@ function getNextBatch() {
     }
     else if (timingTestMode) {
         currentNum=testingNum;
-        query+='&testingNum='+testingNum;
+        query+='&testingNum='+testingNum+'&labelMode='+labelMode;
         testingNum+=1;
     }
 
@@ -1118,7 +1118,6 @@ function inputBoxFunc(self,possibilities,possDiv,id,onEnter) {
                 while (true) {
                     i=Math.floor(lb +(ub-lb)/2);
                     var comp = cur.localeCompare(lcPossibilities[i]);
-                    console.log(i +' '+comp);
                     if (comp==0)
                         break;
                     else if (comp<0)
