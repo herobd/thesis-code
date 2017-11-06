@@ -116,7 +116,7 @@ Mat drawCPV(Mat cpv, Mat image, float netScale)
         string letter=" ";
         letter[0]=i+'a';
 
-        cv::putText(draw,letter,cv::Point(1,image.rows+i*letterSize+15),cv::FONT_HERSHEY_COMPLEX_SMALL,0.75,cv::Scalar(250,250,255));
+        cv::putText(draw,letter,cv::Point(1,image.rows+i*letterSize+17),cv::FONT_HERSHEY_COMPLEX_SMALL,0.75,cv::Scalar(250,250,255));
         for (int c=0; c<cpv.cols; c++)
         {
             float v = cpv.at<float>(i,c);
@@ -141,7 +141,7 @@ Mat drawCPV(Mat cpv, Mat image, float netScale)
 vector<TranscribeBatch*> Knowledge::Corpus::cpvTransCTC(float keep, const vector<string>& ngrams)
 {
 #ifdef TEST_MODE
-    ofstream dout(DEBUG_DIR+"/topTrans.txt");
+    ofstream dout(DEBUG_DIR+string("/topTrans.txt"));
 #endif
     spotter->setNgrams(ngrams);
     //join
@@ -176,7 +176,7 @@ vector<TranscribeBatch*> Knowledge::Corpus::cpvTransCTC(float keep, const vector
         */
 #ifdef TEST_MODE
         Mat draw = drawCPV(cpv,getWord(i)->getImg(),0.25);
-        imwrite(DEBUG_DIR+"/cpv"+to_string(i)+".png",draw);
+        imwrite(DEBUG_DIR+string("/cpv")+to_string(i)+".png",draw);
         //imshow("cpv",draw);
 #endif
         multimap<float,string> topMatches;// = Lexicon::instance()->ctc(cpv,THRESH_SCORING_COUNT);
