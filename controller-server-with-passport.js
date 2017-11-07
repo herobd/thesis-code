@@ -21,8 +21,8 @@ var Database = require('./database')();
 var passport = require('passport')
   , LocalStrategy = require('passport-local').Strategy;
 
-var spottingaddon = require("./cpp/build/Debug/spottingaddon");
-//var spottingaddon = require("./cpp/build/Release/spottingaddon")
+//var spottingaddon = require("./cpp/build/Debug/spottingaddon");
+var spottingaddon = require("./cpp/build/Release/spottingaddon")
 
 numberOfTests=2;
 
@@ -39,12 +39,12 @@ var lexiconFiles=[  "/home/brian/intel_index/data/wordsEnWithNames.txt",
                  ];
 var pageImageDirs=[ "/home/brian/intel_index/data/gw_20p_wannot",
                     "/home/brian/intel_index/data/bentham/BenthamDatasetR0-Images/Images/Pages",
-                    "/home/brian/intel_index/data/us1930_census/names_only",
+                    "/home/brian/intel_index/data/us1930_census/names_only/NAME_COLUMNS",
                     "/home/brian/intel_index/data/bentham/BenthamDatasetR0-Images/Images/Pages"
                   ];
 var segmentationFiles=[ "/home/brian/intel_index/EmbAttSpotter/test/queries_test.gtp",
                         "/home/brian/intel_index/data/bentham/ben_cattss_c_corpus.gtp",
-                        "/home/brian/intel_index/data/us1930_census/names_only/seg_names_corpus.gtp",
+                        "/home/brian/intel_index/data/us1930_census/names_only/seg_names_corpus_mod.gtp",
                         "/home/brian/intel_index/data/bentham/nn_valid.gtp"
                       ];
 var datasetNames=[  'GW',       //0
@@ -88,12 +88,12 @@ var labelUnknownMode=false; //gt unknown spottings
 var trainUsers=false;
 var debug=true;
 //The mode, either trans method or spotting batch serving method. See SpottingAddon.cpp
-var mode = 'fancy';//'cluster_step';
+var mode = 'cluster_step';
 //if (lineMode)
 //    mode='line';
 var cluster = (mode.length>=5 && mode.substr(0,5)=="clust");
 var useAppName = cluster?"app_cluster":"app_full";
-var datasetNum=3;
+var datasetNum=2;
 var lexiconFile=lexiconFiles[datasetNum];
 var pageImageDir=pageImageDirs[datasetNum];
 var segmentationFile=segmentationFiles[datasetNum];
