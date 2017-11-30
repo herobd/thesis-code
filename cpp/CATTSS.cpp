@@ -117,7 +117,10 @@ CATTSS::CATTSS( string lexiconFile,
                 int showWidth,
                 int showMilli,
                 int contextPad,
-                bool noManual) : savePrefix(savePrefix), noManual(noManual), lineQueue(NULL)
+                bool noManual) : savePrefix(savePrefix), noManual(noManual)
+#ifndef NO_NAN 
+    ,lineQueue(NULL)
+#endif
 {
     cont.store(1);
     sem_init(&semLock, 0, 0);
@@ -856,6 +859,7 @@ void CATTSS::save()
         out<<timeSec<<"\n";
         out.close();
 
+#ifndef NO_NAN
         if (lineQueue!=NULL)
         {
             string saveName2 = savePrefix+"_LineManTrans.sav";
@@ -864,6 +868,7 @@ void CATTSS::save()
             lineQueue->save(out);
             out.close();
         }
+#endif
 #ifdef TEST_MODE
         t = clock() - t;
         cout<<"END save: "<<((float)t)/CLOCKS_PER_SEC<<" secs.    "<<endl;
@@ -1059,6 +1064,7 @@ void CATTSS::printBatchStats(string ngram, string file)
 }
 
 
+#ifndef NO_NAN
 void CATTSS::initLines(int contextPad) 
 {   
     ifstream in (savePrefix+"_LineManTrans.sav");
@@ -1101,6 +1107,7 @@ BatchWraper* CATTSS::getLineBatch(int width)
 #endif
     return new BatchWraperBlank();
 }
+#endif
 BatchWraper* CATTSS::getManualBatch(int width)
 {
 #if !defined(TEST_MODE) && !defined(NO_NAN)

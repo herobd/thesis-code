@@ -5,7 +5,6 @@
 #include "Knowledge.h"
 #include "SpottingQueue.h"
 //#include "ClusterBatcher.h"
-#include "LineQueue.h"
 #include "spotting.h"
 #include "Lexicon.h"
 #include "BatchWraper.h"
@@ -18,6 +17,8 @@
 //#include "ctpl_stl.h"
 #ifdef NO_NAN
 #include "tester.h"
+#else
+#include "LineQueue.h"
 #endif
 
 using namespace std;
@@ -87,7 +88,9 @@ class CATTSS
     SpottingQueue* spottingQueue;
     Knowledge::Corpus* corpus;
     Web* web;
+#ifndef NO_NAN
     LineQueue* lineQueue;
+#endif
     thread* incompleteChecker;
     thread* showChecker;
 
@@ -137,8 +140,10 @@ class CATTSS
             delete t;
         if (GlobalK::knowledge()->WEB_TRANS && web!=NULL)
             delete web;
+#ifndef NO_NAN
         if (lineQueue!=NULL)
             delete lineQueue;
+#endif
     }
    //this is aux for extracting data from save file 
     CATTSS(     string save,
@@ -172,8 +177,10 @@ class CATTSS
     void printBatchStats(string ngram, string file);
     int getMaxImageWidth() {return corpus->getMaxImageWidth();}
 
+#ifndef NO_NAN
     void initLines(int contextPad);
     BatchWraper* getLineBatch(int width);
+#endif
     BatchWraper* getManualBatch(int width);
 };
 #endif
