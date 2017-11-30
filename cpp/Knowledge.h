@@ -59,7 +59,6 @@ typedef Graph<float,float,float> GraphType;
 
 #define SHOW 0
 
-#define AUTO_TRANS_ON_ONE 0
 
 //#ifndef TEST_MODE_LONG
 //#define averageCharWidth 40 //TODO GW, totally just making this up
@@ -478,6 +477,7 @@ private:
     pthread_rwlock_t pagesLock;
     pthread_rwlock_t spottingsMapLock;
     float averageCharWidth;
+    string ngramWWFile;
     int countCharWidth;
     float threshScoring;
     
@@ -501,9 +501,11 @@ private:
     void recreateDatasetVectors(bool lockPages);
 
     int minWordImageLen, maxWordImageLen;
+    string name;
+    int maxImageWidth;
 
 public:
-    Corpus(int contextPad, int averageCharWidth);
+    Corpus(int contextPad, string ngramWWFile, set<string>* ngrams=NULL);
     Corpus(ifstream& in);
     void save(ofstream& out);
     ~Corpus()
@@ -517,7 +519,7 @@ public:
         pthread_rwlock_destroy(&pagesLock);
         pthread_rwlock_destroy(&spottingsMapLock);
     }
-    void loadSpotter(string modelPrefix, set<int> nsOfInterest);
+    void loadSpotter(string modelPrefix);
     vector<TranscribeBatch*> phocTrans(float keep);
     vector<TranscribeBatch*> npvTrans(const vector<string>& ngrams);
     vector<TranscribeBatch*> addSpotting(Spotting s,vector<Spotting*>* newExemplars);
@@ -563,13 +565,27 @@ public:
                                  float* meanLenWordsTrans80_100=NULL, float* meanLenWordsTrans60_80=NULL, float* meanLenWordsTrans40_60=NULL, float* meanLenWordsTrans20_40=NULL, float* meanLenWordsTrans0_20=NULL, float* meanLenWordsTrans0=NULL, float* meanLenWordsTransBad=NULL,
                                  float* stdLenWordsTrans80_100=NULL, float* stdLenWordsTrans60_80=NULL, float* stdLenWordsTrans40_60=NULL, float* stdLenWordsTrans20_40=NULL, float* stdLenWordsTrans0_20=NULL, float* stdLenWordsTrans0=NULL, float* stdLenWordsTransBad=NULL,
                                  map<char,float>* charDistDone=NULL, map<char,float>* charDistUndone=NULL,
-                                 vector<string>* badNgrams=NULL);
+                                 vector<string>* badNgrams=NULL,
+                                 map<int,float>* meanUnigramsSpottedByLen=NULL, map<int,float>* meanBigramsSpottedByLen=NULL, map<int,float>* meanTrigramsSpottedByLen=NULL);
 
     static void mouseCallBackFunc(int event, int x, int y, int flags, void* page_p);
     void showInteractive(int pageId);
-    string getName() const {return "CORPUS";}
+    string getName() const {return name;}
     Spotting wrapSpotting(int imIdx, int startX, int endX, float score, string ngram);
     vector<SpottingLoc> massSpot(const vector<string>& ngrams, Mat& crossScores);
+    int getMaxImageWidth() {return maxImageWidth;}
+    vector<Page*> getPages()
+    {
+        vector<Page*> ret;
+        ret.reserve(pages.size());//doesn't matter if the size is wront
+        pthread_rwlock_rdlock(&pagesLock);
+        
+        for (auto& p : pages)
+            ret.push_back(p.second);
+        
+        pthread_rwlock_unlock(&pagesLock);
+        return ret;
+    }
 };
 
 }

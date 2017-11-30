@@ -314,7 +314,7 @@ button {
 }
 
 .window {
-    background: #cc99ff;
+    background: #380B61;
     max-width: 700px;
     width: 100%;
     /*position: relative;*/
@@ -347,10 +347,7 @@ button {
     z-index: 3;
     text-align: center;
     border-width:0px;
-    
-    
-    pointer-events: none;
-    touch-action: none;
+    pointer-events: all;
 }
 
 .spotting img {
@@ -360,6 +357,9 @@ button {
     /*float: left;*/
     position: relative;
       left: 0;
+}
+.selected img {
+    filter: brightness(70%);
 }
 
 .spotting label {
@@ -397,6 +397,7 @@ div.transcription {
     position: relative;
     left: 0;
     display: block;
+    max-width: 100%;
 }
 
 .transcription .spotteds {
@@ -537,6 +538,36 @@ div.selection.error {
           min-height:0px;}
 }
 
+.fader {
+    animation-duration: 0.4s;
+    animation-name: fade;
+    -webkit-animation-duration: 0.4s;
+    -webkit-animation-name: fade;
+}
+.flashGreen {
+    background: green;
+}
+.flashGreen img {
+    filter: hue-rotate(60deg);
+}
+.flashRed {
+    background: red;
+}
+.flashRed img {
+    filter: hue-rotate(-40deg);
+}
+@keyframes fade {
+    0% {opacity:1;}
+    80% {opacity:0.8;}
+    100%   {opacity:0;}
+}
+@-webkit-keyframes fade {
+    0% {opacity:1;}
+    80% {opacity:0.8;}
+    100%   {opacity:0;}
+}
+
+
 .spotting.redo {
     /*background: #94BD5E;*/
     color: #0E0E0E;
@@ -546,7 +577,7 @@ div.selection.error {
     /*background: #94BD5E;*/
     color: #090909;
     text-align: center;
-    font-size: 24px;
+    font-size: 28px;
     min-height:40px;
 }
 .batchHeader.ondeck div {
@@ -586,6 +617,34 @@ div.selection.error {
 .batchHeader.ondeck {
     height:80px !important;
     font-size: 30px;
+}
+
+ul {
+    overflow:hidden;
+    padding-left: 0;
+    list-style: none;
+    display: -webkit-box;
+    display: -moz-box;
+    display: -ms-flexbox;
+    display: -moz-flex;
+    display: -webkit-flex;
+    display: flex;
+
+    flex-wrap: wrap;
+}
+
+li {
+    float:left;
+    display:inline;
+    overflow:hidden;
+    margin: 0 3px 0 3px;
+}
+
+
+span {
+    float: left;
+    font-size: 28px;
+    padding-left: 4px;
 }
 
 
@@ -679,3 +738,16 @@ div.selection.error {
     max-width: 50%;
     opacity: 0.75;
 }*/
+
+.skipinstruct {
+    float: none;
+    position: absolute;
+    z-index: 2;
+    font-size: 20px;
+    color: ghostwhite;
+    display: none;
+}
+
+.setForSkip .skipinstruct {
+    display: block;
+}

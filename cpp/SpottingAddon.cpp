@@ -21,6 +21,9 @@ using namespace v8;
 #include "TrainingInstances.h"
 #include "TestingInstances.h"
 
+#include "LineManTrans.h"
+#include "ManualBatchRetrieveWorker.cpp"
+
 //test
 #include "spotting.h"
 
@@ -28,6 +31,7 @@ CATTSS* cattss;
 TrainingInstances* trainingInstances;
 map<string, Knowledge::Corpus*> testingCorpi;
 map<string, TestingInstances*> testingInstances;
+LineManTrans* lineManTrans;
 
 NAN_METHOD(getNextBatch) {
     int width = To<int>(info[0]).FromJust();
@@ -241,35 +245,120 @@ NAN_METHOD(start) {
     string spottingModelPrefix = string(*spottingModelPrefixNAN);
     v8::String::Utf8Value savePrefixNAN(info[4]);
     string savePrefix = string(*savePrefixNAN);
-    int startN = To<int>(info[5]).FromJust();
-    int endN = To<int>(info[6]).FromJust();
-    int avgCharWidth = To<int>(info[7]).FromJust();
-    int numSpottingThreads = To<int>(info[8]).FromJust();
-    int numTaskThreads = To<int>(info[9]).FromJust();
-    int height = To<int>(info[10]).FromJust();
-    int width = To<int>(info[11]).FromJust();
-    int milli = To<int>(info[12]).FromJust();
-    int contextPad = To<int>(info[13]).FromJust();
-    set<int> nsOfInterest;
-    for (int i=startN; i<=endN; i++)
-        nsOfInterest.insert(i);
+    //int startN = To<int>(info[5]).FromJust();
+    //int endN = To<int>(info[6]).FromJust();
+    //int avgCharWidth = To<int>(info[7]).FromJust();
+    v8::String::Utf8Value ngramWWFileNAN(info[5]);
+    string ngramWWFile = string(*ngramWWFileNAN);
+    v8::String::Utf8Value modeNAN(info[6]);
+    string mode = string(*modeNAN);
+
+    int numSpottingThreads = To<int>(info[7]).FromJust();
+    int numTaskThreads = To<int>(info[8]).FromJust();
+    int height = To<int>(info[9]).FromJust();
+    int width = To<int>(info[10]).FromJust();
+    int milli = To<int>(info[11]).FromJust();
+    int contextPad = To<int>(info[12]).FromJust();
+    int beginLines = To<int>(info[13]).FromJust();
+    //set<int> nsOfInterest;
+    //for (int i=startN; i<=endN; i++)
+    //    nsOfInterest.insert(i);
+    if (mode.compare("take_from_top")==0)
+    {
+        GlobalK::knowledge()->SR_TAKE_FROM_TOP=true;
+    }
+    else if (mode.compare("otsu_fixed")==0)
+    {
+        GlobalK::knowledge()->SR_OTSU_FIXED=true;
+    }
+    else if (mode.compare("none_take_from_top")==0)
+    {
+        GlobalK::knowledge()->SR_TAKE_FROM_TOP=true;
+        GlobalK::knowledge()->SR_THRESH_NONE=true;
+    }
+    else if (mode.compare("none")==0)
+    {
+        GlobalK::knowledge()->SR_THRESH_NONE=true;
+    }
+    else if (mode.compare("gaussian_draw")==0)
+    {
+        GlobalK::knowledge()->SR_GAUSSIAN_DRAW=true;
+    }
+    else if (mode.compare("fancy_one")==0)
+    {
+        GlobalK::knowledge()->SR_FANCY_ONE=true;
+    }
+    else if (mode.compare("fancy_two")==0)
+    {
+        GlobalK::knowledge()->SR_FANCY_TWO=true;
+    }
+    else if (mode.substr(0,10).compare("phoc_trans")==0)
+    {
+        GlobalK::knowledge()->PHOC_TRANS=true;
+        numSpottingThreads = 100;
+        if (mode.length()>10)
+        {
+            numSpottingThreads = stoi(mode.substr(10));
+            cout<<"trans top "<<numSpottingThreads<<"%"<<endl;
+        }
+    }
+    else if (mode.substr(0,9).compare("cpv_trans")==0)
+    {
+        GlobalK::knowledge()->CPV_TRANS=true;
+        numSpottingThreads = 100;
+        if (mode.length()>9)
+        {
+            numSpottingThreads = stoi(mode.substr(9));
+            cout<<"trans top "<<numSpottingThreads<<"%"<<endl;
+        }
+    }
+    else if (mode.compare("web_trans")==0)
+    {
+        GlobalK::knowledge()->WEB_TRANS=true;
+    }
+    else if (mode.compare("cluster_step")==0)
+    {
+        GlobalK::knowledge()->CLUSTER=true;
+        numSpottingThreads = 1;
+    }
+    else if (mode.compare("cluster_top")==0)
+    {
+        GlobalK::knowledge()->CLUSTER=true;
+        numSpottingThreads = 0;
+    }
+    else if (mode.compare("fancy")!=0)
+    {
+        cout<<"Error, unknown SpottingResults mode: "<<mode<<endl;
+        //cout<<mode.substr(0,10)<<endl;
+        //cout<<"Defaults to fancy"<<endl;
+        //return 0;
+        assert(false);
+        info.GetReturnValue().Set(-1);
+        return;
+    }
     assert(cattss==NULL);
     cattss = new CATTSS(lexiconFile,
                         pageImageDir,
                         segmentationFile,
                         spottingModelPrefix,
                         savePrefix,
-                        nsOfInterest,
-                        avgCharWidth,
+                        //nsOfInterest,
+                        //avgCharWidth,
+                        ngramWWFile,
                         numSpottingThreads,
                         numTaskThreads,
                         height,
                         width,
                         milli,
                         contextPad);
-                        
+    if (beginLines)
+        cattss->initLines(contextPad);
+    info.GetReturnValue().Set(cattss->getMaxImageWidth());
 }
 NAN_METHOD(stopSpotting) {
+    if (lineManTrans!=NULL)
+        lineManTrans->stop();
+
     Callback *callback = new Callback(info[0].As<Function>());
 
     AsyncQueueWorker(new MiscWorker(callback,cattss, "stopSpotting"));
@@ -283,12 +372,16 @@ NAN_METHOD(loadTestingCorpus) {
     v8::String::Utf8Value segmentationFileNAN(info[2]);
     string segmentationFile = string(*segmentationFileNAN);
     int contextPad = To<int>(info[3]).FromJust();
+    v8::String::Utf8Value ngramWWFileNAN(info[4]);
+    string ngramWWFile = string(*ngramWWFileNAN);
     //GlobalK::knowledge()->setContextPad(contextPad);
 
     assert(testingCorpi.find(datasetName) == testingCorpi.end());
-    testingCorpi[datasetName] = new Knowledge::Corpus(contextPad,30);
+    testingCorpi[datasetName] = new Knowledge::Corpus(contextPad,ngramWWFile);
     testingCorpi[datasetName]->addWordSegmentaionAndGT(pageImageDir, segmentationFile);
     testingInstances[datasetName]=new TestingInstances(testingCorpi[datasetName],contextPad);
+
+    info.GetReturnValue().Set(testingCorpi[datasetName]->getMaxImageWidth());
 }
 
 NAN_METHOD(loadLabeledSpotting) {
@@ -384,6 +477,39 @@ NAN_METHOD(testingLabelsAllLoaded) {
         testingInstances[datasetName]->allLoaded();
     }
 }
+NAN_METHOD(getSpottingsAsBatch) {
+    int width = To<int>(info[0]).FromJust();
+    int color = To<int>(info[1]).FromJust();
+    //string prevNgram = To<string>(info[2]).FromJust();
+    //v8::String::Utf8Value str(args[0]->ToString());
+    string prevNgram;
+    if (info[2]->IsString())
+    {
+        v8::String::Utf8Value str(info[2]->ToString());
+        prevNgram = string(*str);
+        
+    }
+    
+    //String::Utf8Value str = To<String::Utf8Value>(info[2]).FromJust();
+    v8::String::Utf8Value str3(info[3]->ToString());
+    string strBatcherId = string(*str3);
+    unsigned long batcherId = stoul(strBatcherId);
+    vector<unsigned long> spottingIds;
+    
+    Handle<Array> jsArray = Handle<Array>::Cast(info[4]);
+    for (unsigned int i = 0; i < jsArray->Length(); i++)
+    {
+        Handle<Value> val = jsArray->Get(i);
+        string strId(*v8::String::Utf8Value(val));
+        spottingIds.push_back(stoul(strId));
+    }
+    v8::String::Utf8Value str5(info[5]->ToString());
+    string ngram = string(*str5);
+    
+    Callback *callback = new Callback(info[6].As<Function>());
+
+    AsyncQueueWorker(new BatchRetrieveWorker(callback,cattss, width,color,prevNgram,batcherId,spottingIds,ngram));
+}
 /*NAN_METHOD(getNextTestBatch) {
     //cout<<"request for test batch"<<endl;
     int width = To<int>(info[0]).FromJust();
@@ -431,11 +557,43 @@ NAN_METHOD(clearTestUsers) {
     Callback *callback = new Callback(info[0].As<Function>());
     AsyncQueueWorker(new ClearTestUsersWorker(callback,testQueue));
 }*/
+/*NAN_METHOD(startLineManTrans) {
+    assert(lineManTrans==NULL);
+    v8::String::Utf8Value pageImageDirNAN(info[0]);
+    string pageImageDir = string(*pageImageDirNAN);
+    v8::String::Utf8Value segmentationFileNAN(info[1]);
+    string segmentationFile = string(*segmentationFileNAN);
+    v8::String::Utf8Value savePrefixNAN(info[2]);
+    string savePrefix = string(*savePrefixNAN);
+    int contextPad = To<int>(info[3]).FromJust();
+    lineManTrans = new LineManTrans(
+                        pageImageDir,
+                        segmentationFile,
+                        savePrefix,
+                        contextPad);
+}*/
+NAN_METHOD(getNextLineBatch) {
+    assert(cattss!=NULL);
+    int width = To<int>(info[0]).FromJust();
+    
+    Callback *callback = new Callback(info[1].As<Function>());
+
+    AsyncQueueWorker(new ManualBatchRetrieveWorker(callback,cattss, width,true));
+}
+NAN_METHOD(getNextManualBatch) {
+    assert(cattss!=NULL);
+    int width = To<int>(info[0]).FromJust();
+    
+    Callback *callback = new Callback(info[1].As<Function>());
+
+    AsyncQueueWorker(new ManualBatchRetrieveWorker(callback,cattss, width,false));
+}
 
 NAN_MODULE_INIT(Init) {
     signal(SIGPIPE, SIG_IGN);    
     cattss=NULL;
     trainingInstances=NULL;
+    //lineManTrans=NULL;
 //#ifndef TEST_MODE
     //cattss = new CATTSS("/home/brian/intel_index/data/wordsEnWithNames.txt", 
     //                    "/home/brian/intel_index/data/gw_20p_wannot",
@@ -516,6 +674,17 @@ NAN_MODULE_INIT(Init) {
         GetFunction(New<FunctionTemplate>(clearTestUsers)).ToLocalChecked());*/
     Nan::Set(target, New<v8::String>("getNextTrainingBatch").ToLocalChecked(),
         GetFunction(New<FunctionTemplate>(getNextTrainingBatch)).ToLocalChecked());
+    
+    Nan::Set(target, New<v8::String>("getSpottingsAsBatch").ToLocalChecked(),
+        GetFunction(New<FunctionTemplate>(getSpottingsAsBatch)).ToLocalChecked());
+
+
+    //Nan::Set(target, New<v8::String>("startLineManTrans").ToLocalChecked(),
+    //    GetFunction(New<FunctionTemplate>(startLineManTrans)).ToLocalChecked());
+    Nan::Set(target, New<v8::String>("getNextLineBatch").ToLocalChecked(),
+        GetFunction(New<FunctionTemplate>(getNextLineBatch)).ToLocalChecked());
+    Nan::Set(target, New<v8::String>("getNextManualBatch").ToLocalChecked(),
+        GetFunction(New<FunctionTemplate>(getNextManualBatch)).ToLocalChecked());
 }
 
 NODE_MODULE(SpottingAddon, Init)

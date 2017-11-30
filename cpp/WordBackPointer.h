@@ -21,4 +21,5 @@ class WordBackPointer
         //virtual string getGT() =0;
 };
 
+
 #endif

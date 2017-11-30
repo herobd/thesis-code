@@ -179,7 +179,7 @@ public:
     //A manual transcription batch
     TranscribeBatch(WordBackPointer* origin, vector<string> prunedDictionary, const cv::Mat* origImg, const multimap<int,Spotting>* spottings, int tlx, int tly, int brx, int bry, string gt="$UNKNOWN$", unsigned long batchId=0);
     
-    void init(WordBackPointer* origin, const cv::Mat* origImg, const multimap<int,Spotting>* spottings, int tlx, int tly, int brx, int bry, string gt, unsigned long id);
+    void init(WordBackPointer* origin, const cv::Mat* origImg, const multimap<int,Spotting>* spottings, int tlx, int tly, int brx, int bry, unsigned long id);
 
     TranscribeBatch(ifstream& in, CorpusRef* corpusRef);
     void save(ofstream& out);

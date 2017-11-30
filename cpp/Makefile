@@ -1,6 +1,7 @@
 CXX = g++
 LINK = g++
-CXX_FLAGS_NO_G =  -std=c++11 -pthread -DNO_NAN -DTEST_MODE #-DGRAPH_SPOTTING_RESULTS #-DDEBUG_AUTO#-ansi -fexceptions -fPIC -fno-omit-frame-pointer -pthread
+CXX_FLAGS_NO_G =  -std=c++11 -pthread -DNO_NAN #-DTEST_MODE #-DGRAPH_SPOTTING_RESULTS #-DDEBUG_AUTO#-ansi -fexceptions -fPIC -fno-omit-frame-pointer -pthread
+CXX_FLAGS_NO_G += -DCPU_ONLY #-DOPENCV2 
 
 LIBS += -lpthread
 
@@ -59,7 +60,6 @@ OBJECTS = obj/Global.o \
           obj/graph.o \
           obj/SpottingQueue.o \
           obj/batches.o \
-          obj/tester.o \
           obj/BatchWraperNewExemplars.o \
           obj/BatchWraperSpottings.o \
           obj/BatchWraperTranscription.o \
@@ -67,6 +67,7 @@ OBJECTS = obj/Global.o \
           obj/NetSpotter.o \
           obj/CTCWrapper.o \
           obj/Web.o
+          #obj/tester.o \
           #obj/AlmazanSpotter.o \
           #obj/AlmazanDataset.o \
 #          obj/test.o 
@@ -85,7 +86,6 @@ OBJECTSDONTLOAD = obj/Global.o \
           obj/graph.o \
           obj/SpottingQueue.o \
           obj/batches.o \
-          obj/tester.o \
           obj/BatchWraperNewExemplars.o \
           obj/BatchWraperSpottings.o \
           obj/BatchWraperTranscription.o \
@@ -93,6 +93,7 @@ OBJECTSDONTLOAD = obj/Global.o \
           obj/NetSpotter.o \
           obj/CTCWrapper.o \
           obj/Web.o
+          #obj/tester.o 
 OBJECTS2 = obj/TranscribeBatchQueue2.o \
           obj/NewExemplarsBatchQueue2.o \
           obj/Global2.o \
@@ -105,7 +106,6 @@ OBJECTS2 = obj/TranscribeBatchQueue2.o \
           obj/graph2.o \
           obj/SpottingQueue2.o \
           obj/batches2.o \
-          obj/tester2.o \
           obj/CATTSS2.o \
           obj/BatchWraperNewExemplars2.o \
           obj/BatchWraperSpottings2.o \
@@ -113,6 +113,7 @@ OBJECTS2 = obj/TranscribeBatchQueue2.o \
           obj/Simulator2.o \
           obj/NetSpotter2.o
           #obj/AlmazanSpotter2.o \
+          obj/tester2.o \
           #obj/AlmazanDataset2.o \
 #          obj/test2.o 
           #obj/FacadeSpotter2.o \
@@ -128,13 +129,13 @@ PREPROCESSEDS = pp/TranscribeBatchQueue.cpp \
           pp/batches.cpp \
           pp/AlmazanSpotter.cpp \
           pp/AlmazanDataset.cpp \
-          pp/tester.cpp \
           pp/CATTSS.cpp \
           pp/BatchWraperNewExemplars.cpp \
           pp/BatchWraperSpottings.cpp \
           pp/BatchWraperTranscription.cpp \
           pp/Simulator.cpp 
           #pp/maxflow.cpp \
+          pp/tester.cpp \
           #pp/graph.cpp \
 
 bin: $(PROGRAM_NAME)

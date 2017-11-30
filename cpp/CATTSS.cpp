@@ -76,6 +76,9 @@ CATTSS::CATTSS(
         cout<<"Load file found."<<endl;
         Lexicon::instance()->load(in);
         corpus = new Knowledge::Corpus(in);
+        CorpusRef* corpusRef = corpus->getCorpusRef();
+        PageRef* pageRef = corpus->getPageRef();
+        masterQueue = new MasterQueue(in,corpusRef,pageRef,save);
         in.close();
 
         if (outCompleted.length()>0 && outIncomplete.length()>0)
@@ -106,15 +109,18 @@ CATTSS::CATTSS( string lexiconFile,
                 string segmentationFile, 
                 string spottingModelPrefix,
                 string savePrefix,
-                set<int> nsOfInterest,
-                int avgCharWidth,
+                //set<string> ngramsOfInterest,
+                string ngramWWFile, //int avgCharWidth,
                 int numSpottingThreads,
                 int numTaskThreads,
                 int showHeight,
                 int showWidth,
                 int showMilli,
                 int contextPad,
-                bool noManual) : savePrefix(savePrefix), nsOfInterest(nsOfInterest), noManual(noManual)
+                bool noManual) : savePrefix(savePrefix), noManual(noManual)
+#ifndef NO_NAN 
+    ,lineQueue(NULL)
+#endif
 {
     cont.store(1);
     sem_init(&semLock, 0, 0);
@@ -125,10 +131,10 @@ CATTSS::CATTSS( string lexiconFile,
         cout<<"Load file found."<<endl;
         Lexicon::instance()->load(in);
         corpus = new Knowledge::Corpus(in);
-        corpus->loadSpotter(spottingModelPrefix, nsOfInterest);
+        corpus->loadSpotter(spottingModelPrefix);
         CorpusRef* corpusRef = corpus->getCorpusRef();
         PageRef* pageRef = corpus->getPageRef();
-        masterQueue = new MasterQueue(in,corpusRef,pageRef);
+        masterQueue = new MasterQueue(in,corpusRef,pageRef,savePrefix);
         spottingQueue = new SpottingQueue(in,masterQueue,corpus);
 
         if (GlobalK::knowledge()->WEB_TRANS)
@@ -161,11 +167,12 @@ CATTSS::CATTSS( string lexiconFile,
     else
     {
     
-        masterQueue = new MasterQueue(contextPad);
+        masterQueue = new MasterQueue(contextPad,savePrefix);
         Lexicon::instance()->readIn(lexiconFile);
-        corpus = new Knowledge::Corpus(contextPad, avgCharWidth);
+        set<string> ngramsToUse;
+        corpus = new Knowledge::Corpus(contextPad, ngramWWFile, &ngramsToUse);//the ngrams happen to be read in, so we just get them as a convience
         corpus->addWordSegmentaionAndGT(pageImageDir, segmentationFile);
-        corpus->loadSpotter(spottingModelPrefix,nsOfInterest);
+        corpus->loadSpotter(spottingModelPrefix);
         spottingQueue = new SpottingQueue(masterQueue,corpus);
         if (GlobalK::knowledge()->WEB_TRANS)
         {
@@ -182,6 +189,55 @@ CATTSS::CATTSS( string lexiconFile,
         vector<Spotting* > init = {er1};
         spottingQueue->addQueries(init);
 #else
+        //We want the ngrams ordered
+        vector<string> ngrams;
+        ngrams.reserve(ngramsToUse.size());
+#ifdef INTERLEAVE_NGRAMS
+        float uniPerTri = (0.0+GlobalK::knowledge()->unigrams.size()) / GlobalK::knowledge()->trigrams.size();
+        float biPerTri = (0.0+GlobalK::knowledge()->bigrams.size()) / GlobalK::knowledge()->trigrams.size();
+        float uniCounter=0;
+        int uniI=0;
+        float biCounter=0;
+        int biI=0;
+        for (int i=0; i<GlobalK::knowledge()->trigrams.size(); i++)
+        {
+            if (ngramsToUse.find(GlobalK::knowledge()->trigrams[i]) != ngramsToUse.end())
+                ngrams.push_back(GlobalK::knowledge()->trigrams[i]);
+
+            biCounter+=biPerTri;
+            if (biCounter>1)
+            {
+                biCounter-=1;
+                if (biI<GlobalK::knowledge()->bigrams.size() && ngramsToUse.find(GlobalK::knowledge()->bigrams[biI]) != ngramsToUse.end())
+                    ngrams.push_back(GlobalK::knowledge()->bigrams[biI]);
+                biI++;
+            }
+
+            uniCounter+=uniPerTri;
+            if (uniCounter>1)
+            {
+                uniCounter-=1;
+                if (uniI<GlobalK::knowledge()->unigrams.size() && ngramsToUse.find(GlobalK::knowledge()->unigrams[uniI]) != ngramsToUse.end())
+                    ngrams.push_back(GlobalK::knowledge()->unigrams[uniI]);
+                uniI++;
+            }
+        }
+        for (; uniI<GlobalK::knowledge()->unigrams.size(); uniI++)
+        {
+            if (ngramsToUse.find(GlobalK::knowledge()->unigrams[uniI]) != ngramsToUse.end())
+                ngrams.push_back(GlobalK::knowledge()->unigrams[uniI]);
+        }
+        for (; uniI<GlobalK::knowledge()->unigrams.size(); uniI++)
+        {
+            if (ngramsToUse.find(GlobalK::knowledge()->unigrams[uniI]) != ngramsToUse.end())
+                ngrams.push_back(GlobalK::knowledge()->unigrams[uniI]);
+        }
+#else
+        ngrams.insert(ngrams.end(),GlobalK::knowledge()->trigrams.begin(),GlobalK::knowledge()->trigrams.end());
+        ngrams.insert(ngrams.end(),GlobalK::knowledge()->bigrams.begin(),GlobalK::knowledge()->bigrams.end());
+        ngrams.insert(ngrams.end(),GlobalK::knowledge()->unigrams.begin(),GlobalK::knowledge()->unigrams.end());
+#endif
+
         if (GlobalK::knowledge()->PHOC_TRANS)
         {
             float transKeep = numSpottingThreads/100.0;
@@ -190,45 +246,48 @@ CATTSS::CATTSS( string lexiconFile,
         }
         else
         {
-            vector<string> ngramsToVectorize;
+            /*we read in ngrams now
             if (nsOfInterest.find(3)!=nsOfInterest.end())
             {
                 //vector<string> top100Trigrams={"the","and","ing","ion","tio","ent","ati","for","her","ter","hat","tha","ere","ate","his","con","res","ver","all","ons","nce","men","ith","ted","ers","pro","thi","wit","are","ess","not","ive","was","ect","rea","com","eve","per","int","est","sta","cti","ica","ist","ear","ain","one","our","iti","rat","nte","tin","ine","der","ome","man","pre","rom","tra","whi","ave","str","act","ill","ure","ide","ove","cal","ble","out","sti","tic","oun","enc","ore","ant","ity","fro","art","tur","par","red","oth","eri","hic","ies","ste","ght","ich","igh","und","you","ort","era","wer","nti","oul","nde","ind","tho"};
-                vector<string> top300Trigrams={"the","and","ing","ion","tio","ent","ati","for","her","ter","hat","tha","ere","ate","his","con","res","ver","all","ons","nce","men","ith","ted","ers","pro","thi","wit","are","ess","not","ive","was","ect","rea","com","eve","per","int","est","sta","cti","ica","ist","ear","ain","one","our","iti","rat","nte","tin","ine","der","ome","man","pre","rom","tra","whi","ave","str","act","ill","ure","ide","ove","cal","ble","out","sti","tic","oun","enc","ore","ant","ity","fro","art","tur","par","red","oth","eri","hic","ies","ste","ght","ich","igh","und","you","ort","era","wer","nti","oul","nde","ind","tho","hou","nal","but","hav","uld","use","han","hin","een","ces","cou","lat","tor","ese","age","ame","rin","anc","ten","hen","min","eas","can","lit","cha","ous","eat","end","ssi","ial","les","ren","tiv","nts","whe","tat","abl","dis","ran","wor","rou","lin","had","sed","ont","ple","ugh","inc","sio","din","ral","ust","tan","nat","ins","ass","pla","ven","ell","she","ose","ite","lly","rec","lan","ard","hey","rie","pos","eme","mor","den","oug","tte","ned","rit","ime","sin","ast","any","orm","ndi","ona","spe","ene","hei","ric","ice","ord","omp","nes","sen","tim","tri","ern","tes","por","app","lar","ntr","eir","sho","son","cat","lle","ner","hes","who","mat","ase","kin","ost","ber","its","nin","lea","ina","mpl","sto","ari","pri","own","ali","ree","ish","des","ead","nst","sit","ses","ans","has","gre","ong","als","fic","ual","ien","gen","ser","unt","eco","nta","ace","chi","fer","tal","low","ach","ire","ang","sse","gra","mon","ffe","rac","sel","uni","ake","ary","wil","led","ded","som","owe","har","ini","ope","nge","uch","rel","che","ade","att","cia","exp","mer","lic","hem","ery","nsi","ond","rti","duc","how","ert","see","now","imp","abo","pec","cen","ris","mar","ens","tai","ely","omm","sur","hea"};
+                //vector<string> top300Trigrams={"the","and","ing","ion","tio","ent","ati","for","her","ter","hat","tha","ere","ate","his","con","res","ver","all","ons","nce","men","ith","ted","ers","pro","thi","wit","are","ess","not","ive","was","ect","rea","com","eve","per","int","est","sta","cti","ica","ist","ear","ain","one","our","iti","rat","nte","tin","ine","der","ome","man","pre","rom","tra","whi","ave","str","act","ill","ure","ide","ove","cal","ble","out","sti","tic","oun","enc","ore","ant","ity","fro","art","tur","par","red","oth","eri","hic","ies","ste","ght","ich","igh","und","you","ort","era","wer","nti","oul","nde","ind","tho","hou","nal","but","hav","uld","use","han","hin","een","ces","cou","lat","tor","ese","age","ame","rin","anc","ten","hen","min","eas","can","lit","cha","ous","eat","end","ssi","ial","les","ren","tiv","nts","whe","tat","abl","dis","ran","wor","rou","lin","had","sed","ont","ple","ugh","inc","sio","din","ral","ust","tan","nat","ins","ass","pla","ven","ell","she","ose","ite","lly","rec","lan","ard","hey","rie","pos","eme","mor","den","oug","tte","ned","rit","ime","sin","ast","any","orm","ndi","ona","spe","ene","hei","ric","ice","ord","omp","nes","sen","tim","tri","ern","tes","por","app","lar","ntr","eir","sho","son","cat","lle","ner","hes","who","mat","ase","kin","ost","ber","its","nin","lea","ina","mpl","sto","ari","pri","own","ali","ree","ish","des","ead","nst","sit","ses","ans","has","gre","ong","als","fic","ual","ien","gen","ser","unt","eco","nta","ace","chi","fer","tal","low","ach","ire","ang","sse","gra","mon","ffe","rac","sel","uni","ake","ary","wil","led","ded","som","owe","har","ini","ope","nge","uch","rel","che","ade","att","cia","exp","mer","lic","hem","ery","nsi","ond","rti","duc","how","ert","see","now","imp","abo","pec","cen","ris","mar","ens","tai","ely","omm","sur","hea"};
                 if (GlobalK::knowledge()->CPV_TRANS || GlobalK::knowledge()->WEB_TRANS || GlobalK::knowledge()->CLUSTER)
                 {
-                    ngramsToVectorize.insert(ngramsToVectorize.begin(),top300Trigrams.begin(),top300Trigrams.end());
+                    //ngrams.insert(ngrams.begin(),top300Trigrams.begin(),top300Trigrams.end());
+                    ngrams.insert(ngrams.begin(),GlobalK::knowledge()->trigrams.begin(),GlobalK::knowledge()->trigrams.end());
                 }
                 else
-                    spottingQueue->addQueries(top300Trigrams);
+                    spottingQueue->addQueries(GlobalK::knowledge()->trigrams);
             }
             if (nsOfInterest.find(2)!=nsOfInterest.end())
             {
-                vector<string> top100Bigrams={"th","he","in","er","an","re","on","at","en","nd","ti","es","or","te","of","ed","is","it","al","ar","st","to","nt","ng","se","ha","as","ou","io","le","ve","co","me","de","hi","ri","ro","ic","ne","ea","ra","ce","li","ch","ll","be","ma","si","om","ur","ca","el","ta","la","ns","di","fo","ho","pe","ec","pr","no","ct","us","ac","ot","il","tr","ly","nc","et","ut","ss","so","rs","un","lo","wa","ge","ie","wh","ee","wi","em","ad","ol","rt","po","we","na","ul","ni","ts","mo","ow","pa","im","mi","ai","sh"};
+                //vector<string> top100Bigrams={"th","he","in","er","an","re","on","at","en","nd","ti","es","or","te","of","ed","is","it","al","ar","st","to","nt","ng","se","ha","as","ou","io","le","ve","co","me","de","hi","ri","ro","ic","ne","ea","ra","ce","li","ch","ll","be","ma","si","om","ur","ca","el","ta","la","ns","di","fo","ho","pe","ec","pr","no","ct","us","ac","ot","il","tr","ly","nc","et","ut","ss","so","rs","un","lo","wa","ge","ie","wh","ee","wi","em","ad","ol","rt","po","we","na","ul","ni","ts","mo","ow","pa","im","mi","ai","sh"};
                 if (GlobalK::knowledge()->CPV_TRANS || GlobalK::knowledge()->WEB_TRANS || GlobalK::knowledge()->CLUSTER)
                 {
-                    ngramsToVectorize.insert(ngramsToVectorize.begin(),top100Bigrams.begin(),top100Bigrams.end());
+                    //ngrams.insert(ngrams.begin(),top100Bigrams.begin(),top100Bigrams.end());
+                    ngrams.insert(ngrams.begin(),GlobalK::knowledge()->bigrams.begin(),GlobalK::knowledge()->bigrams.end());
                 }
                 else
-                    spottingQueue->addQueries(top100Bigrams);
+                    spottingQueue->addQueries(GlobalK::knowledge()->bigrams);
             }
             if (nsOfInterest.find(1)!=nsOfInterest.end())
             {
-                vector<string> orderedAlpha={"e","t","a","o","i","n","s","h","r","d","l","c","u","m","w","f","g","y","p","b","v","k","j","x","q","z"};
+                //vector<string> orderedAlpha={"e","t","a","o","i","n","s","h","r","d","l","c","u","m","w","f","g","y","p","b","v","k","j","x","q","z"};
                 if (GlobalK::knowledge()->CPV_TRANS || GlobalK::knowledge()->WEB_TRANS || GlobalK::knowledge()->CLUSTER)
                 {
-                    ngramsToVectorize.insert(ngramsToVectorize.begin(),orderedAlpha.begin(),orderedAlpha.end());
+                    //ngrams.insert(ngrams.begin(),orderedAlpha.begin(),orderedAlpha.end());
+                    ngrams.insert(ngrams.begin(),GlobalK::knowledge()->unigrams.begin(),GlobalK::knowledge()->unigrams.end());
                 }
                 else
-                    spottingQueue->addQueries(orderedAlpha);
-            }
+                    spottingQueue->addQueries(GlobalK::knowledge()->unigrams);
+            }*/
 
             if (GlobalK::knowledge()->CPV_TRANS)
             {
 #ifdef CTC
                 float transKeep = numSpottingThreads/100.0;
                 cout<<"Commencing CPV-CTC transcription."<<endl;
-                vector<TranscribeBatch*> newBatches = corpus->cpvTransCTC(transKeep,ngramsToVectorize);
+                vector<TranscribeBatch*> newBatches = corpus->cpvTransCTC(transKeep,ngrams);
                 cout<<"Finished CPV-CTC transcription."<<endl;
                 masterQueue->enqueueTranscriptionBatches(newBatches,NULL);
 #else
@@ -236,9 +295,9 @@ CATTSS::CATTSS( string lexiconFile,
 #endif
                 /*
                 if (regex)
-                   newBatches = corpus->npvTransRegex(ngramsToVectorize);
+                   newBatches = corpus->npvTransRegex(ngrams);
                 else
-                   newBatches = corpus->npvTransDirect(ngramsToVectorize);
+                   newBatches = corpus->npvTransDirect(ngrams);
                    */
             }
             else if (GlobalK::knowledge()->WEB_TRANS)
@@ -248,9 +307,9 @@ CATTSS::CATTSS( string lexiconFile,
                 cout<<"Commencing WEB transcription."<<endl;
                 Mat crossScores;
                 cout<<"Commencing massSpot..."<<endl;
-                vector<SpottingLoc> massSpottingRes = corpus->massSpot(ngramsToVectorize,crossScores);//expects QbS scores to be adjusted
+                vector<SpottingLoc> massSpottingRes = corpus->massSpot(ngrams,crossScores);//expects QbS scores to be adjusted
                 cout<<"...finished massSpot."<<endl;
-                vector<Spotting>* toAdd = web->start(ngramsToVectorize,massSpottingRes,crossScores);
+                vector<Spotting>* toAdd = web->start(ngrams,massSpottingRes,crossScores);
                 vector<TranscribeBatch*> newBatches = corpus->updateSpottings(toAdd,NULL,NULL,NULL,NULL);
                 cout<<"Finished WEB transcription."<<endl;
                 masterQueue->enqueueTranscriptionBatches(newBatches,NULL);
@@ -261,13 +320,13 @@ CATTSS::CATTSS( string lexiconFile,
             }
             else if (GlobalK::knowledge()->CLUSTER)
             {
-                for (string ngram : ngramsToVectorize)
+                for (string ngram : ngrams)
                 {
                     Mat crossScores;
                     vector<string> n = {ngram};
                     vector<SpottingLoc> massSpottingRes = corpus->massSpot(n,crossScores);
                     vector<Spotting> spottings;
-                    int tC=0;
+                    //int tC=0;
                     for (const SpottingLoc& s : massSpottingRes)
                     {
                         Knowledge::Word* word = corpus->getWord(s.imIdx);
@@ -278,6 +337,7 @@ CATTSS::CATTSS( string lexiconFile,
                         word->getBoundsAndDoneAndGT(&tlx,&tly,&brx,&bry,&done,&label);
                         brx=std::min(tlx+s.endX,brx);
                         tlx+=s.startX;
+                        
                         if (label.find(ngram) != string::npos)
                         {
 #if defined(TEST_MODE) || defined(NO_NAN)
@@ -286,8 +346,9 @@ CATTSS::CATTSS( string lexiconFile,
                             gt = -1;
 #endif
                         }
-                        if (gt>0)
-                            tC++;
+                        //if (gt>0)
+                        //    tC++;
+                            
                        
                         spottings.emplace_back(tlx,tly,brx,bry,word->getPageId(),word->getPage(),ngram,gt,s.imIdx,s.startX);
                         spottings.back().scoreQbS=s.score();
@@ -297,6 +358,10 @@ CATTSS::CATTSS( string lexiconFile,
                     bool stepMode = numSpottingThreads;
                     masterQueue->insertClusterBatcher(ngram,contextPad,stepMode,spottings,crossScores);
                 }
+            }
+            else
+            {
+                spottingQueue->addQueries(ngrams);
             }
         }
 
@@ -350,6 +415,7 @@ CATTSS::CATTSS( string lexiconFile,
     spottingQueue->run(numSpottingThreads);
 //#endif
     run(numTaskThreads);
+
     //test
     /*
         Spotting s1(1000, 1458, 1154, 1497, 2720272, corpus->imgForPageId(2720272), "ma", 0.01);
@@ -429,6 +495,32 @@ BatchWraper* CATTSS::getBatch(int num, int width, int color, string prevNgram)
 #ifdef TEST_MODE_C
         return ret;
 #endif
+        if (ret!=NULL)
+            return ret;
+        else
+        {
+            return new BatchWraperBlank();
+        }
+#if !defined(TEST_MODE) && !defined(NO_NAN)
+    }
+    catch (exception& e)
+    {
+        cout <<"Exception in CATTSS::getBatch(), "<<e.what()<<endl;
+    }
+    catch (...)
+    {
+        cout <<"Exception in CATTSS::getBatch(), UNKNOWN"<<endl;
+    }
+#endif
+    return new BatchWraperBlank();
+}
+BatchWraper* CATTSS::getSpottingsAsBatch(int width, int color, string prevNgram, unsigned long batcherId, vector<unsigned long> spottingIds,string ngram)
+{
+#if !defined(TEST_MODE) && !defined(NO_NAN)
+    try
+    {
+#endif
+        BatchWraper* ret= masterQueue->getSpottingsAsBatch(width,color,prevNgram,batcherId,spottingIds,ngram);
         if (ret!=NULL)
             return ret;
         else
@@ -766,6 +858,17 @@ void CATTSS::save()
         out<<TranscribeBatch::getIdCounter()<<"\n";
         out<<timeSec<<"\n";
         out.close();
+
+#ifndef NO_NAN
+        if (lineQueue!=NULL)
+        {
+            string saveName2 = savePrefix+"_LineManTrans.sav";
+            rename( saveName2.c_str() , (saveName2+".bck").c_str() );
+            ofstream out (saveName2);
+            lineQueue->save(out);
+            out.close();
+        }
+#endif
 #ifdef TEST_MODE
         t = clock() - t;
         cout<<"END save: "<<((float)t)/CLOCKS_PER_SEC<<" secs.    "<<endl;
@@ -797,6 +900,7 @@ void CATTSS::printFinalStats()
      float stdLenWordsTrans80_100,  stdLenWordsTrans60_80,  stdLenWordsTrans40_60,  stdLenWordsTrans20_40,  stdLenWordsTrans0_20,  stdLenWordsTrans0,  stdLenWordsTransBad;
      map<char,float> charDistDone, charDistUndone;
      vector<string> badNgrams;
+     map<int, float> unigramSpottingsPerLen, bigramSpottingsPerLen,trigramSpottingsPerLen;
 
     corpus->getStats(&accTrans,&pWordsTrans, &pWords80_100, &pWords60_80, &pWords40_60, &pWords20_40, &pWords0_20, &pWords0, &pWordsBad, &misTrans,
                 &accTrans_IV,&pWordsTrans_IV, &pWords80_100_IV, &pWords60_80_IV, &pWords40_60_IV, &pWords20_40_IV, &pWords0_20_IV, &pWords0_IV, &misTrans_IV,
@@ -806,7 +910,8 @@ void CATTSS::printFinalStats()
                 &meanLenWordsTrans80_100,  &meanLenWordsTrans60_80,  &meanLenWordsTrans40_60,  &meanLenWordsTrans20_40,  &meanLenWordsTrans0_20,  &meanLenWordsTrans0, &meanLenWordsTransBad,
                 &stdLenWordsTrans80_100,  &stdLenWordsTrans60_80,  &stdLenWordsTrans40_60,  &stdLenWordsTrans20_40,  &stdLenWordsTrans0_20,  &stdLenWordsTrans0, &stdLenWordsTransBad,
                 &charDistDone, &charDistUndone, 
-                &badNgrams);
+                &badNgrams,
+                &unigramSpottingsPerLen, &bigramSpottingsPerLen,&trigramSpottingsPerLen);
 
     for (string s : badNgrams)
         cout<<s<<endl;
@@ -828,4 +933,203 @@ void CATTSS::printFinalStats()
     {
         cout<<a<<'\t'<<charDistDone[a]<<'\t'<<charDistUndone[a]<<endl;
     }
+
+    int maxLen = max(unigramSpottingsPerLen.rbegin()->first, max(bigramSpottingsPerLen.rbegin()->first,trigramSpottingsPerLen.rbegin()->first));
+    auto iterUni = unigramSpottingsPerLen.begin();
+    auto iterBi = bigramSpottingsPerLen.begin();
+    auto iterTri = trigramSpottingsPerLen.begin();
+    //cout<<"    ";
+    //for (int i=0; i<=maxLen; i++)
+    //    cout<<",\t"<<i;
+    //cout<<endl;
+    cout<<"Portion spotted of various word lengths:"<<endl;
+    cout<<"  \tuni\tbi\ttri"<<endl;
+    for (int i=0; i<=maxLen; i++)
+    {
+        cout<<i<<":\t";
+        if (iterUni->first==i)
+            cout<<(iterUni++)->second<<"\t";
+        else
+            cout<<"none\t";
+        if (iterBi->first==i)
+            cout<<(iterBi++)->second<<"\t";
+        else
+            cout<<"none\t";
+        if (iterTri->first==i)
+            cout<<(iterTri++)->second;
+        else
+            cout<<"none";
+        cout<<endl;
+    }
+    /*cout<<"unigrams"<<endl;
+    for (auto p : unigramSpottingsPerLen)
+    {
+        cout<<p.first<<"\t"<<p.second<<endl;
+    }
+    cout<<"bigrams"<<endl;
+    for (auto p : bigramSpottingsPerLen)
+    {
+        cout<<p.first<<"\t"<<p.second<<endl;
+    }
+    cout<<"trigrams"<<endl;
+    for (auto p : trigramSpottingsPerLen)
+    {
+        cout<<p.first<<"\t"<<p.second<<endl;
+    }*/
+
+    cout<<"Batch statistics:"<<endl;
+    cout<<"ngram\tpurity\taccrcy\tsize\tnum"<<endl;
+    float uniP=0;
+    float uniA=0;
+    float uniS=0;
+    int uniC=0;
+    float biP=0;
+    float biA=0;
+    float biS=0;
+    int biC=0;
+    float triP=0;
+    float triA=0;
+    float triS=0;
+    int triC=0;
+    for (auto& p : masterQueue->getBatchTracking())
+    {
+        string ngram = p.first;
+        float meanP=0;
+        float meanA=0;
+        float meanS=0;
+        for (auto& t : p.second)
+        {
+            float purity = get<0>(t);
+            float accuracy = get<1>(t);
+            int size = get<2>(t);
+            meanP+=purity;
+            meanA+=accuracy;
+            meanS+=size;
+        }
+        meanP/=p.second.size();
+        meanA/=p.second.size();
+        meanS/=p.second.size();
+        cout<<ngram<<"\t"<<meanP<<"\t"<<meanA<<"\t"<<meanS<<"\t"<<p.second.size()<<endl;
+        if (ngram.length()==1)
+        {
+            uniP+=meanP;
+            uniA+=meanA;
+            uniS+=meanS;
+            uniC++;
+        }
+        else if (ngram.length()==2)
+        {
+            biP+=meanP;
+            biA+=meanA;
+            biS+=meanS;
+            biC++;
+        }
+        else if (ngram.length()==3)
+        {
+            triP+=meanP;
+            triA+=meanA;
+            triS+=meanS;
+            triC++;
+        }
+    }
+    cout<<"[1]\t"<<(uniP/uniC)<<"\t"<<(uniA/uniC)<<"\t"<<(uniS/uniC)<<"\t"<<uniC<<endl;
+    cout<<"[2]\t"<<(biP/biC)<<"\t"<<(biA/biC)<<"\t"<<(biS/biC)<<"\t"<<biC<<endl;
+    cout<<"[3]\t"<<(triP/triC)<<"\t"<<(triA/triC)<<"\t"<<(triS/triC)<<"\t"<<triC<<endl;
+    assert(get<2>(masterQueue->getBatchTracking()["a"].front())<2*corpus->size());
+}
+
+void CATTSS::printBatchStats(string ngram, string file)
+{
+    int n=0;
+    ofstream out;
+    if (file.length()>0)
+    {
+        out.open(file);
+        out<<"For "<<ngram<<endl;
+        out<<"num\tpurity\taccrcy\tsize\trunP\trunA"<<endl;
+    }
+    else
+    {
+        cout<<"For "<<ngram<<endl;
+        cout<<"num\tpurity\taccrcy\tsize\trunP\trunA"<<endl;
+    }
+    for (auto t : masterQueue->getBatchTracking()[ngram])
+    {
+        assert(get<2>(t)<2*corpus->size());
+        if (file.length()>0)
+            out<<n++<<"\t"<<get<0>(t)<<"\t"<<get<1>(t)<<"\t"<<get<2>(t)<<get<3>(t)<<"\t"<<get<4>(t)<<endl;
+        else
+            cout<<n++<<"\t"<<get<0>(t)<<"\t"<<get<1>(t)<<"\t"<<get<2>(t)<<get<3>(t)<<"\t"<<get<4>(t)<<endl;
+    }
+}
+
+
+#ifndef NO_NAN
+void CATTSS::initLines(int contextPad) 
+{   
+    ifstream in (savePrefix+"_LineManTrans.sav");
+    if (in.good())
+    {
+        lineQueue = new LineQueue(in,contextPad,corpus);
+
+        in.close(); 
+    }
+    else
+    {
+        lineQueue = new LineQueue(contextPad,corpus);
+    }
+}
+
+BatchWraper* CATTSS::getLineBatch(int width)
+{
+#if !defined(TEST_MODE) && !defined(NO_NAN)
+    try
+    {
+#endif
+        assert(lineQueue!=NULL);
+
+        BatchWraper* ret= lineQueue->getBatch(width);
+        if (ret==NULL)
+        {
+            return new BatchWraperBlank();
+        }
+        return ret;
+#if !defined(TEST_MODE) && !defined(NO_NAN)
+    }
+    catch (exception& e)
+    {
+        cout <<"Exception in CATTSS::getLineBatch(), "<<e.what()<<endl;
+    }
+    catch (...)
+    {
+        cout <<"Exception in CATTSS::getLineBatch(), UNKNOWN"<<endl;
+    }
+#endif
+    return new BatchWraperBlank();
+}
+#endif
+BatchWraper* CATTSS::getManualBatch(int width)
+{
+#if !defined(TEST_MODE) && !defined(NO_NAN)
+    try
+    {
+#endif
+
+        TranscribeBatch* batSp = corpus->getManualBatch(width);
+        if (batSp!=NULL)
+            return new BatchWraperTranscription(batSp);
+        else
+            return new BatchWraperBlank();
+#if !defined(TEST_MODE) && !defined(NO_NAN)
+    }
+    catch (exception& e)
+    {
+        cout <<"Exception in CATTSS::getBatch(), "<<e.what()<<endl;
+    }
+    catch (...)
+    {
+        cout <<"Exception in CATTSS::getBatch(), UNKNOWN"<<endl;
+    }
+#endif
+    return new BatchWraperBlank();
 }

@@ -1,9 +1,10 @@
 
 var menuHeaderHeight=50;
 var removeNgramButtonWidth=40;
-var maxImgWidth=700;
-var OK_THRESH=85;
-var BAD_THRESH=-85;
+var maxColumns=4
+var maxImgWidth=900;//maxColumns*minWidth;
+//var OK_THRESH=85;
+//var BAD_THRESH=-85;
 
 var toBeInQueue=4;
 
@@ -21,8 +22,8 @@ var showX, showCheck;
 var instructions;
 var instructionsText;
 
-var swipeOn=true;
-var tapMode=false;
+var swipeOn=false;
+var tapMode=true;
 
 var screenHeight;
 var screenWidth;
@@ -45,8 +46,6 @@ var ondeckColors = ['#eed3ff','#b3d389','#ddb185','#dfb8b7','#bbcbd1'];
 var colorIndex=0;
 
 function menu() {
-    if (!ondeck)
-        highlightLast();
     var m = document.getElementById('menu');
     m.classList.toggle('hidden');
     m.classList.toggle('show');
@@ -56,10 +55,8 @@ function standardQuery(batchInfo) {
     var query='';
     if (trainingMode)
         query+='&trainingNum='+batchInfo.trainingNum;
-    else if (timingTestMode) {
-        //query+='&testingNum='+batchInfo.testingNum;
-        query+='&testingNum='+batchInfo.id+'&labelMode='+labelMode;
-    }
+    else if (timingTestMode)
+        query+='&testingNum='+batchInfo.testingNum+'&labelMode='+labelMode;
     if (save)
         query+='&save=1';
     if (exiting)
@@ -222,10 +219,59 @@ function batchShiftAndSend(batchId,callback) {
         });
         batches[batchId].sent=true;
     }
+
+
+    //handle training things
+    if (trainingMode && batchQueue.length>0) {
+        var right=false;
+        if (lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].type=='s') {
+            for (spottingId in batches[batchId].spottings) {
+                if (batches[batchId].spottings.hasOwnProperty(spottingId) && batches[batchId].spottings[spottingId]==lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].correct) {
+                    right = true;
+                }
+            }
+        } else if (lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].type=='t' || lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].type=='m') {
+                right =  lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].transcription.toLowerCase() == lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].correct;
+        }
+        
+        if (batchQueue[0].lastTraining) {
+            trainingMode=false;
+            allReceived=false;
+            batchQueue[0].type='x';
+            document.getElementById('instructionsButton').hidden=true;
+        }
+        if (right || batchQueue[0].lastTraining) {
+            if (batchQueue[0].instructions.length>0) {
+                instructionsText.innerHTML=batchQueue[0].instructions;
+                instructions.hidden=false;
+                instructions.style.display='flex';
+                setTimeout(function(){instructions.ready=true;},100);
+            }
+
+
+            //This is ridged, but was easy
+            if (batchQueue[0].trainingNum==0) {
+                swipeRightGif.toShow=true;
+            } else if (batchQueue[0].trainingNum==1) {
+                //swipeLeftGif.toShow=true;
+                swipeLeftGif.hidden=false;
+            } else if (batchQueue[0].trainingNum==8) {
+                tapGif.toShow=true;
+            }
+        } else {
+            instructionsText.innerHTML='<p>Opps, that was incorrect. :(</p><p>Use the <b>undo</b> button to try again.</p>';
+
+            instructions.hidden=false;
+            instructions.style.display='flex';
+            setTimeout(function(){instructions.ready=true;},100);
+        }
+    }
+
+    showNextBatch();
 }
 
 
-
+/*
 function handleTouchStart(evt) {
     if (evt.touches)                                     
         this.xDown = evt.touches[0].clientX;  
@@ -321,8 +367,23 @@ function handleTouchEnd(evt) {
         }
         this.xDiff=0;
     }
+}*/
+
+function handleOnclick(evt){
+    
+    var prevSkip = document.getElementsByClassName('setForSkip');
+    for (i = 0; i < prevSkip.length; i++) {
+        prevSkip[i].classList.toggle('setForSkip');
+    }
+
+    this.classList.toggle('selected');
+    this.classList.toggle('setForSkip');
+    
+    if (batches[this.batch].spottings[this.id] != -1)
+        batches[this.batch].spottings[this.id]= !batches[this.batch].spottings[this.id];
 }
 
+/*
 function classifySpotting(yes) {
     theWindow.classList.remove('fadeGray');
     showX.classList.remove('fadeOut');
@@ -349,20 +410,27 @@ function classifySpotting(yes) {
             showCheck.style.opacity='0';
         }, 95);
     //}, 15);
-}
+}*/
 
 function handleKeyPress(evt) {
     var charCode = (evt.which) ? evt.which : event.keyCode;
-    if (swipeOn && (charCode == 37 || charCode == 39)) { //left or right
-        classifySpotting(charCode == 39);
-    } else if (charCode==40) { //down (undo)
+    //if (swipeOn && (charCode == 37 || charCode == 39)) { //left or right
+    //    classifySpotting(charCode == 39);
+    //} else
+    if (charCode==40) { //down (undo)
         undo();
     } else if (charCode==38) { //up (skip)
         pass();
-    } 
+    } else if (charCode==32) { //space (skip instance in cluster)
+        var prevSkip = document.getElementsByClassName('setForSkip');
+        for (i = 0; i < prevSkip.length; i++) {
+            batches[prevSkip[i].batch].spottings[prevSkip[i].id]=-1;
+            prevSkip[i].style.visibility='hidden';
+        }
+    }
 }
 
-function removeSpotting(OK) {
+/*function removeSpotting(OK) {
     if (!ondeck)
         highlightLast();
     lastRemovedEle.push(ondeck);
@@ -404,7 +472,7 @@ function removeSpotting(OK) {
     isBatchDone(ondeck.batch);
     
     highlightLast();
-}
+}*/
 
 function remover(rek) {return function() {icons.removeChild(rek);};}
 
@@ -426,51 +494,12 @@ function undo() {
         swipeLeftGif.toShow=false;
         tapGif.toShow=false;
     }
-    if (!ondeck)
-        highlightLast();
-    if (lastRemovedEle.length>0) {
-        //countUndos++;
-        ondeck.classList.toggle('ondeck');
-        if (batchQueue[0].type=='s') {
-            var ondeckHeader = document.getElementById('s'+batchQueue[0].id)
-            if (ondeckHeader)
-                ondeckHeader.classList.toggle('ondeck');
-        } else if (batchQueue[0].type=='e') {
-            var ondeckHeader = document.getElementById('h'+ondeck.id)
-            if (ondeckHeader)
-                ondeckHeader.classList.toggle('ondeck');
-        }
-
-
-        ondeck=lastRemovedEle.pop();
-
-        if (lastRemovedBatchInfo.length>0){
-            var pastInfo= ondeck.batch;//lastRemovedBatchInfo[lastRemovedBatchInfo.length-1];
-            //console.log(pastInfo +' ?= '+batchQueue[0].type+batchQueue[0].id)
-            if (pastInfo!=batchQueue[0].type+batchQueue[0].id) {
-                batchQueue = [lastRemovedBatchInfo.pop()].concat(batchQueue);
-            }
-            
-        }   
-        batchQueue[0].countUndos++;
-        if (ondeck.childNodes.length<2) {
-            if (batchQueue[0].type=='s')
-                ondeck.insertBefore(createInlineLabel(batches[ondeck.batch].ngram),ondeck.childNodes[0]);
-            else if (batchQueue[0].type=='e')
-                ondeck.insertBefore(createInlineLabel(batches[ondeck.batch].ngrams[ondeck.id]),ondeck.childNodes[0]);
-            ondeck.classList.toggle('redo');
-            //colorIndex = (++colorIndex)%headerColors.length;
-            ondeck.style.background=spottingColors[ondeck.colorIndex];
-        }
-        ondeck.classList.toggle('batchEl');
-        ondeck.classList.toggle('collapser');
-        typeSetup(ondeck);
-        if (ondeck.classList.contains('spotting'))
-            batches[ondeck.batch].spottings[ondeck.id]=null;
-        //console.log(batches[ondeck.batch].spottings);
-        if (ondeck.batch!=batchQueue[0].type+batchQueue[0].id)
-                console.log('WARNING, batchQueue head not mathcing ondeck: '+ondeck.batch+' '+batchQueue[0].type+batchQueue[0].id)
-        theWindow.appendChild(ondeck);
+    if (lastRemovedBatchInfo.length>0){
+        batchQueue = [lastRemovedBatchInfo.pop()].concat(batchQueue);
+        if (timingTestMode)
+            batchQueue[0].countUndos++;
+        theWindow.innerHTML = ""; //clear the current batch.
+        showNextBatch();
     }
     
 }
@@ -489,7 +518,7 @@ function getRandomTime() {
 function setup() {
     //from http://stackoverflow.com/a/30811794/1018830
     //Prevents swipe navigation on browers that to that
-    window.addEventListener( "touchmove", function ( event ) {
+    /*window.addEventListener( "touchmove", function ( event ) {
         var touch = event.originalEvent.touches[ 0 ];
         oldX = xPos;
         oldY = yPos;
@@ -504,13 +533,18 @@ function setup() {
                 return false;
             }
         }
-    } );
+    } );*/
     window.addEventListener("keydown", handleKeyPress);
     spinner = document.getElementById("spinner");
     var windows = document.getElementsByClassName('window');
     theWindow=windows[0];
+    theWindow.style.maxWidth='100%';
+    theWindow.style.top='0';
+    theWindow.style.padding='50px 0 0 0';
     gradient = document.getElementById("overlay");
+    gradient.hidden=true;
     icons = document.getElementById("icons");
+    icons.hidden=true;
     showX = document.getElementById("showX");
     showCheck = document.getElementById("showCheck");
     if (trainingMode) {
@@ -522,8 +556,8 @@ function setup() {
         instructionsText=document.getElementById('instructionsText');
     } 
     
-    var containers = document.getElementsByClassName('container');
-    initSlider(containers[0]);
+    //var containers = document.getElementsByClassName('container');
+    //initSlider(containers[0]);
 
     var w = window,
     d = document,
@@ -533,10 +567,7 @@ function setup() {
     y = w.innerHeight|| e.clientHeight|| g.clientHeight;
     screenHeight=y;
     screenWidth=x;
-    if (screenHeight>700)
-        toBeInQueue=7;
-    else
-        toBeInQueue=4;
+    toBeInQueue=4;
     while (!imgWidth)
         imgWidth=Math.min(x,maxImgWidth);
     //console.log(imgWidth);
@@ -548,10 +579,7 @@ function setup() {
         var dif = y-screenHeight;
         screenHeight=y;
         screenWidth=x;
-        if (screenHeight>700)
-            toBeInQueue=7;
-        else
-            toBeInQueue=4;
+        toBeInQueue=4;
         imgWidth=Math.min(x,maxImgWidth);
         //console.log('resize: '+x+', '+y);
         //SHould this be for all transcriptions, and not just ondeck?
@@ -601,7 +629,22 @@ function setup() {
         //instructions.addEventListener('touchstart', closeInstructions, false);
     }
 
-
+    if (timingTestMode)
+    {
+        var time;
+        if (labelMode=='normal')
+            time=14*60*1000;
+        else if (labelMode=='manual')
+            time=4*60*1000;
+        else if (labelMode=='line')
+            time=4*60*1000;
+        else
+            return;
+        setTimeout(function() {
+            alert("Time's up!");
+            exit();
+        },time);
+    }
 }
 
 function closeInstructions(e) {
@@ -631,31 +674,42 @@ function closeInstructions(e) {
 
 
 
-function createSlider(im,id,batchId) {
-    var genDiv = document.createElement("div");
+function createSpotting(im,id,batchId,maxImWidth) {
+    var genDiv = document.createElement("li");
     genDiv.classList.toggle('spotting');
     genDiv.classList.toggle('batchEl');
+    genDiv.style.width=maxImWidth+'px';
+    if (im.width > maxImWidth) {
+        difSide = (im.width-maxImWidth)/2;
+        im.style.margin='0 0 0 -'+difSide+'px'
+    }
+    var instructSpan = document.createElement("span");
+    instructSpan.classList.toggle('skipinstruct');
+    instructSpan.innerHTML='press SPACE to skip this instance';
+    genDiv.appendChild(instructSpan);
     genDiv.appendChild(im);
     genDiv.id=id;
     genDiv.batch=batchId;
     //initSlider(genDiv);
-    genDiv.style.background=spottingColors[colorIndex];
+    //genDiv.style.background=spottingColors[colorIndex];
     genDiv.colorIndex=colorIndex;
     genDiv.addEventListener("webkitAnimationEnd", function(e){if(e.animationName=='collapse') theWindow.removeChild(this);}, false);
     genDiv.addEventListener("animationend", function(e){if(e.animationName=='collapse') theWindow.removeChild(this);}, false);
+
+    //Change to 
+    genDiv.addEventListener('click', handleOnclick, false);
+    //genDiv.addEventListener('touchstart', handleTouchStart, false);        
+    //genDiv.addEventListener('touchmove', handleTouchMove, false);
+    //genDiv.addEventListener('touchend', handleTouchEnd, false);
+    //
+    //genDiv.addEventListener('mousedown', handleTouchStart, false);        
+    //genDiv.addEventListener('mousemove', handleTouchMove, false);
+    //genDiv.addEventListener('mouseup', handleTouchEnd, false);
+    //genDiv.xDown=null;
+
     return genDiv;
 }
 
-function initSlider(ele) {
-    ele.addEventListener('touchstart', handleTouchStart, false);        
-    ele.addEventListener('touchmove', handleTouchMove, false);
-    ele.addEventListener('touchend', handleTouchEnd, false);
-    
-    ele.addEventListener('mousedown', handleTouchStart, false);        
-    ele.addEventListener('mousemove', handleTouchMove, false);
-    ele.addEventListener('mouseup', handleTouchEnd, false);
-    ele.xDown=null;
-}
 
 //////////////////////
 
@@ -672,53 +726,29 @@ function handleSpottingsBatch(jres) {
     //console.log("got batch "+jres.batchId);
     batches['s'+jres.batchId]={sent:false, ngram:jres.ngram, spottings:{}};
 
-    
-    var lastBatch = batchQueue[batchQueue.length-1]; 
-    if (batchQueue.length>0 && jres.ngram == lastBatch.ngram) {// || 
-                //lastBatch.type=='e' && batches[lastBatch.type+lastBatch.id].) {
-        //batchHeader.hidden=true
-        var lastHeader = document.getElementById(lastBatch.type+lastBatch.id);
-        if (lastHeader)
-            lastHeader.id='s'+jres.batchId;
-    
-    } else {
-        colorIndex = (++colorIndex)%headerColors.length;
-        lastNgram=jres.ngram;
-
-
-        var batchHeader = document.createElement("div");
-        //batchHeader.classList.toggle('spotting');
-        batchHeader.classList.toggle('batchHeader');
-        batchHeader.id='s'+jres.batchId;
-        batchHeader.classList.toggle('s'+jres.batchId);
-        batchHeader.innerHTML='<div>'+jres.ngram+'</div>';
-        batchHeader.style.background=headerColors[colorIndex];
-        theWindow.insertBefore(batchHeader,theWindow.childNodes[0]);
-    }
     var debugInfo;
     if (jres.debug!=undefined)
         debugInfo = jres.debug;
     else
         debugInfo={precAtPull:-2, precAcceptT:-2, precRejectT:-2, precBetweenT:-2};    
+    //console.log('gott '+allReceived);
+    for (var index=0; index<jres.spottings.length; index++) {
+        var i=jres.spottings[index];
+        //var im = new Image();
+        //im.src='data:image/png;base64,'+i.data;
+        //var widget = createSlider(im,i.id,'s'+jres.batchId);
+        //theWindow.insertBefore(widget,theWindow.childNodes[0]);
+        //initSlider(widget);
+        batches['s'+jres.batchId].spottings[i.id]=null;
+    }
     if (jres.resultsId!=='X') {
-        batchQueue.push({type:'s', ngram:jres.ngram, id:jres.batchId, rid:jres.resultsId, debugInfo:debugInfo});
+        batchQueue.push({type:'s', ngram:jres.ngram, id:jres.batchId, rid:jres.resultsId, debugInfo:debugInfo, spottings: jres.spottings});
         //console.log("got "+jres.resultsId)
     } else if (jres.batchId=='R') {
         location.reload(true);
     } else {
         //allReceived=true;
         //console.log("all recieved")
-    }
-    //console.log('gott '+allReceived);
-    
-    for (var index=0; index<jres.spottings.length; index++) {
-        var i=jres.spottings[index];
-        var im = new Image();
-        im.src='data:image/png;base64,'+i.data;
-        var widget = createSlider(im,i.id,'s'+jres.batchId);
-        theWindow.insertBefore(widget,theWindow.childNodes[0]);
-        //initSlider(widget);
-        batches['s'+jres.batchId].spottings[i.id]=null;
     }
     spinner.hidden=true;
 }
@@ -727,7 +757,7 @@ function handleTranscriptionBatch(jres) {
     //batches[jres.batchId]={sent:false, ngram:jres.ngram, spottings:{}};
         
     if (jres.batchId!=='R' && jres.batchId!=='X') {
-        batchQueue.push({type:'t', id:jres.batchId, transcription:'#'});
+        batchQueue.push({type:'t', id:jres.batchId, transcription:'#', image:jres.wordImg, ngrams:jres.ngrams, possibilities:jres.possibilities});
         if (timingTestMode) {
             batchQueue[batchQueue.length-1].numPossible=jres.possibilities.length;
             batchQueue[batchQueue.length-1].positionCorrect=jres.possibilities.indexOf(jres.correct.toLowerCase());
@@ -739,28 +769,24 @@ function handleTranscriptionBatch(jres) {
         location.reload(true);
     } 
     
-    var wordImg = new Image();
-    wordImg.src='data:image/png;base64,'+jres.wordImg;
-
-    theWindow.insertBefore(createTranscriptionSelector('t'+jres.batchId,wordImg,jres.ngrams,jres.possibilities),theWindow.childNodes[0]);
     spinner.hidden=true;
 }
 function handleManualBatch(jres) {
         
     if (jres.batchId!=='R' && jres.batchId!=='X') {
-        batchQueue.push({type:'m', id:jres.batchId, transcription:'#'});
+        batchQueue.push({type:'m', id:jres.batchId, transcription:'#', image:jres.wordImg, ngrams:jres.ngrams, possibilities:jres.possibilities});
     } else if (jres.batchId=='R') {
         location.reload(true);
     } 
     
-    var wordImg = new Image();
-    wordImg.src='data:image/png;base64,'+jres.wordImg;
-    theWindow.insertBefore(createManualTranscriptionSelector('m'+jres.batchId,wordImg,jres.ngrams,jres.possibilities),theWindow.childNodes[0]);
+    //var wordImg = new Image();
+    //wordImg.src='data:image/png;base64,'+jres.wordImg;
+    //theWindow.insertBefore(createManualTranscriptionSelector('m'+jres.batchId,wordImg,jres.ngrams,jres.possibilities),theWindow.childNodes[0]);
     spinner.hidden=true;
 }
 
 
-function handleNewExemplarsBatch(jres) {
+/*function handleNewExemplarsBatch(jres) {
     //console.log("got batch "+jres.batchId);
     
         //console.log("got "+jres.resultsId)
@@ -793,7 +819,7 @@ function handleNewExemplarsBatch(jres) {
         }
         spinner.hidden=true;
     }
-}
+}*/
 
 function getNextBatch() { 
     //console.log('getting '+allReceived);
@@ -869,7 +895,7 @@ function getNextBatch() {
                 getNextBatch(); //callback);
 
             if (fromEmpty)
-                highlightLast();
+                showNextBatch();
             
             
         } else {
@@ -880,7 +906,177 @@ function getNextBatch() {
     });
 }
 
-function highlightLast() {
+function showNextBatch() {
+    //var oldElement = document.getElementById(batchId);
+    //if (oldElement) {
+    //    oldElement.addEventListener("webkitAnimationEnd", function(e){if(e.animationName=='collapseH') theWindow.removeChild(this);}, false);
+    //    oldElement.addEventListener("animationend", function(e){if(e.animationName=='collapseH') theWindow.removeChild(this);}, false);
+    //    oldElement.classList.toggle('batchHeader');
+    //    oldElement.classList.toggle('collapserH');
+    //}
+    if (batchQueue.length>0) {
+        switch (batchQueue[0].type) {
+            case 's':
+                showSpottingsBatch(batchQueue[0]);
+                break;
+            case 't':
+                showTransBatch(batchQueue[0]);
+                break;
+            case 'm':
+                showManBatch(batchQueue[0]);
+                break;
+            default:
+                console.log('ERROR, bad batch type: '+batchQueue[0].type);
+        }
+    }
+    else {
+        setTimeout(showNextBatch,2000);
+    }
+}
+
+function remove(e) {
+    theWindow.removeChild(this);
+}
+
+function batchOnclick(evt) {
+    if (this.id == 'badButton')
+    {
+        //flip all classifications
+        for (var spottingId in batches[this.batchId].spottings)
+            if (batches[this.batchId].spottings.hasOwnProperty(spottingId) && batches[this.batchId].spottings[spottingId]!=-1)
+                batches[this.batchId].spottings[spottingId] = !batches[this.batchId].spottings[spottingId];
+        document.getElementById('goodButton').visibility='hidden';
+    }
+    else
+        document.getElementById('badButton').visibility='hidden';
+
+    /*this.parentElement.addEventListener("webkitAnimationEnd", remove, false);
+    this.parentElement.addEventListener("animationEnd", remove, false);
+    this.parentElement.classList.toggle('fader');
+
+    var header = document.getElementById(this.batchId);
+    header.addEventListener("webkitAnimationEnd", remove, false);
+    header.addEventListener("animationEnd", remove, false);
+    header.classList.toggle('fader');*/
+
+    //draw visual feedback
+    for (var spottingId in batches[this.batchId].spottings)
+        if (batches[this.batchId].spottings.hasOwnProperty(spottingId))
+        {
+            var spotting = document.getElementById(spottingId);
+            //spotting.addEventListener("webkitAnimationEnd", function(e){if(e.animationName.substr(0,5)=='flash') theWindow.removeChild(this);}, false);
+            //spotting.addEventListener("animationend", function(e){if(e.animationName.substr(0,5)=='flash') theWindow.removeChild(this);}, false);
+            //spotting.addEventListener("webkitAnimationEnd", remove, false);
+            //spotting.addEventListener("animationend", remove, false);
+            if (batches[this.batchId].spottings[spottingId])
+                spotting.classList.toggle('flashGreen');
+            else
+                spotting.classList.toggle('flashRed');
+        }
+    document.getElementById(this.batchId).classList.toggle('fader');
+
+    batchShiftAndSend(this.batchId,getNextBatch);
+}
+
+function showSpottingsBatch(batch)
+{
+    //theWindow.innerHTML = "";
+
+    colorIndex = (++colorIndex)%headerColors.length;
+    var batchDiv = document.createElement("div");
+    batchDiv.id='s'+batch.id;
+    batchDiv.addEventListener("webkitAnimationEnd", remove, false);
+    batchDiv.addEventListener("animationEnd", remove, false);
+
+    //header
+    var batchHeader = document.createElement("div");
+    //batchHeader.classList.toggle('spotting');
+    batchHeader.classList.toggle('batchHeader');
+    //batchHeader.id='s'+batch.id;
+    //batchHeader.classList.toggle('s'+batch.id);
+    batchHeader.innerHTML='<div>'+batch.ngram+'</div>';
+    batchHeader.style.background=headerColors[colorIndex];
+    batchDiv.appendChild(batchHeader);
+
+    //spottings
+    var ims=[];
+    //var totalH=0;
+    var holder = {counter:0, totalH:0};
+    for (var index=0; index<batch.spottings.length; index++) {
+        var i=batch.spottings[index];
+        ims[index] = new Image();
+        holder.index=index;
+        ims[index].onload =finishShowSpottingsBatch(index,batch,holder,ims,batchDiv);
+        ims[index].src='data:image/png;base64,'+i.data;
+    }
+}
+function finishShowSpottingsBatch(index,batch,h,ims,batchDiv)
+{
+    return function() {
+        h.totalH+=ims[h.index].height;
+        //console.log((1+h.counter)+' / '+batch.spottings.length);
+        if (++h.counter == batch.spottings.length)
+        {
+            windowH=screenHeight-210;
+            var cols = Math.min(Math.ceil((h.totalH+0.0)/windowH),maxColumns);
+            var batchMaxWidth = (screenWidth/cols)-6;//-6 for padding (3+3)
+
+            var list = document.createElement("ul");
+            list.classList.toggle('list');
+            //list.style.width=theWindow.clientWidth+'px';
+            for (var index=0; index<batch.spottings.length; index++) {
+                var i=batch.spottings[index];
+                var widget = createSpotting(ims[index],i.id,'s'+batch.id,batchMaxWidth);
+                //theWindow.insertBefore(widget,theWindow.childNodes[0]);
+                list.appendChild(widget);
+                batches['s'+batch.id].spottings[i.id]=true;
+            }
+            batchDiv.appendChild(list);
+
+            //buttons
+            var buttonBar = document.createElement("div");
+            var pre = document.createElement("span");
+            pre.innerHTML=batch.ngram+': The unmarked are ';
+            pre.style.background=headerColors[colorIndex];
+            buttonBar.appendChild(pre);
+
+            var goodButton = document.createElement("button");
+            goodButton.id='goodButton';
+            goodButton.batchId='s'+batch.id;
+            goodButton.innerHTML='good';
+            goodButton.addEventListener('click', batchOnclick, false);
+            buttonBar.appendChild(goodButton);
+
+            var badButton = document.createElement("button");
+            badButton.id='badButton';
+            badButton.batchId='s'+batch.id;
+            badButton.innerHTML='bad';
+            badButton.addEventListener('click', batchOnclick, false);
+            buttonBar.appendChild(badButton);
+
+            batchDiv.appendChild(buttonBar);
+            //theWindow.insertBefore(batchDiv,theWindow.firstChild);
+            theWindow.appendChild(batchDiv);
+        }
+    }
+}
+
+function showTransBatch(batch) {
+    var wordImg = new Image();
+    wordImg.onload = function() {theWindow.appendChild(createTranscriptionSelector('t'+batch.id,wordImg,batch.ngrams,batch.possibilities));};
+    wordImg.src='data:image/png;base64,'+batch.image;
+}
+
+function showManBatch(batch) {
+    var wordImg = new Image();
+    wordImg.onload = function() {
+        theWindow.appendChild(createManualTranscriptionSelector('m'+batch.id,wordImg,batch.ngrams,batch.possibilities));
+        var input = document.getElementById('in_m'+batch.id);
+        input.focus();
+    };
+    wordImg.src='data:image/png;base64,'+batch.image;
+}
+/*function highlightLast() {
     var spottings = theWindow.getElementsByClassName('batchEl');
     ondeck=spottings[spottings.length-1];
     if (ondeck) {
@@ -923,99 +1119,26 @@ function typeSetup(ele) {
         icons.hidden=true;
         swipeOn=false;
     }
-}
+}*/
 
-function isBatchDone(batchId) {
-    
-    if (batchQueue[0].type == 's' || batchQueue[0].type == 'e')
-        for (spottingId in batches[batchId].spottings)
-            if (batches[batchId].spottings.hasOwnProperty(spottingId) && batches[batchId].spottings[spottingId]==null)
-                return;
-    
-    //base
-    batchShiftAndSend(batchId,getNextBatch);
-    //base
-    var oldElement = document.getElementById(batchId);
-    if (oldElement) {
-        oldElement.addEventListener("webkitAnimationEnd", function(e){if(e.animationName=='collapseH') theWindow.removeChild(this);}, false);
-        oldElement.addEventListener("animationend", function(e){if(e.animationName=='collapseH') theWindow.removeChild(this);}, false);
-        oldElement.classList.toggle('batchHeader');
-        oldElement.classList.toggle('collapserH');
-    }
-
-    if (trainingMode && batchQueue.length>0) {
-        var right=false;
-        if (lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].type=='s') {
-            for (spottingId in batches[batchId].spottings) {
-                if (batches[batchId].spottings.hasOwnProperty(spottingId) && batches[batchId].spottings[spottingId]==lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].correct) {
-                    right = true;
-                }
-            }
-        } else if (lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].type=='t' || lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].type=='m') {
-                right =  lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].transcription.toLowerCase() == lastRemovedBatchInfo[lastRemovedBatchInfo.length-1].correct;
-        }
-        
-        if (batchQueue[0].lastTraining) {
-            trainingMode=false;
-            allReceived=false;
-            batchQueue[0].type='x';
-            document.getElementById('instructionsButton').hidden=true;
-        }
-        if (right || batchQueue[0].lastTraining) {
-            if (batchQueue[0].instructions.length>0) {
-                instructionsText.innerHTML=batchQueue[0].instructions;
-                instructions.hidden=false;
-                instructions.style.display='flex';
-                setTimeout(function(){instructions.ready=true;},100);
-            }
-
-
-            //This is ridged, but was easy
-            if (batchQueue[0].trainingNum==0) {
-                swipeRightGif.toShow=true;
-            } else if (batchQueue[0].trainingNum==1) {
-                //swipeLeftGif.toShow=true;
-                swipeLeftGif.hidden=false;
-            } else if (batchQueue[0].trainingNum==8) {
-                tapGif.toShow=true;
-            }
-        } else {
-            instructionsText.innerHTML='<p>Opps, that was incorrect. :(</p><p>Use the <b>undo</b> button to try again.</p>';
-
-            instructions.hidden=false;
-            instructions.style.display='flex';
-            setTimeout(function(){instructions.ready=true;},100);
-        }
-    }
-}
 
 function classify(id,word) {
     return classifyR(id,function(){return word;});
 }
 function classifyR(id,vFunc) {
     return function(ele) {
-        if (!ondeck)
-            highlightLast();
-        lastRemovedEle.push(ondeck);
-        
-        if (lastRemovedEle.length>10) {
-            var removed=lastRemovedEle.shift();
-            //console.log('removed, of batch: '+removed.batch);
-            if (lastRemovedEle[0].batch!=lastRemovedBatchInfo[0].type+lastRemovedBatchInfo[0].id) {
-                //console.log('removing batch info of: '+lastRemovedBatchInfo[0].type+lastRemovedBatchInfo[0].id);
-                lastRemovedBatchInfo.shift();
-                //console.log(lastRemovedBatchInfo.length)
-            }
-        }
         if (batchQueue[0].type!='t' && batchQueue[0].type!='m') {
             console.log('ERROR, wrong inst in batchQueue');
             console.log(batchQueue);
         }
         batchQueue[0].transcription=vFunc();
-        ondeck.classList.toggle('batchEl');
-        ondeck.classList.toggle('collapser');
-        isBatchDone(id);
-        highlightLast();
+        //ondeck.classList.toggle('batchEl');
+        //ondeck.classList.toggle('collapser');
+        //isBatchDone(id);
+        //highlightLast();
+        //document.getElementById(??).classList.toggle('fader');
+        theWindow.innerHTML='';
+        batchShiftAndSend(id,getNextBatch);
     };
 }
 
@@ -1066,7 +1189,8 @@ function makeTranscriptionDiv(id,wordImg,ngrams) {
         adjustChain(chain);
 
         var ngramDiv = document.createElement("div");
-        ngramDiv.classList.toggle('meat');
+        ngramDiv.style.width = maxImgWidth+'px';
+        //ngramDiv.classList.toggle('meat');
         ngramDiv.classList.toggle('spotteds');
         for (var i=0; i<ngrams.length; i++) {
             var ngramP = ngrams[i];
@@ -1179,7 +1303,7 @@ function createManualTranscriptionSelector(id,wordImg,ngrams,possibilities) {
     //    totalHeight += 75;//ngramDiv.offsetHeight;//ngramImg.height;
     var possDiv = document.createElement("div");
     possDiv.classList.toggle('selections');
-    possDiv.classList.toggle('meat');
+    //possDiv.classList.toggle('meat');
     //type box
     var input = document.createElement('input');
     input.id='in_'+id;
@@ -1229,8 +1353,9 @@ function createTranscriptionSelector(id,wordImg,ngrams,possibilities) {
     var totalHeight = wordImg.height + 75;//ngramDiv.offsetHeight;//ngramImg.height;
     var selectionDiv = document.createElement("div");
     selectionDiv.classList.toggle('selections');
-    selectionDiv.classList.toggle('meat');
+    //selectionDiv.classList.toggle('meat');
     selectionDiv.style.height = (screenHeight - totalHeight - menuHeaderHeight)+'px';
+    selectionDiv.style.width = maxImgWidth+'px';
     addWordButtons(selectionDiv,possibilities,id);
 
 
@@ -1248,12 +1373,19 @@ function createTranscriptionSelector(id,wordImg,ngrams,possibilities) {
 }
 
 function pass() {
-    if (!ondeck)
-        highlightLast();
-    if (ondeck.classList.contains('transcription')) {
-        classify(batchQueue[0].type+batchQueue[0].id,'$PASS$')();
-    } else if (ondeck.classList.contains('spotting')) {
-        removeSpotting(-1);//-1 means pass to spottingAddon
+    //if (!ondeck)
+    //    highlightLast();
+    var curBatch = batchQueue[0];
+    if (curBatch.type=='t' || curBatch=='m') {
+        classify(curBatch.type+curBatch.id,'$PASS$')();
+    } else if (curBatch.type=='s') {
+        var bid = 's'+curBatch.id;
+        for (var spottingId in batches[bid].spottings)
+            if (batches[bid].spottings.hasOwnProperty(spottingId))
+                batches[bid].spottings[spottingId] = -1;
+        
+        theWindow.innerHTML='';
+        batchShiftAndSend(bid,getNextBatch);
     }
 }
 
@@ -1267,17 +1399,6 @@ function exit() {
     history.go(-1);
 }
 
-function toggleMode() {
-    if (!ondeck)
-        highlightLast();
-    tapMode=!tapMode;
-    document.getElementById("modeButton").classList.toggle("tapModeOn");
-    if (tapMode) {
-        document.getElementById("tapInstructions").hidden=false;
-    } else {
-        document.getElementById("tapInstructions").hidden=true;
-    }
-}
 
 function showInstructions() {
     if (!ondeck)

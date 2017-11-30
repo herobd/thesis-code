@@ -1,6 +1,9 @@
 #include "Global.h"
 GlobalK* GlobalK::_self=NULL;
-GlobalK::GlobalK()
+GlobalK::GlobalK() : 
+    unigrams({"e","t","a","o","i","n","s","h","r","d","l","c","u","m","w","f","g","y","p","b","v","k","j","x","q","z"}),
+    bigrams({"th","he","in","er","an","re","on","at","en","nd","ti","es","or","te","of","ed","is","it","al","ar","st","to","nt","ng","se","ha","as","ou","io","le","ve","co","me","de","hi","ri","ro","ic","ne","ea","ra","ce","li","ch","ll","be","ma","si","om","ur","ca","el","ta","la","ns","di","fo","ho","pe","ec","pr","no","ct","us","ac","ot","il","tr","ly","nc","et","ut","ss","so","rs","un","lo","wa","ge","ie","wh","ee","wi","em","ad","ol","rt","po","we","na","ul","ni","ts","mo","ow","pa","im","mi","ai","sh"}),
+    trigrams({"the","and","ing","ion","tio","ent","ati","for","her","ter","hat","tha","ere","ate","his","con","res","ver","all","ons","nce","men","ith","ted","ers","pro","thi","wit","are","ess","not","ive","was","ect","rea","com","eve","per","int","est","sta","cti","ica","ist","ear","ain","one","our","iti","rat","nte","tin","ine","der","ome","man","pre","rom","tra","whi","ave","str","act","ill","ure","ide","ove","cal","ble","out","sti","tic","oun","enc","ore","ant","ity","fro","art","tur","par","red","oth","eri","hic","ies","ste","ght","ich","igh","und","you","ort","era","wer","nti","oul","nde","ind","tho","hou","nal","but","hav","uld","use","han","hin","een","ces","cou","lat","tor","ese","age","ame","rin","anc","ten","hen","min","eas","can","lit","cha","ous","eat","end","ssi","ial","les","ren","tiv","nts","whe","tat","abl","dis","ran","wor","rou","lin","had","sed","ont","ple","ugh","inc","sio","din","ral","ust","tan","nat","ins","ass","pla","ven","ell","she","ose","ite","lly","rec","lan","ard","hey","rie","pos","eme","mor","den","oug","tte","ned","rit","ime","sin","ast","any","orm","ndi","ona","spe","ene","hei","ric","ice","ord","omp","nes","sen","tim","tri","ern","tes","por","app","lar","ntr","eir","sho","son","cat","lle","ner","hes","who","mat","ase","kin","ost","ber","its","nin","lea","ina","mpl","sto","ari","pri","own","ali","ree","ish","des","ead","nst","sit","ses","ans","has","gre","ong","als","fic","ual","ien","gen","ser","unt","eco","nta","ace","chi","fer","tal","low","ach","ire","ang","sse","gra","mon","ffe","rac","sel","uni","ake","ary","wil","led","ded","som","owe","har","ini","ope","nge","uch","rel","che","ade","att","cia","exp","mer","lic","hem","ery","nsi","ond","rti","duc","how","ert","see","now","imp","abo","pec","cen","ris","mar","ens","tai","ely","omm","sur","hea"})
 {
     string filePaths[2] = {"./data/top500_bigrams_in_freq_order.txt" , "./data/top500_trigrams_in_freq_order.txt"};
     for (int i=0; i<1+(MAX_N-MIN_N); i++)
@@ -16,13 +19,13 @@ GlobalK::GlobalK()
     }
     if (MIN_N==1)
     {
-            vector<string> orderedAlpha={"e","t","a","o","i","n","s","h","r","d","l","c","u","m","w","f","g","y","p","b","v","k","j","x","q","z"};
-            ngramRanks[1]=orderedAlpha;
+            //vector<string> orderedAlpha={"e","t","a","o","i","n","s","h","r","d","l","c","u","m","w","f","g","y","p","b","v","k","j","x","q","z"};
+            ngramRanks[1]=unigrams;
     }
 #ifdef NO_NAN
     xLock.lock();
-#endif
     badPrunes=transBadBatch=transBadNgram=transSent=spotSent=spotAccept=spotReject=spotAutoAccept=spotAutoReject=newExemplarSpotted=0;
+#endif
     SR_THRESH_NONE=false;
     SR_TAKE_FROM_TOP=false; 
     SR_OTSU_FIXED=false; 
@@ -37,6 +40,10 @@ GlobalK::GlobalK()
     CPV_TRANS=false;
     WEB_TRANS=false;
     CLUSTER=false;
+#if defined(NO_NAN) || defined(TEST_MODE)
+    corpusXLetterStartBounds=NULL;
+    corpusXLetterEndBounds=NULL;
+#endif
 }
 
 GlobalK::~GlobalK()
@@ -303,6 +310,18 @@ string GlobalK::currentDateTime() //from http://stackoverflow.com/a/10467633/101
 
     return buf;
 }
+
+string GlobalK::lowercaseAndStrip(string s)
+{
+    string ret="";
+    for (int i=0; i<s.length(); i++)
+    {
+        if (s[i]!=' ' && s[i]!='\n' &&  s[i]!='\t' &&  s[i]!='\r')
+            ret+=tolower(s[i]);
+    }
+    return ret;
+}
+
 #ifdef NO_NAN
 
 void GlobalK::sentSpottings()
@@ -469,8 +488,10 @@ vector<SubwordSpottingResult>* GlobalK::accumResFor(string ngram)
 #endif
 
 #if defined(TEST_MODE) || defined(NO_NAN)
-bool GlobalK::ngramAt(string ngram, int pageId, int tlx, int tly, int brx, int bry)
+int GlobalK::ngramAt(string ngram, int pageId, int tlx, int tly, int brx, int bry)
 {
+    if (wordBounds.size()==0)
+        return -1;
     float overlap_insides_thresh = OVERLAP_INSIDE_THRESH;
     float overlap_consume_thresh = OVERLAP_CONSUME_THRESH;
     float overlap_size_thresh = OVERLAP_SIDE_THRESH;
@@ -515,8 +536,10 @@ bool GlobalK::ngramAt(string ngram, int pageId, int tlx, int tly, int brx, int b
     
     return false;
 }
-bool GlobalK::ngramAt_word(string ngram, int wordId, int startX, int endX)
+int GlobalK::ngramAt_word(string ngram, int wordId, int startX, int endX)
 {
+    if (corpusXLetterStartBounds==NULL || corpusXLetterStartBounds->size()==0)
+        return -1;
     float overlap_insides_thresh = OVERLAP_INSIDE_THRESH;
     float overlap_consume_thresh = OVERLAP_CONSUME_THRESH;
     float overlap_size_thresh = OVERLAP_SIDE_THRESH;
@@ -553,4 +576,6 @@ void GlobalK::addWordBound(string word, int pageId, int tlx, int tly, int brx, i
 {
     wordBounds[pageId].emplace(word,tlx,tly,brx,bry,startBounds,endBounds);
 }
+
 #endif
+

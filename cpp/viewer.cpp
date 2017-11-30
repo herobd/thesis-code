@@ -20,11 +20,19 @@ int main(int argc, char** argv)
     while (1)
     {
         string line;
-        cout <<"Enter page number or 'q': ";
+        cout <<"Enter page number or ngram or 'quit'/'!': ";
         getline(cin, line);
-        if (line[0] == 'q')
+        if (line[0] == '!' || string(line).compare("quit")==0)
             break;
-        cattss.misc("showInteractive:"+line);
+        if (line[0]>='0' && line[0]<='9')
+            cattss.misc("showInteractive:"+line);
+        else
+        {
+            cout<<"File?(blank to std out): ";
+            string file;
+            getline(cin,file);
+            cattss.printBatchStats(line,file);
+        }
     }
 
 

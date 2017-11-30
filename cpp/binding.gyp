@@ -7,6 +7,8 @@
                     "BatchRetrieveWorker.cpp", 
                     "SpottingBatchUpdateWorker.cpp", 
                     "MasterQueue.h", "MasterQueue.cpp", 
+                    "Batcher.h",
+                    "ClusterBatcher.h", "ClusterBatcher.cpp",
                     "SpottingResults.h", "SpottingResults.cpp", 
                     "BatchWraper.h", 
                     "BatchWraperSpottings.h", "BatchWraperSpottings.cpp", 
@@ -30,6 +32,10 @@
                     "SpottingQueue.h", "SpottingQueue.cpp",
                     "Spotter.h",
                     "NetSpotter.h", "NetSpotter.cpp",
+                    "CTCWrapper.h", "CTCWrapper.cpp",
+                    "Web.h", "Web.cpp",
+
+                    "LineQueue.h", "LineQueue.cpp",
 
                     "SpecialInstances.h",
                     "TestingInstances.h", "TestingInstances.cpp",
@@ -39,16 +45,19 @@
                     "SpecialBatchRetrieveWorker.cpp"
                 ],
       "old_sources": [ "AlmazanSpotter.h", "AlmazanSpotter.cpp", "AlmazanDataset.h", "AlmazanDataset.cpp" ],
-      "cflags": ["-Wall", "-std=c++11", "-fexceptions", "-DOPENCV2", "-DTEST_MODE", "-DGRAPH_SPOTTING_RESULTS"],
+      "cflags": ["-Wall", "-std=c++11", "-fexceptions", "-DOPENCV2", "-DCPU_ONLY", "-DCTC", "-DTEST_MODE"], 
+      'old_flags' : ["-DTEST_MODE", "-DGRAPH_SPOTTING_RESULTS"],
       'cflags!': [ '-fno-exceptions' ,'-fno-rtti'],
       'cflags_cc!': [ '-fno-exceptions', '-fno-rtti' ],
       "include_dirs" : ["<!(node -e \"require('nan')\")", 
             "/home/brian/Projects/brian_caffe/scripts/cnnspp_spotter", 
+            "/home/brian/robert_stuff/documentproject/src",
             "/home/brian/Projects/brian_caffe/include"
           ],
       "libraries": [
             "-lopencv_highgui", "-lb64", "-pthread", "-lopencv_imgproc", "-fopenmp", 
-            "-L/home/brian/Projects/brian_caffe/scripts/cnnspp_spotter", "-lcnnspp_spotter",
+            "-L/home/brian/robert_stuff/documentproject/lib", "-Wl,-rpath=/home/brian/robert_stuff/documentproject/lib", "-ldtwarp",
+            "-L/home/brian/Projects/brian_caffe/scripts/cnnspp_spotter", "-Wl,-rpath=/home/brian/Projects/brian_caffe/scripts/cnnspp_spotter", "-lcnnspp_spotter",
             "-L/home/brian/Projects/brian_caffe/build/lib", "-lcaffe", "-lboost_system"
           ],
       "old_include_dirs" : ["<!(node -e \"require('nan')\")", "/home/brian/intel_index/EmbAttSpotter"],

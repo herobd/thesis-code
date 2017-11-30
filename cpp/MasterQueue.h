@@ -32,12 +32,7 @@
 
 using namespace std;
 
-#define ROTATE 1 //this is for testing, forcing it to feed up batches from different spotting results.
-
-#define NGRAM_Q_COUNT_THRESH_NEW 505//4 or 60?
-#define NGRAM_Q_COUNT_THRESH_WORD 505//6 or 80?
-#define TRANS_READY_THRESH 10//50
-
+//params moved to Global.h
 
 class MasterQueue {
 private:
@@ -50,6 +45,14 @@ private:
     TranscribeBatchQueue transcribeBatchQueue;
     NewExemplarsBatchQueue newExemplarsBatchQueue;
     
+    template <class T>
+    SpottingsBatch* _getSpottingsBatch(map<unsigned long, pair<sem_t*,T*> >& batcherQueue,unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need);
+    template <class T>
+    vector<Spotting>* _feedback(map<unsigned long, pair<sem_t*,T*> >& batchers, map<unsigned long, pair<sem_t*,T*> >& batchersQueue, unsigned long id, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long, string> >* remove);
+    template <class T>
+    void autoApprove(map<unsigned long, pair<sem_t*,T*> >& batchers, map<string,vector<Spotting> >& forAutoApproval, vector<Spotting>* ret);
+    template <class T>
+    BatchWraper* _getSpottingsAsBatch(map<unsigned long, pair<sem_t*,T*> >& batchers, int width, int color, string prevNgram, unsigned long batcherId, vector<unsigned long> spottingIds, string ngram);
     //int atID;
     //map<unsigned long,unsigned long> batchToResults;
     
@@ -57,7 +60,7 @@ private:
 #if ROTATE
     pthread_rwlock_t semRotate;
     int testIter;
-    int test_rotate;
+    int rotate_pos;
 #endif
     //cv::Mat page;
     /*map<string,cv::Mat> pages;
@@ -80,19 +83,20 @@ private:
 
     int contextPad;
 
+    string saveDir;
+
 public:
-    MasterQueue(int contextPad);
-    MasterQueue(ifstream& in, CorpusRef* corpusRef, PageRef* pageRef);
+    MasterQueue(int contextPad, string savePre);
+    MasterQueue(ifstream& in, CorpusRef* corpusRef, PageRef* pageRef, string savePre);
     void save(ofstream& out);
 
     BatchWraper* getBatch(unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram);
+    BatchWraper* getSpottingsAsBatch(int width, int color, string prevNgram, unsigned long batcherId, vector<unsigned long> spottingIds, string ngram);
     SpottingsBatch* getSpottingsBatch(unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need=true);
-    template <class T>
-    SpottingsBatch* _getSpottingsBatch(map<unsigned long, pair<sem_t*,T*> > batcherQueue,unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need);
 
     vector<Spotting>* feedback(unsigned long id, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long,string> >* remove);
-    template <class T>
-    vector<Spotting>* _feedback(map<unsigned long, pair<sem_t*,T*> > batchers, map<unsigned long, pair<sem_t*,T*> > batchersQueue, unsigned long id, const vector<string>& ids, const vector<int>& userClassifications, int resent, vector<pair<unsigned long, string> >* remove);
+
+    void autoApprove(vector<Spotting> toApprove, vector<Spotting>* ret);
 
     virtual unsigned long updateSpottingResults(vector<Spotting>* spottings, unsigned long id=0);//a negative id means add a new spottingresult
     //void addSpottingResults(SpottingResults* res, bool hasSemResults=false, bool toQueue=true);
@@ -153,5 +157,12 @@ public:
 #ifdef TEST_MODE
     string forceNgram;
 #endif
+    map<string, vector< tuple<float,float,int,float,float> > > getBatchTracking();
+
+    int checkLocks();//for debugging
+    ClusterBatcher* getBatcher(unsigned long id)//for debugging
+    {
+        return clusterBatchers[id].second;
+    }
 };
 #endif

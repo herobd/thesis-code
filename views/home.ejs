@@ -9,21 +9,44 @@
 </head>
 <body>
 <div class="container">
+    <h1>Bentham, classic UI study</h1>
     <div id="title"><h1>Welcome</h1> <%= id %></div>
     <!--
     <p>Thank you for volunteering your time. This is an experiment to characterize how fast and accurate people are at using the CATTSS app. It should take about 15 minutes.</p>
     <p>You will begin by being briefly trained and then will complete a series of tasks.</p>
     <p id=user_specific_message"><%= message %></p>
     -->
-    <p>You'll be contacted with an email when the test is ready.<p>
+    <p>Thank you for your time!</p>
+    <p>This study is to collect information regarding how long it takes people to complete the individual tasks, as well as how accurately they do. Please do each session in one uninturrpted sitting, otherwise the timing collection will be inaccurate.</p>
+    <p>Use <b>menu -> exit </b> to return here when finished with a session.</p>
     <div id='apps'>
-        <% if (id=='herobd@gmail.com' || id=='test@test.com' || id=='test2@test.com') { %>
-        <a href="/app-test">Go to app</a> <br><br>
+        <h2>Session 1: full system</h2>
+        <% if (id && id.length>0) { %>
+        <p>Please complete about 14 minutes using this mode.</p>
+        <p>If you are unfamiliar with the system, take the training option.</p>
+        <p>There are keyboard controls to speed things up, using the arrow keys:<br>
+        -Left/Right: label spotting as incorrect/correct<br>
+        -Up: Skip instance<br>
+        -Down: Undo
+        </p>
+    <!--
+        <p>The interface for approving spottings is changed in this version. You will be presented with a cluster and, after identifying outliers, classify the cluster as a whole as correct or incorrect.</p>
+        <p>I don't have a training series for this one, so instread view <a href=??>this training video</a> before begining.</p>
+    -->
+        <a href="/app-normal">Full system</a>   
+        <a href="/app-normal-train">Full system (with training)</a> <br><br>
+        <h2>Session 2: manual words only</h2>
+        <p>Please complete about 4 minutes using this mode. You will only be presented with manual transcription batches.</p>
+        <a href="/app-manual">Manual words only</a> <br><br>
+        <h2>Session 3: manual lines</h2>
+        <p>Please complete about 4 minutes using this mode. You will be manually transcribing lines, as opposed to words.</p>
+        <a href="/app-line">Manual lines</a> <br><br>
         <%} if (id=='herobd@gmail.com') { %>
         <a href="/app-label">Labeling</a> <br><br>
-        <a href="/app-false-label">Don't (false) label</a> <br><br>
         <% } %>
     </div>
+
+    <p>Email <a href='mailto:briandavis@byu.net?Subject=Bentham classic done'>Brian</a> when you're done.</p>
     
 </div>
 <br>
@@ -35,7 +58,5 @@
 <h2>How CATTSS works</h2> 
 <p>The system begins by looking for common letter combinations (subwords) like 'th' or 'er'. It can't do this very well by itself, so it passes subwords it is unsure about on to users.</p>
 <p>When the computer has a few letters filled in for a word (think of the game "Wheel of Fortune" - some letters are known, some are blank), it creates a list of possible transcriptions for that word. If this list is reasonably small it passes it to a user to select the correct one.</p>
-<p>The system also uses the subwords approved by users, and the now known letters of user transcribed words to enhance its ability to find subwords.</p>
-<p>For this experiment the system isn't running. The data was taken from a single run of the system so that the results are more consistent and there are ground truth labels for the data.</p>
 </body>
 </html>

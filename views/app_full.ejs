@@ -10,6 +10,7 @@
 <script> 
     <% if (testMode) { %>
     timingTestMode=true; 
+    labelMode="<%= labelMode; %>";
     <% } else { %>
     timingTestMode=false; 
     <% } %>
@@ -23,6 +24,7 @@
     <% } else { %>
     save=false;
     <% } %>
+    minWidth= <%= minWidth; %>;
 </script>
 </head>
 <body onload="setup()">

@@ -17,6 +17,8 @@
 //#include "ctpl_stl.h"
 #ifdef NO_NAN
 #include "tester.h"
+#else
+#include "LineQueue.h"
 #endif
 
 using namespace std;
@@ -86,6 +88,9 @@ class CATTSS
     SpottingQueue* spottingQueue;
     Knowledge::Corpus* corpus;
     Web* web;
+#ifndef NO_NAN
+    LineQueue* lineQueue;
+#endif
     thread* incompleteChecker;
     thread* showChecker;
 
@@ -113,8 +118,8 @@ class CATTSS
             string segmentationFile, 
             string spottingModelPrefix,
             string savePrefix,
-            set<int> nsOfInterest, //ngrams we will be spotting
-            int avgCharWidth,
+            //set<int> nsOfInterest, //ngrams we will be spotting
+            string ngramWWFile, //This is a file with three lines for each ngram: the ngram, the estimated width, the clustered width (for preprocessing embeddings) //int avgCharWidth,
             int numSpottingThreads,
             int numTaskThreads,
             int showHeight,     //Height of showProgress image
@@ -135,6 +140,10 @@ class CATTSS
             delete t;
         if (GlobalK::knowledge()->WEB_TRANS && web!=NULL)
             delete web;
+#ifndef NO_NAN
+        if (lineQueue!=NULL)
+            delete lineQueue;
+#endif
     }
    //this is aux for extracting data from save file 
     CATTSS(     string save,
@@ -143,6 +152,7 @@ class CATTSS
     void save();
 
     BatchWraper* getBatch(int num, int width, int color, string prevNgram);
+    BatchWraper* getSpottingsAsBatch(int width, int color, string prevNgram, unsigned long batcherId, vector<unsigned long> spottingIds, string ngram);
     void updateSpottings(string resultsId, vector<string> ids, vector<int> labels, int resent);
     void updateTranscription(string id, string transcription, bool manual);
     void updateNewExemplars(string resultsId,  vector<int> labels, int resent);
@@ -164,5 +174,12 @@ class CATTSS
         corpus->getStats(accTrans,pWordsTrans,pWords80_100,pWords60_80,pWords40_60,pWords20_40,pWords0_20,pWords0,pWordsBad,misTrans,accTrans_IV,pWordsTrans_IV,pWords80_100_IV,pWords60_80_IV,pWords40_60_IV,pWords20_40_IV,pWords0_20_IV,pWords0_IV,misTrans_IV);
     }
     void printFinalStats();
+    void printBatchStats(string ngram, string file);
+    int getMaxImageWidth() {return corpus->getMaxImageWidth();}
+#ifndef NO_NAN
+    void initLines(int contextPad);
+    BatchWraper* getLineBatch(int width);
+#endif
+    BatchWraper* getManualBatch(int width);
 };
 #endif
