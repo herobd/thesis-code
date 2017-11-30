@@ -1,5 +1,7 @@
 #include "LineQueue.h"
 
+#include <algorithm>
+
 
 LineQueue::LineQueue(int contextPad, Knowledge::Corpus* corpus) : contextPad(contextPad), corpus(corpus)
 {
@@ -35,6 +37,7 @@ LineQueue::LineQueue(int contextPad, Knowledge::Corpus* corpus) : contextPad(con
             batches.emplace_back(origins.back(), vector<string>(), page->getImg(), &spottings, tlx, tly, brx, bry, gt);
         }
     }
+    random_shuffle(batches.begin(),batches.end());
     on=0;
 }
 LineQueue::~LineQueue()

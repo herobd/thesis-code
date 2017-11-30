@@ -454,8 +454,20 @@ SpottingsBatch* MasterQueue::_getSpottingsBatch(map<unsigned long, pair<sem_t*,T
             iter++;
             indexHolder++;
         }
-        assert(iter!=batcherQueue.end());
+        ///MasterQueue.cpp:457: SpottingsBatch* MasterQueue::_getSpottingsBatch(std::map<long unsigned int, std::pair<sem_t*, T*> >&, unsigned int, bool, unsigned int, int, std::string, bool) [with T = SpottingResults; std::string = std::basic_string<char>]: Assertion `iter!=batcherQueue.end()' failed.
+        //assert(iter!=batcherQueue.end());
+        if (iter==batcherQueue.end())
+        {
+            
+            iter=batcherQueue.begin();
+            
+        }
         pthread_rwlock_unlock(&semRotate);
+        if (iter==batcherQueue.end())
+        {
+            pthread_rwlock_unlock(&semResultsQueue);
+            return NULL;
+        }
 #endif
     }
 

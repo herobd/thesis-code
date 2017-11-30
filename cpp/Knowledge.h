@@ -548,7 +548,7 @@ public:
 
     const vector<string>& labels() const;
     int size() const;
-    const cv::Mat image(unsigned int i) const;
+    const cv::Mat image(unsigned int i) const;//This returns an inverted image. It is from Dataset interface and feeds to network spotter
     unsigned int wordId(unsigned int i) const;
     Word* getWord(unsigned int i) const;
     CorpusRef* getCorpusRef();

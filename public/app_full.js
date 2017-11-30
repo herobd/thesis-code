@@ -158,10 +158,10 @@ function batchShiftAndSend(batchId,callback) {
             
             var jres=JSON.parse(res);
             //console.log(jres);
-            if (timingTestMode && allReceived && !trainingMode) {
-                if (batchQueue.length==0)
-                    window.location.href = "/thankyou";
-            } else (!timingTestMode || !allReceived)
+            //if (timingTestMode && allReceived && !trainingMode) {
+            //    if (batchQueue.length==0)
+            //        window.location.href = "/thankyou";
+            //} else (!timingTestMode || !allReceived)
                 callback();
         });
         batches[batchId].sent=true;
@@ -191,10 +191,10 @@ function batchShiftAndSend(batchId,callback) {
             
             var jres=JSON.parse(res);
             //console.log(jres);
-            if (timingTestMode && allReceived && !trainingMode) {
-                if (batchQueue.length==0)
-                    window.location.href = "/thankyou";
-            } else (!timingTestMode || !allReceived)
+            //if (timingTestMode && allReceived && !trainingMode) {
+            //    if (batchQueue.length==0)
+            //        window.location.href = "/thankyou";
+            //} else (!timingTestMode || !allReceived)
                 callback();
         });
 
@@ -214,10 +214,10 @@ function batchShiftAndSend(batchId,callback) {
             
             var jres=JSON.parse(res);
             //console.log(jres);
-            if (timingTestMode && allReceived && !trainingMode) {
-                if (batchQueue.length==0)
-                    window.location.href = "/thankyou";
-            } else (!timingTestMode || !allReceived)
+            //if (timingTestMode && allReceived && !trainingMode) {
+            //    if (batchQueue.length==0)
+            //        window.location.href = "/thankyou";
+            //} else (!timingTestMode || !allReceived)
                 callback();
         });
         batches[batchId].sent=true;
@@ -600,8 +600,29 @@ function setup() {
         instructions.addEventListener('mouseup', closeInstructions, false);
         //instructions.addEventListener('touchstart', closeInstructions, false);
     }
+    else
+        setTimesUp();
 
 
+}
+function setTimesUp() {
+    if (timingTestMode)
+    {
+        var time;
+        if (labelMode=='normal')
+            time=14*60*1000;
+        else if (labelMode=='manual')
+            time=4*60*1000;
+        else if (labelMode=='line')
+            time=4*60*1000;
+        else
+            return;
+        time+=3000;
+        setTimeout(function() {
+            alert("Time's up!");
+            exit();
+        },time);
+    }
 }
 
 function closeInstructions(e) {
@@ -960,6 +981,7 @@ function isBatchDone(batchId) {
             allReceived=false;
             batchQueue[0].type='x';
             document.getElementById('instructionsButton').hidden=true;
+            setTimesUp();
         }
         if (right || batchQueue[0].lastTraining) {
             if (batchQueue[0].instructions.length>0) {

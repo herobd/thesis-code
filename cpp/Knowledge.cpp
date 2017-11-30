@@ -3428,7 +3428,7 @@ int Knowledge::Corpus::size() const
 }
 const Mat Knowledge::Corpus::image(unsigned int i) const
 {
-    return _wordImgs.at(i);
+    return 255-_wordImgs.at(i);
 }
 unsigned int Knowledge::Corpus::wordId(unsigned int i) const
 {

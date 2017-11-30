@@ -155,10 +155,10 @@ function batchShiftAndSend(batchId,callback) {
             
             var jres=JSON.parse(res);
             //console.log(jres);
-            if (timingTestMode && allReceived && !trainingMode) {
-                if (batchQueue.length==0)
-                    window.location.href = "/thankyou";
-            } else (!timingTestMode || !allReceived)
+            //if (timingTestMode && allReceived && !trainingMode) {
+            //    if (batchQueue.length==0)
+            //        window.location.href = "/thankyou";
+            //} else (!timingTestMode || !allReceived)
                 callback();
         });
         batches[batchId].sent=true;
@@ -188,10 +188,10 @@ function batchShiftAndSend(batchId,callback) {
             
             var jres=JSON.parse(res);
             //console.log(jres);
-            if (timingTestMode && allReceived && !trainingMode) {
-                if (batchQueue.length==0)
-                    window.location.href = "/thankyou";
-            } else (!timingTestMode || !allReceived)
+            //if (timingTestMode && allReceived && !trainingMode) {
+            //    if (batchQueue.length==0)
+            //        window.location.href = "/thankyou";
+            //} else (!timingTestMode || !allReceived)
                 callback();
         });
 
@@ -211,10 +211,10 @@ function batchShiftAndSend(batchId,callback) {
             
             var jres=JSON.parse(res);
             //console.log(jres);
-            if (timingTestMode && allReceived && !trainingMode) {
-                if (batchQueue.length==0)
-                    window.location.href = "/thankyou";
-            } else (!timingTestMode || !allReceived)
+            //if (timingTestMode && allReceived && !trainingMode) {
+            //    if (batchQueue.length==0)
+            //        window.location.href = "/thankyou";
+            //} else (!timingTestMode || !allReceived)
                 callback();
         });
         batches[batchId].sent=true;
@@ -239,6 +239,7 @@ function batchShiftAndSend(batchId,callback) {
             allReceived=false;
             batchQueue[0].type='x';
             document.getElementById('instructionsButton').hidden=true;
+            setTimesUp();
         }
         if (right || batchQueue[0].lastTraining) {
             if (batchQueue[0].instructions.length>0) {
@@ -628,7 +629,12 @@ function setup() {
         instructions.addEventListener('mouseup', closeInstructions, false);
         //instructions.addEventListener('touchstart', closeInstructions, false);
     }
+    else
+        setTimesUp();
 
+}
+
+function setTimesUp() {
     if (timingTestMode)
     {
         var time;
@@ -640,6 +646,7 @@ function setup() {
             time=4*60*1000;
         else
             return;
+        time+=3000;
         setTimeout(function() {
             alert("Time's up!");
             exit();
@@ -1376,7 +1383,7 @@ function pass() {
     //if (!ondeck)
     //    highlightLast();
     var curBatch = batchQueue[0];
-    if (curBatch.type=='t' || curBatch=='m') {
+    if (curBatch.type=='t' || curBatch.type=='m') {
         classify(curBatch.type+curBatch.id,'$PASS$')();
     } else if (curBatch.type=='s') {
         var bid = 's'+curBatch.id;

@@ -30,7 +30,7 @@ function hide_create() {
 <% if (message && message.length>0) { %>
 <p class="flash"><%= message %></p>
 <% } %>
-<div id=login_form  class="slider closed">
+<div id=login_form  class="slider">
     <h2>Returning tester</h2>
     <form action="/login" method="post" autocomplete="on">
         <div>
@@ -44,13 +44,17 @@ function hide_create() {
             <input type="submit" value="Log in"/>
         </div>
     </form>
+    <!--
     <br>
     <button type="button" onclick="show_create()" id="show_create_button">New tester</button><br>
+--!>
 </div>
 
 
 <div id=create_account_form class="slider">
+<!--
     <button type="button" onclick="hide_create()" id="show_create_button">Returning tester</button><br>
+--!>
     <h2>New tester</h2>
     <form action="/create_account" method="post" autocomplete="on" >
         <div>
@@ -61,6 +65,7 @@ function hide_create() {
         <div>
             <input type="password" name="password" value="none" hidden=true/>
         </div>
+        <!--
         <p>If you're willing, please provide a little information about yourself to help in analyzing the results.</p>
         <br>
         <label>Age:</label>
@@ -117,6 +122,7 @@ function hide_create() {
             </label>
         </div>
         <br>
+--!>
         <div>
             <input type="submit" value="Log in"/>
         </div>
