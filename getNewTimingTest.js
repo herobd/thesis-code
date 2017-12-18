@@ -1,8 +1,8 @@
 const assert = require('assert');
 var fs = require('fs');
 
-var datanames=['BENTHAMfancy2','BENTHAMcluster_step2','NAMESfancy2','NAMEScluster_step2'];
-var lineDatanames=['BENTHAMline2','NAMESline2'];
+var datanames=['BENTHAMfancy','BENTHAMcluster_step','NAMESfancy','NAMEScluster_step'];
+var lineDatanames=['BENTHAMline','NAMESline'];
 
 
 function shuffle(array) { //from: http://stackoverflow.com/a/2450976/1018830
@@ -26,7 +26,7 @@ function shuffle(array) { //from: http://stackoverflow.com/a/2450976/1018830
 
 //time = c + numChars*n + numPoss*p + position*i + prevTrans*t + 
 function findParamsMan(err,manTimingInstances,dataname) {
-    console.log('----MAN----');
+    console.log('----MAN----'+dataname);
     console.log(manTimingInstances.length+' instances');
     if (manTimingInstances.length==0) {
         console.log("maxTimingInstances is empty");
@@ -63,7 +63,7 @@ function findParamsMan(err,manTimingInstances,dataname) {
 
     console.log('\nACC');
     console.log('all  : '+meanAcc);
-    var stream = fs.createWriteStream("man_"+dataname+".csv");
+    var stream = fs.createWriteStream("user/man_"+dataname+".csv");
     stream.once('open', function(fd) {
         stream.write(allCSV);
         stream.close();
@@ -75,7 +75,7 @@ function findParamsMan(err,manTimingInstances,dataname) {
 
 //time = c + numChars*n + numPoss*p + position*i + prevTrans*t + 
 function findParamsTrans(err,transTimingInstances,dataname) {
-    console.log('---TRANS----');
+    console.log('---TRANS----'+dataname);
     console.log(transTimingInstances.length+' instances');
     if (transTimingInstances.length==0) {
         console.log("transTimingInstances is empty");
@@ -101,7 +101,8 @@ function findParamsTrans(err,transTimingInstances,dataname) {
     var countError=0;
 
     var allCSV='acc,time,numPoss,position,prev,avail,bad,error,user\n';
-    var availCSV='';
+    var availCSV='acc,time,numPoss,position,prev,user';
+    var notCSV='acc,time,numPoss,position,prev,user';
     var badCSV='';
     var errorCSV='';
     //var avgN={};
@@ -127,6 +128,7 @@ function findParamsTrans(err,transTimingInstances,dataname) {
         else {
             meanTimeNotAvail+=inst.time;
             meanAccNotAvail += inst.accuracy;
+            notCSV+=inst.accuracy+','+inst.time+','+inst.numPoss+','+position+','+(inst.prev?1:0)+','+inst.user+'\n';
         }
         if (inst.bad) {
             meanAccBad+= inst.accuracy;
@@ -186,22 +188,22 @@ function findParamsTrans(err,transTimingInstances,dataname) {
     console.log('not avail: '+meanAccNotAvail);
     console.log('bad  : '+meanAccBad);
     console.log('error: '+meanAccError);
-    var stream = fs.createWriteStream("timing_all_"+dataname+".csv");
+    var stream = fs.createWriteStream("user/timing_all_"+dataname+".csv");
     stream.once('open', function(fd) {
         stream.write(allCSV);
         stream.close();
 
-        stream = fs.createWriteStream("timing_avail_"+dataname+".csv");
+        stream = fs.createWriteStream("user/timing_avail_"+dataname+".csv");
         stream.once('open', function(fd) {
             stream.write(availCSV);
             stream.close();
 
-            stream = fs.createWriteStream("timing_bad_"+dataname+".csv");
+            stream = fs.createWriteStream("user/timing_not_"+dataname+".csv");
             stream.once('open', function(fd) {
-                stream.write(badCSV);
+                stream.write(notCSV);
                 stream.close();
 
-                stream = fs.createWriteStream("timing_error_"+dataname+".csv");
+                stream = fs.createWriteStream("user/timing_error_"+dataname+".csv");
                 stream.once('open', function(fd) {
                     stream.write(errorCSV);
                     stream.close();
@@ -284,7 +286,7 @@ function findParamsTrans(err,transTimingInstances,dataname) {
 }
 
 function findParams2(err,spottingTimingInstances,dataname) {
-    console.log('---SPOTTINGS---');
+    console.log('---SPOTTINGS---'+dataname);
     console.log(spottingTimingInstances.length+' instances');
     assert(spottingTimingInstances.length>0,"spottingTimingInstances is empty");
     var meanT=0.0;
@@ -332,7 +334,7 @@ function findParams2(err,spottingTimingInstances,dataname) {
         console.log(n+': '+(avgN[n]/countN[n]));
     }
 
-    var stream = fs.createWriteStream("spottings_all_"+dataname+".csv");
+    var stream = fs.createWriteStream("user/spottings_all_"+dataname+".csv");
     stream.once('open', function(fd) {
         stream.write(allCSV);
         stream.close();
@@ -344,21 +346,22 @@ function findParams2(err,spottingTimingInstances,dataname) {
 //time = c + numT*t + numSkip*s + same*p + acc*a
 
 var Database = require('./database')();
-var database=new Database('localhost:27017/cattss', datanames, function(db){
+var database=new Database('localhost:27017/cattss', datanames.concat(lineDatanames), function(db){
     console.log('Start stats collecting');
     //store as such{ngram, numSkip, numT, numF, prevSame, numObv, accuracy, time}
     //
-    for (var i=0; i<datanames.length; i++)
+    /*for (var i=0; i<datanames.length; i++)
     {
         console.log('--'+datanames[i]+'--');
         db.getNewSpottingTimings(datanames[i],findParams2);
-        db.getTransTimings(datanames[i],findParamsTrans);
-        db.getManTimings(datanames[i],findParamsMan);
-    }
-    for (var i=0; i<lineDatanames.length; i++)
+        //db.getManTimings(datanames[i],findParamsMan);
+    }*/
+    db.getDoubleTransTimings('BENTHAMfancy','BENTHAMcluster_step',findParamsTrans);
+    db.getDoubleTransTimings('NAMESfancy','NAMEScluster_step',findParamsTrans);
+    /*for (var i=0; i<lineDatanames.length; i++)
     {
-        console.log('--'+datanames[i]+'--');
-        db.getManTimings(datanames[i],findParamsMan);
-    }
+        console.log('--'+lineDatanames[i]+'--');
+        db.getManTimings(lineDatanames[i],findParamsMan);
+    }*/
 });
 

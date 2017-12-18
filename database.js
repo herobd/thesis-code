@@ -86,6 +86,7 @@ module.exports =  function() {
                 db.collection(timingTrans , function(err, collection) {
                     if(!err) {
                         self.timingTransCollection[dataName]=collection;
+                        //console.log('opened '+timingTrans+'. stored in self.timingTransCollection['+dataName+']');
                         //self.timingTransCollection=collection;
                         if (--numCol <= 0)
                             callback(self);
@@ -96,6 +97,7 @@ module.exports =  function() {
                 db.collection(timingManual , function(err, collection) {
                     if(!err) {
                         self.timingManualCollection[dataName]=collection;
+                        console.log('opened '+timingManual+'. stored in self.timingManualCollection['+dataName+']');
                         //self.timingManualCollection=collection;
                         if (--numCol <= 0)
                         {
@@ -310,60 +312,70 @@ module.exports =  function() {
     Database.prototype.getNewSpottingTimings = function(dataname,callback) {
         var ret=[];
         var self=this;
-        var cursor = self.timingSpottingsCollection[dataname].find({userId:{$ne:'herobd@gmail.com'}});
+        var count=0;
+        //var cursor = self.timingSpottingsCollection[dataname].find({userId:{$ne:'herobd@gmail.com'}});
+        var cursor = self.timingSpottingsCollection[dataname].find({});
         cursor.each(function(err, doc) {
             if (err) {
                 callback(err,ret);
                 return;
             } else if (doc!=null) {
-                var skipped=0;
-                var accCount=0;
-                var accSum=0;
-                var numT=0;
-                var numF=0;
-                var numA=0;//ambigious
-                var numLabeledT=0;
-                var numLabeledF=0;
-                for (var i=0; i<doc.ids.length; i++) {
-                    if (doc.gt[i]==-1)
-                        numA++;
-                    else {
-                        if (doc.gt[i]==1)
-                            numT++;
-                        else if (doc.gt[i]==0)
-                            numF++;
-                        else
-                            console.log('ERROR, bad gt label: '+doc.gt[i]);
+                count++;
+                if (doc.userId!='herobd@gmail.com')
+                {
+                    var skipped=0;
+                    var accCount=0;
+                    var accSum=0;
+                    var numT=0;
+                    var numF=0;
+                    var numA=0;//ambigious
+                    var numSkipped=0;
+                    var numLabeledT=0;
+                    var numLabeledF=0;
+                    for (var i=0; i<doc.ids.length; i++) {
+                        if (doc.gt[i]==-1)
+                            numA++;
+                        else {
+                            if (doc.gt[i]==1)
+                                numT++;
+                            else if (doc.gt[i]==0)
+                                numF++;
+                            else if (doc.gt[i]=='SKIP') //some ids didn't get saved
+                                numSkipped++;
+                            else
+                                console.log('ERROR, bad gt label: '+doc.gt[i]);
 
-                        if (doc.labels[i]!=-1)
-                        {
-                            accCount++;
-                            accSum += (doc.gt[i]==doc.labels[i])?1:0;
+                            if (doc.labels[i]!=-1 && doc.gt[i]!='SKIP')
+                            {
+                                accCount++;
+                                accSum += (doc.gt[i]==doc.labels[i])?1:0;
+                            }
                         }
+                        if (doc.labels[i]==-1)
+                            skipped++;
+                        else if (doc.labels[i]==1)
+                            numLabeledT++;
+                        else
+                            numLabeledF++;
                     }
-                    if (doc.labels[i]==-1)
-                        skipped++;
-                    else if (doc.labels[i]==1)
-                        numLabeledT++;
-                    else
-                        numLabeledF++;
+                    var accuracy=accSum/(0.0+accCount);
+                    ret.push(   {
+                                    ngram:doc.ngram,
+                                    numSkip:skipped,
+                                    numT:numT,
+                                    numF:numF,
+                                    numA:numA,
+                                    total:numT+numF+numA+numSkipped,
+                                    prevSame:doc.prevNgramSame,
+                                    accuracy:accuracy,
+                                    numLabeledT:numLabeledT,
+                                    numLabeledF:numLabeledF,
+                                    time:doc.batchTime,
+                                    user:doc.userId
+                                });
                 }
-                var accuracy=accSum/(0.0+accCount);
-                ret.push(   {
-                                ngram:doc.ngram,
-                                numSkip:skipped,
-                                numT:numT,
-                                numF:numF,
-                                numA:numA,
-                                total:numT+numF+numA,
-                                prevSame:doc.prevNgramSame,
-                                accuracy:accuracy,
-                                numLabeledT:numLabeledT,
-                                numLabeledF:numLabeledF,
-                                time:doc.batchTime,
-                                user:doc.userId
-                            });
             } else {
+                console.log(dataname+" done getting spottings: "+count);
                 callback(err,ret,dataname);
             }
         });
@@ -371,8 +383,12 @@ module.exports =  function() {
     Database.prototype.getTransTimings = function(dataname,callback) {
         var ret=[];
         var self=this;
+        //console.log('get trans '+dataname);
+        //console.log(self.timingTransCollection[dataname]);
         var cursor = self.timingTransCollection[dataname].find({});
+        //console.log(cursor);
         cursor.each(function(err, doc) {
+            //console.log(doc+err);
             if (err) {
                 callback(err,ret);
                 return;
@@ -401,9 +417,22 @@ module.exports =  function() {
             }
         });
     }
+    Database.prototype.getDoubleTransTimings = function(dataname1,dataname2,callback) {
+        var self=this;
+        console.log('get double');
+        self.getTransTimings(dataname1,function(err,ret1,dn) {
+            //console('got trans '+dn);
+            self.getTransTimings(dataname2,function(err,ret2,dn) {
+                //console('got trans '+dn);
+                callback(err,ret1.concat(ret2),dataname1+dataname2);
+            });
+        });
+    }
     Database.prototype.getManTimings = function(dataname,callback) {
         var ret=[];
         var self=this;
+        console.log('get man '+dataname);
+        //console.log(self.timingManualCollection[dataname]);
         var cursor = self.timingManualCollection[dataname].find({});
         cursor.each(function(err, doc) {
             if (err) {
@@ -412,7 +441,7 @@ module.exports =  function() {
             } else if (doc!=null) {
                 //console.log(doc);
                 if (doc.userId != 'herobd@gmail.com' ) {
-                    if (+doc.batchTime<20000) {
+                    if (+doc.batchTime<200000) {
                         ret.push(   {
                                         prev:doc.prevWasManual,
                                         accuracy:doc.accuracy,

@@ -48,7 +48,7 @@ Yes ->
 class Simulator
 {
     public:
-    Simulator(string dataname, string segCSV);
+    Simulator(string dataname, string mode, string segCSV);
     vector<int> spottings(string ngram, vector<Location> locs, vector<string> gt, string prevNgram);
     vector<int> newExemplars(vector<string> ngrams, vector<Location> locs, string prevNgram);
     string transcription(int wordIndex, vector<SpottingPoint> spottings, vector<string> poss, string gt, bool lastWasTrans);
@@ -85,6 +85,9 @@ class Simulator
     float manMilli_b;
     float manMilli_m;
     float manErrorProb;
+
+    bool spottingsUseTrues;
+    bool cluster;
   
     int getSpottingLabel(string ngram, Location loc, bool strict=false); 
 };
