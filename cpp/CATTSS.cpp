@@ -131,6 +131,7 @@ CATTSS::CATTSS( string lexiconFile,
         cout<<"Load file found."<<endl;
         Lexicon::instance()->load(in);
         corpus = new Knowledge::Corpus(in);
+        if (showMilli!=9999)
         corpus->loadSpotter(spottingModelPrefix);
         CorpusRef* corpusRef = corpus->getCorpusRef();
         PageRef* pageRef = corpus->getPageRef();
@@ -193,15 +194,16 @@ CATTSS::CATTSS( string lexiconFile,
         vector<string> ngrams;
         ngrams.reserve(ngramsToUse.size());
 #ifdef INTERLEAVE_NGRAMS
-        float uniPerTri = (0.0+GlobalK::knowledge()->unigrams.size()) / GlobalK::knowledge()->trigrams.size();
-        float biPerTri = (0.0+GlobalK::knowledge()->bigrams.size()) / GlobalK::knowledge()->trigrams.size();
+        int bigSize = max(max(GlobalK::knowledge()->trigrams.size(),GlobalK::knowledge()->bigrams.size()),GlobalK::knowledge()->unigrams.size());
+        float uniPerTri = (0.0+GlobalK::knowledge()->unigrams.size()) / bigSize;
+        float biPerTri = (0.0+GlobalK::knowledge()->bigrams.size()) / bigSize;
         float uniCounter=0;
         int uniI=0;
         float biCounter=0;
         int biI=0;
-        for (int i=0; i<GlobalK::knowledge()->trigrams.size(); i++)
+        for (int i=0; i<bigSize; i++)
         {
-            if (ngramsToUse.find(GlobalK::knowledge()->trigrams[i]) != ngramsToUse.end())
+            if (i<GlobalK::knowledge()->trigrams.size() && ngramsToUse.find(GlobalK::knowledge()->trigrams[i]) != ngramsToUse.end())
                 ngrams.push_back(GlobalK::knowledge()->trigrams[i]);
 
             biCounter+=biPerTri;
@@ -227,10 +229,10 @@ CATTSS::CATTSS( string lexiconFile,
             if (ngramsToUse.find(GlobalK::knowledge()->unigrams[uniI]) != ngramsToUse.end())
                 ngrams.push_back(GlobalK::knowledge()->unigrams[uniI]);
         }
-        for (; uniI<GlobalK::knowledge()->unigrams.size(); uniI++)
+        for (; biI<GlobalK::knowledge()->bigrams.size(); biI++)
         {
-            if (ngramsToUse.find(GlobalK::knowledge()->unigrams[uniI]) != ngramsToUse.end())
-                ngrams.push_back(GlobalK::knowledge()->unigrams[uniI]);
+            if (ngramsToUse.find(GlobalK::knowledge()->bigrams[biI]) != ngramsToUse.end())
+                ngrams.push_back(GlobalK::knowledge()->bigrams[biI]);
         }
 #else
         ngrams.insert(ngrams.end(),GlobalK::knowledge()->trigrams.begin(),GlobalK::knowledge()->trigrams.end());
@@ -531,11 +533,11 @@ BatchWraper* CATTSS::getSpottingsAsBatch(int width, int color, string prevNgram,
     }
     catch (exception& e)
     {
-        cout <<"Exception in CATTSS::getBatch(), "<<e.what()<<endl;
+        cout <<"Exception in CATTSS::getSpottingsAsBatch(), "<<e.what()<<endl;
     }
     catch (...)
     {
-        cout <<"Exception in CATTSS::getBatch(), UNKNOWN"<<endl;
+        cout <<"Exception in CATTSS::getSpottingsAsBatch(), UNKNOWN"<<endl;
     }
 #endif
     return new BatchWraperBlank();

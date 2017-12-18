@@ -801,7 +801,10 @@ BatchWraper* SpottingResults::getSpottingsAsBatch(int width, int color, string p
     SpottingsBatch* batch = new SpottingsBatch(ngram,id);
     for (unsigned long sid : spottingIds)
     {
-        batch->emplace_back(instancesById.at(sid),width,contextPad,color,prevNgram);
+        if (instancesById.find(sid)!=instancesById.end())
+            batch->emplace_back(instancesById.at(sid),width,contextPad,color,prevNgram);
+        else
+            cout<<"ERROR "<<ngram<<"["<<id<<"]: no spotting by id "<<sid<<"  skipping"<<endl;
     }
     BatchWraperSpottings* ret = new BatchWraperSpottings(batch);
     return ret;

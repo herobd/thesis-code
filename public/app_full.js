@@ -370,7 +370,7 @@ function removeSpotting(OK) {
     if (lastRemovedEle.length>10) {
         var removed=lastRemovedEle.shift();
         //console.log('removed, of batch: '+removed.batch);
-        if (lastRemovedEle[0].batch!=lastRemovedBatchInfo[0].type+lastRemovedBatchInfo[0].id) {
+        if (lastRemovedBatchInfo.length>0 && lastRemovedEle[0].batch!=lastRemovedBatchInfo[0].type+lastRemovedBatchInfo[0].id) {
             //console.log('removing batch info of: '+lastRemovedBatchInfo[0].type+lastRemovedBatchInfo[0].id);
             lastRemovedBatchInfo.shift();
             //console.log(lastRemovedBatchInfo.length)

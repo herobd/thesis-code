@@ -13,7 +13,7 @@
 //spottingErrorProbConst=0.058
 //spottingSkipProbConst=0.029
 
-Simulator::Simulator(string dataname, string segCSV)
+Simulator::Simulator(string dataname, string mode, string segCSV) : cluster(mode[0]=='c' && mode[1]=='l'), spottingsUseTrues(false);
 {
     //read in seg GT
     ifstream in (segCSV);
@@ -83,63 +83,105 @@ Simulator::Simulator(string dataname, string segCSV)
     }
     else if (dataname.compare("BENTHAM")==0)
     {
-        spottingAverageMilli=14235;
-        spottingAverageMilli_prev=-4338;
-        //spottingErrorProbConst=0.035;
-        //spottingSkipProbConst=0.078;
+        if (cluster)
+        {
+            spottingTime_m=704.818;//on total number
+            spottingTime_b=3943.204;
 #if NO_ERROR
-        spottingErrorProb_m=0;
-        spottingErrorProb_b=0;
+            spottingErrorProb_m=0;
+            spottingErrorProb_b=0;
 #else
-        spottingErrorProb_m=-0.0041; //https://plot.ly/create/
-        spottingErrorProb_b=0.061;
+            spottingErrorProb_m=-0.003; //https://plot.ly/create/
+            spottingErrorProb_b=0.065;
 #endif
-        spottingSkipProb_m=0.02652;
-        spottingSkipProb_b=0.084055;
+            spottingSkipProb_m=0.095;
+            spottingSkipProb_b=-0.369;
+        }
+        else
+        {
+            
+            spottingAverageMilli=8521.865;
+            spottingAverageMilli_prev=-1685.935;
+#if NO_ERROR
+            spottingErrorProb_m=0;
+            spottingErrorProb_b=0;
+#else
+            spottingErrorProb_m=-0.0041; //https://plot.ly/create/
+            spottingErrorProb_b=0.061;
+#endif
+            spottingSkipProb_m=0.02652;
+            spottingSkipProb_b=0.084055;
+        }
 
 
-        transMilli_b=4392.10;//position 0.07 (no -1)
-        transMilli_m=611.95;
-        transMilli_notAvail=11539;
-        transErrorProbAvail=1- 0.95;
-        transErrorProbNotAvail=1- 0.5484;
+        transMilli_b=2081.012;
+        transMilli_m=725.621;
+        transMilli_notAvail=4746.724;
+        transErrorProbAvail=1- 0.967;
+        transErrorProbNotAvail=1- 0.793;
         //transSkipProb=0.012;
 
-        manMilli_b=2608.0068;
-        manMilli_m=726.1412;
-        manErrorProb=1-0.8977;
+        manMilli_b=3906.996;
+        manMilli_m=208.397;
+#if NO_ERROR
+        manErrorProb=0;
+#else
+        manErrorProb=1-0.688;
+#endif
+    }
+    else if (dataname.compare("NAMES")==0)
+    {
+        if (cluster)
+        {
+            spottingTime_m=620.8846;//on total number
+            spottingTime_b=4308.497;
+#if NO_ERROR
+            spottingErrorProb_m=0;
+            spottingErrorProb_b=0;
+#else
+            spottingErrorProb_m=0.003; //https://plot.ly/create/
+            spottingErrorProb_b=-0.002;
+#endif
+            spottingSkipProb_m=-0.004;
+            spottingSkipProb_b= 0.060;
+        }
+        else
+        {
+            spottingsUseTrues=true;
+            
+            spottingTime_m=1783.927;//on num true
+            spottingTime_b=4909.408;
+#if NO_ERROR
+            spottingErrorProb_m=0;
+            spottingErrorProb_b=0;
+#else
+            spottingErrorProb_m=0.018; //https://plot.ly/create/
+            spottingErrorProb_b=0.011;
+#endif
+            spottingSkipProb_m=2.125;
+            spottingSkipProb_b=-4.952;
+        }
+
+        transMilli_b=(3370.036+2081.012)/2;
+        transMilli_m=(376.378+725.621)/2;
+        transMilli_notAvail=4748.307;
+        transErrorProbAvail=1- 0.967;
+        transErrorProbNotAvail=1- 0.364;
+        //transSkipProb=0.012;
+
+        manMilli_b=1992.655;
+        manMilli_m=522.802;
+#if NO_ERROR
+        manErrorProb=0;
+#else
+        manErrorProb=1-0.745;
+#endif
+
+
     }
     else
     {
-        spottingAverageMilli=19951;
-        spottingAverageMilli_prev=-6825;
-#if NO_ERROR
-        spottingErrorProb_m=0;
-        spottingErrorProb_b=0;
-#else
-        spottingErrorProb_m=0.00059863;
-        spottingErrorProb_b=0.08758;
-#endif
-        spottingSkipProb_m=-0.000805;
-        spottingSkipProb_b=0.010303;
-
-        transMilli_b=4772.45;//position 0.12 (no -1)
-        transMilli_m=1260.48;
-        transMilli_notAvail=5749;
-        transErrorProbAvail=1- 0.8812;
-        transErrorProbNotAvail=1- 0.5208;
-        //transSkipProb=0.012;
-
-        manMilli_b=4210.1689;
-        manMilli_m=670.0784;
-        manErrorProb=1-0.6933;
-        //transMilli_b=4957.61;//num poss 0.0093
-        //transMilli_m=500.34;
-
-        //transMilli_b=5319.33;//prev 0.017
-        //2011.88;
-
-
+        cout<<"ERROR, unknown dataname "<<dataname<<endl;
     }
 }
 //I need, for each word in the corpus"
@@ -151,6 +193,8 @@ void Simulator::skipAndError(vector<int>& labels)
     float T=0;
     for (int c : labels)
         T+=c;
+    if (cluster)
+        T=labels.size();
     float e = T*spottingErrorProb_m + spottingErrorProb_b; //
     float s = T*spottingSkipProb_m + spottingSkipProb_b; //
     if (RAND_PROB < e)
@@ -163,6 +207,7 @@ void Simulator::skipAndError(vector<int>& labels)
         int i = rand()%labels.size();
         labels[i]=-1;
     }
+    return T;
 }
 
 vector<int> Simulator::spottings(string ngram, vector<Location> locs, vector<string> gt, string prevNgram)
@@ -179,7 +224,7 @@ vector<int> Simulator::spottings(string ngram, vector<Location> locs, vector<str
         else
             labels[i] = stoi(gt[i]);
     }
-    skipAndError(labels);
+    int numTrues=skipAndError(labels);
     /*for (int i=0; i<locs.size(); i++)
     {
         //labels[i] = getSpottingLabel(ngram,locs[i]);
@@ -213,6 +258,11 @@ vector<int> Simulator::spottings(string ngram, vector<Location> locs, vector<str
     //int milli = c + numT*t  + same*p + (1.0-error)*a;
     bool prev =ngram.compare(prevNgram);
     int milli = (labels.size()/5.0)*spottingAverageMilli + prev?spottingAverageMilli_prev:0;
+    if (cluster)
+        milli = labels.size()*spottingTime_m + spottingTime_b;
+    if (spottingsUseTrues)
+        milli = numTrues*spottingTime_m + spottingTime_b;
+
     this_thread::sleep_for(chrono::milliseconds(milli));
 
     return labels;

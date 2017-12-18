@@ -428,12 +428,12 @@ int main(int argc, char** argv)
 
 #ifndef TEST_MODE
 //#ifndef DEBUG_AUTO
-    Simulator sim(dataname,charSegFile);
+    Simulator sim(dataname,SR_mode,charSegFile);
 //#else
 //    Simulator sim("test",charSegFile);
 //#endif
 #else
-    Simulator sim("test",charSegFile);
+    Simulator sim("test",SR_mode,charSegFile);
 #endif
     /*int avgCharWidth=-1;
     if (dataname.compare("BENTHAM")==0)

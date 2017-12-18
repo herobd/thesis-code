@@ -64,7 +64,7 @@
 #define MANUAL_ONLY 0
 #define NO_ERROR 0
 
-#define PHOC_TRANS_TOP 10
+#define PHOC_TRANS_TOP 7 //from THRESH_SCORING_COUNT
 
 #define DEBUG_DIR "./debug"
 
