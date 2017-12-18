@@ -55,7 +55,7 @@ class Simulator
     string manual(int wordIndex, vector<string> poss, string gt, bool lastWasMan);
 
     private:
-    void skipAndError(vector<int>& labels);
+    int skipAndError(vector<int>& labels);
     //network_t *spotNet;
     vector<string> corpusWord; //The strings of the corpus
     vector<int> corpusPage;
@@ -86,6 +86,8 @@ class Simulator
     float manMilli_m;
     float manErrorProb;
 
+    float spottingTime_b;
+    float spottingTime_m;
     bool spottingsUseTrues;
     bool cluster;
   
