@@ -13,7 +13,7 @@
 //spottingErrorProbConst=0.058
 //spottingSkipProbConst=0.029
 
-Simulator::Simulator(string dataname, string mode, string segCSV) : cluster(mode[0]=='c' && mode[1]=='l'), spottingsUseTrues(false);
+Simulator::Simulator(string dataname, string mode, string segCSV) : cluster(mode[0]=='c' && mode[1]=='l'), spottingsUseTrues(false)
 {
     //read in seg GT
     ifstream in (segCSV);
@@ -188,7 +188,7 @@ Simulator::Simulator(string dataname, string mode, string segCSV) : cluster(mode
 //*GT
 //*boundaries between letters
 
-void Simulator::skipAndError(vector<int>& labels)
+int Simulator::skipAndError(vector<int>& labels)
 {
     float T=0;
     for (int c : labels)
