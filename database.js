@@ -580,6 +580,7 @@ module.exports =  function() {
         self.unknownsCursor[dataname] = self.timingSpottingsCollection[dataname].find({unknownIds:{$ne:null}, userId:{$ne:forbiddenUser}});
         self.unknownsCursor[dataname].hasNext( function(err,has) {
             if (!has) {
+                console.log('No unknowns left');
                 callback('No unknowns left',null);
             }
             else {
@@ -615,14 +616,25 @@ module.exports =  function() {
             } else if (item==null) {
                 callback('DB ERROR: could not find spottings batch');
             } else {
+                //TODO new unknownIds
+                var unknownIds=item.unknownIds;
                 for (var i=0; i<spottingIds.length; i++) {
                     for (var j=0; j<item.ids.length; j++) {
                         if (spottingIds[i] == item.ids[j])
+                        {
                             item.gt[j]=labels[i];
+                            if (unknownIds!=null){
+                            var ind = unknownIds.indexOf(item.ids[j]);
+                            if (ind>-1)
+                                unknownIds.splice(ind,1);
+                            }
+                        }
                     }
                 }
+                if (unknownIds!=null&&unknownIds.length==0)
+                    unknownIds=null;
                     
-                self.timingSpottingsCollection[dataName].update({'_id':idob},{$set:{gt:item.gt, unknownIds:null}},{w:1}, callback);
+                self.timingSpottingsCollection[dataName].update({'_id':idob},{$set:{gt:item.gt, unknownIds:unknownIds}},{w:1}, callback);
             }
         });
     };

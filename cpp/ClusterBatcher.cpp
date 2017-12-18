@@ -2,7 +2,7 @@
 
 atomic_ulong ClusterBatcher::_id;
 
-ClusterBatcher::ClusterBatcher(string ngram, int contextPad, bool stepMode, const vector<Spotting>& massSpottingRes, const Mat& crossScores, string saveDir) : ngram(ngram), contextPad(contextPad), stepMode(stepMode), spottingRes(massSpottingRes), crossScores(crossScores), finished(false), curLevel(-1)
+ClusterBatcher::ClusterBatcher(string ngram, int contextPad, bool stepMode, const vector<Spotting>& massSpottingRes, const Mat& crossScores, string saveDir) : ngram(ngram), contextPad(contextPad), stepMode(stepMode), spottingRes(massSpottingRes), crossScores(crossScores), finished(false), curLevel(-1), runningPurity(-1), runningAccuracy(-1)
 //vector<Spotting>* start(const vector<Spotting>& massSpottingRes, const Mat& crossScores)
 {
     for (int i=0; i<spottingRes.size(); i++)

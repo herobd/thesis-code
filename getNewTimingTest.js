@@ -1,7 +1,8 @@
 const assert = require('assert');
 var fs = require('fs');
 
-var datanames=['VALfancy'];
+var datanames=['BENTHAMfancy2','BENTHAMcluster_step2','NAMESfancy2','NAMEScluster_step2'];
+var lineDatanames=['BENTHAMline2','NAMESline2'];
 
 
 function shuffle(array) { //from: http://stackoverflow.com/a/2450976/1018830
@@ -352,6 +353,11 @@ var database=new Database('localhost:27017/cattss', datanames, function(db){
         console.log('--'+datanames[i]+'--');
         db.getNewSpottingTimings(datanames[i],findParams2);
         db.getTransTimings(datanames[i],findParamsTrans);
+        db.getManTimings(datanames[i],findParamsMan);
+    }
+    for (var i=0; i<lineDatanames.length; i++)
+    {
+        console.log('--'+datanames[i]+'--');
         db.getManTimings(datanames[i],findParamsMan);
     }
 });

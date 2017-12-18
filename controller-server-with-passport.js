@@ -21,8 +21,8 @@ var Database = require('./database')();
 var passport = require('passport')
   , LocalStrategy = require('passport-local').Strategy;
 
-//var spottingaddon = require("./cpp/build/Debug/spottingaddon");
-var spottingaddon = require("./cpp/build/Release/spottingaddon")
+var spottingaddon = require("./cpp/build/Debug/spottingaddon");
+//var spottingaddon = require("./cpp/build/Release/spottingaddon")
 
 numberOfTests=2;
 
@@ -83,17 +83,17 @@ var timingTestMode=false;
 
 //modes
 //var lineMode=true; //full-line annotation more
-var newTimingTestMode=true; //timimng test using system as is
-var labelUnknownMode=false; //gt unknown spottings
+var newTimingTestMode=false; //timimng test using system as is
+var labelUnknownMode=true; //gt unknown spottings
 var trainUsers=false;
-var debug=true;
+var debug=false;
 //The mode, either trans method or spotting batch serving method. See SpottingAddon.cpp
 var mode = 'fancy';//'cluster_step';
 //if (lineMode)
 //    mode='line';
 var cluster = (mode.length>=5 && mode.substr(0,5)=="clust");
-var useAppName = cluster?"app_cluster":"app_full";
-var datasetNum=1;
+var useAppName = 'app_full';//"cluster?"app_cluster":"app_full";
+var datasetNum=2;
 var lexiconFile=lexiconFiles[datasetNum];
 var pageImageDir=pageImageDirs[datasetNum];
 var segmentationFile=segmentationFiles[datasetNum];
@@ -111,6 +111,9 @@ var showMilli=4000;
 
 var startN=2;//ngrams to spot
 var endN=2;
+
+if (labelUnknownMode)
+    showMilli=9999;
 
 
 if (timingTestMode)
@@ -676,16 +679,47 @@ var ControllerApp = function(port) {
                                 self.testTransLabels[batchId] = correct;
                             });
                 } else if (labelUnknownMode) {
+                    var doThis = function() {
                     self.database.getNextUnknownIds(datasetName+mode,function(err,batch) {
                         if (err==null)
                         {
+                            console.log("got batch from database");
                             spottingaddon.getSpottingsAsBatch(+req.query.width,+req.query.color,req.query.prevNgram,batch.batcherId,batch.spottingIds, batch.ngram, function(err,batchType,batchId,resultsId,ngram,spottings,loc,correct) {
-                                res.send({batchType:'spottings',batchId:batch.id,resultsId:batch.batcherId,ngram:batch.ngram,spottings:spottings, debug:err});
+                                console.log("got batch from addon");
+                                //skipping
+                                var skip=[];
+                                var sl=[];
+                                for (var ii=0; ii<batch.spottingIds.length; ii++) {
+                                    var found=false;
+                                    for (var iii=0; iii<spottings.length; iii++) {
+                                        if (spottings[iii].id == batch.spottingIds[ii]) {
+                                            found=true;
+                                            break;
+                                        }
+                                    }
+                                    if (!found) {
+                                        skip.push(batch.spottingIds[ii]);
+                                        sl.push("SKIP");
+                                    }
+                                }
+                                if (skip.length>0) {
+                                    self.database.saveGT(datasetName+mode,batch.id,skip,sl,printErr);
+                                }
+                                if (spottings.length>0) {
+                                    console.log("sending batch");
+                                    res.send({batchType:'spottings',batchId:batch.id,resultsId:batch.batcherId,ngram:batch.ngram,spottings:spottings, debug:err});
+                                }
+                                else
+                                    doThis();
                             });
-                        }
-                        else
+                            }
+                        else {
                             res.send({batchType:'ERROR',batchId:-1,err:err});
+                        }
+                    
                     });
+                    };
+                    doThis();
                 } else {
                     spottingaddon.getNextBatch(+req.query.width,+req.query.color,req.query.prevNgram,num,
                             function (err,batchType,batchId,arg3,arg4,arg5,loc,correct) {
