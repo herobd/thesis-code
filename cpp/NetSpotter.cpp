@@ -6,7 +6,7 @@ NetSpotter::NetSpotter(const Dataset* corpus, string modelPrefix, string ngramWW
     int gpu=-1;
     spotter = new CNNSPPSpotter(modelPrefix+"_featurizer.prototxt", modelPrefix+"_embedder.prototxt", modelPrefix+".caffemodel", ngramWWFile, gpu, true, 0.25, 4, modelPrefix, GlobalK::knowledge()->IDEAL_COMB);
     
-    spotter->setCorpus_dataset(corpus,false);
+    spotter->setCorpus_dataset(corpus);
 }
 
 vector<SpottingResult> NetSpotter::runQuery(SpottingQuery* query)

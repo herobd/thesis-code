@@ -267,13 +267,10 @@ BatchWraper* MasterQueue::getBatch(unsigned int numberOfInstances, bool hard, un
     pthread_rwlock_rdlock(&semResultsQueue);
     ngramQueueCount=(GlobalK::knowledge()->CLUSTER)?clusterBatchersQueue.size():resultsQueue.size();
     pthread_rwlock_unlock(&semResultsQueue);
-    if (ngramQueueCount==0 && !finish.load())
+    if ((GlobalK::knowledge()->CLUSTER)?clusterBatchers.size():results.size()==0 && !finish.load())
     {
-        //return NULL;
-        cout<<"MasterQueue case hit, ngramQueueCount==0 && !finish.load(), that was returning null, but IDK why.."<<endl;
-#ifdef TEST_MODE
-        raise(SIGINT);
-#endif
+        //we haven't even begun
+        return NULL;
     }
 
     //for setting up, just do some spottings
