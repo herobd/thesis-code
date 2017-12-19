@@ -131,8 +131,6 @@ CATTSS::CATTSS( string lexiconFile,
         cout<<"Load file found."<<endl;
         Lexicon::instance()->load(in);
         corpus = new Knowledge::Corpus(in);
-        if (showMilli!=9999)
-        corpus->loadSpotter(spottingModelPrefix);
         CorpusRef* corpusRef = corpus->getCorpusRef();
         PageRef* pageRef = corpus->getPageRef();
         masterQueue = new MasterQueue(in,corpusRef,pageRef,savePrefix);
@@ -144,6 +142,8 @@ CATTSS::CATTSS( string lexiconFile,
         }
         delete corpusRef;
         delete pageRef;
+        if (showMilli!=9999)
+        corpus->loadSpotter(spottingModelPrefix);
 
         string line;
         getline(in,line);
