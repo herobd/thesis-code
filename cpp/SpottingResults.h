@@ -195,8 +195,8 @@ private:
     static atomic_ulong _id;
     
     unsigned long id;
-    double acceptThreshold;
-    double rejectThreshold;
+    double acceptThreshold, lastAcceptThreshold;
+    double rejectThreshold, lastRejectThreshold;
     //int numBatches;
     bool allBatchesSent;
     bool done;

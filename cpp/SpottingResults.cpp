@@ -66,6 +66,9 @@ SpottingResults::SpottingResults(string ngram, int contextPad) :
     rejectThreshold=-1;
     numLeftInRange=-1;
 
+    lastAcceptThreshold=-1;
+    lastRejectThreshold=-1;
+
     distCheckCounter=0;
     
     done=false;
@@ -1217,24 +1220,33 @@ void SpottingResults::EM_fancy(bool init)
                 if (p.second.score(useQbE)!=p.second.score(useQbE) || p.second.score(useQbE)==MAX_FLOAT)
                     continue;
                 float score = p.second.score(useQbE); ///useQbE?logCvt(p.second.score(useQbE)):p.second.score(useQbE);
-                allCount++;
-                if (classById.find(p.first)==classById.end() || classById.at(p.first))
-                    notFalseValues.push_back(score);
-                if (classById.find(p.first)!=classById.end() && classById.at(p.first))
-                    continue;//we've labeled it as true, so we can atleast prune this
-                usedSum += score;
-                usedValues.push_back(score);
+                if (score==score)
+                {
+                    allCount++;
+                    if (classById.find(p.first)==classById.end() || classById.at(p.first))
+                        notFalseValues.push_back(score);
+                    if (classById.find(p.first)!=classById.end() && classById.at(p.first))
+                        continue;//we've labeled it as true, so we can atleast prune this
+                    usedSum += score;
+                    usedValues.push_back(score);
+                }
             }
             usedMean = maxScore(); ///useQbE?usedSum/usedValues.size():maxScore(); //The QbS false distributions are always cut off, so we just assinge the max as the mean
+            assert(usedMean<100);
             usedStd=0;
             for (float v : usedValues)
+            {
                 usedStd += pow(v-usedMean,2);
+                assert(usedStd==usedStd);
+            }
             usedStd = sqrt(usedStd/usedValues.size());
+            assert(usedStd==usedStd);
 
             //Do we have outliers on our tail?   ('tail' being the trailing low scores that positive instances should lie in).
 
             float delta = (maxScore()-minScore())/1000;
             tailEndScore=minScore();
+            assert(tailEndScore==tailEndScore);
             while (1)
             {
                 float density = PHI(tailEndScore,usedMean,usedStd)*usedValues.size();
@@ -1247,6 +1259,7 @@ void SpottingResults::EM_fancy(bool init)
                 assert(tailEndScore<maxScore());
             }
             tailEnd = (tailEndScore-usedMean)/usedStd;
+            assert(tailEnd==tailEnd);
             //tailEnd=-1.8; ///useQbE?2.5:-1.8;
             //tailEndScore=usedMean + usedStd*tailEnd;
             //hack
@@ -1577,8 +1590,16 @@ void SpottingResults::EM_fancy(bool init)
         }
 
 
-
+#ifdef TEST_MODE
         assert(rejectThreshold==rejectThreshold && acceptThreshold==acceptThreshold);
+#endif
+        //fail-safe
+        if (rejectThreshold!=rejectThreshold)
+            rejectThreshold = lastRejectThreshold;
+        if (acceptThreshold!=acceptThreshold)
+            acceptThreshold = lastAcceptThreshold;
+
+        //additional fail-safe
         if (rejectThreshold<=acceptThreshold)
         {
             acceptThreshold=minScore();
@@ -1610,6 +1631,8 @@ void SpottingResults::EM_fancy(bool init)
 #endif        
     float prevPullFromScore = pullFromScore;
     pullFromScore = (acceptThreshold+rejectThreshold)/2.0;// -sqrt(trueVariance);
+    lastAcceptThreshold=acceptThreshold;
+    lastRejectThreshold=rejectThreshold;
 }
     
 
@@ -1955,6 +1978,8 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
         //Update max and min
         if (spotting.scoreQbE>maxScoreQbE)
         {
+            if (spotting.scoreQbE>100)
+                continue;
             if (falseMean==maxScoreQbE && falseVariance==1.0)
                 falseMean=spotting.scoreQbE;
             maxScoreQbE=spotting.scoreQbE;
@@ -2345,8 +2370,9 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
         assert(check == allInstancesByScoreQbE.end());
 
     }
-    auto worstIter = allInstancesByScoreQbE.end();
-    worstIter--;
+    auto worstIter = allInstancesByScoreQbE.rbegin();
+    while(worstIter!=allInstancesByScoreQbE.rend() && worstIter->first>100)
+        worstIter++;
     maxScoreQbE=worstIter->first;
     if (useQbE)
     {
@@ -2552,6 +2578,8 @@ SpottingResults::SpottingResults(ifstream& in, PageRef* pageRef)
     in >> acceptThreshold;
     getline(in,line);
     in >> rejectThreshold;
+    lastAcceptThreshold=acceptThreshold;
+    lastRejectThreshold=rejectThreshold;
     getline(in,line);
     getline(in,line);
     allBatchesSent = stoi(line);
