@@ -41,6 +41,7 @@ class SpottingQueue
     void addQueries(vector<Spotting>& exemplars);
     void addQueries(const vector<string>& ngrams);
     void removeQueries(vector<pair<unsigned long,string> >* toRemove);
+    bool isRunning() {return inProgress.size()>0 || onDeck.size()>0;}
 
 
     protected:

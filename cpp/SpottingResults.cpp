@@ -2400,7 +2400,7 @@ void SpottingResults::autoApprove(vector<Spotting> toApprove, vector<Spotting>* 
                 //approve(s);
                 s.type=SPOTTING_TYPE_AUTO_APPROVED;
                 ret->push_back(s);
-                instancesByScore.erase(iter);
+                iter=instancesByScore.erase(iter);
                 classById[s.id]=true;
                 //
                 bounds=toApprove.erase(bounds);

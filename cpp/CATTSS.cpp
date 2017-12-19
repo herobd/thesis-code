@@ -497,6 +497,13 @@ BatchWraper* CATTSS::getBatch(int num, int width, int color, string prevNgram)
 #ifdef TEST_MODE_C
         return ret;
 #endif
+#ifdef NO_NAN
+        if (ret!=NULL && ret->getType()==RAN_OUT && spottingQueue->isRunning())
+        {
+            delete ret;
+            ret=NULL;
+        }
+#endif
         if (ret!=NULL)
             return ret;
         else
