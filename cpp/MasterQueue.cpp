@@ -669,13 +669,14 @@ vector<Spotting>* MasterQueue::_feedback(map<unsigned long, pair<sem_t*,T*> >& b
         sem_wait(sem);
         int done=0;
         //cout <<"res feedback"<<endl;
-#ifdef AUTO_APPROVE
-        map<string,vector<Spotting> > forAutoApproval;
-        ret = res->feedback(&done,ids,userClassifications,resent,remove,&forAutoApproval);
-        autoApprove(batchers,forAutoApproval,ret);
-#else
-        ret = res->feedback(&done,ids,userClassifications,resent,remove);
-#endif
+        if (GlobalK::knowledge()->AUTO_APPROVE)
+        {
+            map<string,vector<Spotting> > forAutoApproval;
+            ret = res->feedback(&done,ids,userClassifications,resent,remove,&forAutoApproval);
+            autoApprove(batchers,forAutoApproval,ret);
+        }
+        else
+            ret = res->feedback(&done,ids,userClassifications,resent,remove);
         //cout <<"END res feedback"<<endl;
         sem_post(sem);
         
@@ -824,68 +825,71 @@ unsigned long MasterQueue::updateSpottingResults(vector<Spotting>* spottings, un
 #ifdef TEST_MODE
     //cout<<"updateSpottingResults called from MasterQueue. "<<spottings->front().ngram<<endl;
 #endif
-#if USE_QBE
-    pthread_rwlock_rdlock(&semResults);
-    if (id>0)
+    if (GlobalK::knowledge()->USE_QBE)
     {
-        if (results.find(id)!=results.end())
+        pthread_rwlock_rdlock(&semResults);
+        if (id>0)
         {
-            sem_t* sem=results.at(id).first;
-            SpottingResults* res = results.at(id).second;
-            pthread_rwlock_unlock(&semResults);
-            sem_wait(sem);
-            bool resurrect = res->updateSpottings(spottings);
-            sem_post(sem);
-            if (resurrect)
+            if (results.find(id)!=results.end())
             {
-                pthread_rwlock_wrlock(&semResultsQueue);
-                resultsQueue[id] = results.at(id);
-                pthread_rwlock_unlock(&semResultsQueue);
+                sem_t* sem=results.at(id).first;
+                SpottingResults* res = results.at(id).second;
+                pthread_rwlock_unlock(&semResults);
+                sem_wait(sem);
+                bool resurrect = res->updateSpottings(spottings);
+                sem_post(sem);
+                if (resurrect)
+                {
+                    pthread_rwlock_wrlock(&semResultsQueue);
+                    resultsQueue[id] = results.at(id);
+                    pthread_rwlock_unlock(&semResultsQueue);
+                }
+                return id;
             }
-            return id;
+            else
+            {
+                cout <<"Resultss not found for: "<<id<<endl;
+                //pthread_rwlock_unlock(&semResults);
+            }
         }
-        else
-        {
-            cout <<"Resultss not found for: "<<id<<endl;
-            //pthread_rwlock_unlock(&semResults);
-        }
-    }
-    
-    pthread_rwlock_unlock(&semResults);
-    pthread_rwlock_wrlock(&semResults);//we obtain a write-lock now in case we need to add a SpottingResults
-    for (auto p : results)
-    {
         
-        sem_t* sem=p.second.first;
-        SpottingResults* res = p.second.second;
-        if (res->ngram.compare(spottings->front().ngram) == 0)
+        pthread_rwlock_unlock(&semResults);
+        pthread_rwlock_wrlock(&semResults);//we obtain a write-lock now in case we need to add a SpottingResults
+        for (auto p : results)
         {
-            sem_wait(sem);
-            pthread_rwlock_unlock(&semResults);
-            bool resurrect = res->updateSpottings(spottings);
-            unsigned long rid = res->getId();
-            sem_post(sem);
-            if (resurrect)
-            {
-#ifdef TEST_MODE
-                cout<<"Resurrect "<<res->ngram<<endl;
-#endif
-                pthread_rwlock_wrlock(&semResultsQueue);
-                resultsQueue[rid] = make_pair(sem,res);
-                pthread_rwlock_unlock(&semResultsQueue);
-            }
-            return rid;
             
+            sem_t* sem=p.second.first;
+            SpottingResults* res = p.second.second;
+            if (res->ngram.compare(spottings->front().ngram) == 0)
+            {
+                sem_wait(sem);
+                pthread_rwlock_unlock(&semResults);
+                bool resurrect = res->updateSpottings(spottings);
+                unsigned long rid = res->getId();
+                sem_post(sem);
+                if (resurrect)
+                {
+#ifdef TEST_MODE
+                    cout<<"Resurrect "<<res->ngram<<endl;
+#endif
+                    pthread_rwlock_wrlock(&semResultsQueue);
+                    resultsQueue[rid] = make_pair(sem,res);
+                    pthread_rwlock_unlock(&semResultsQueue);
+                }
+                return rid;
+                
+            }
         }
     }
-#else
-    assert(id<=0);
-    pthread_rwlock_wrlock(&semResults);
-    for (auto p : results)
+    else
     {
-        assert(p.second.second->ngram.compare(spottings->front().ngram) != 0);
+        assert(id<=0);
+        pthread_rwlock_wrlock(&semResults);
+        for (auto p : results)
+        {
+            assert(p.second.second->ngram.compare(spottings->front().ngram) != 0);
+        }
     }
-#endif
         
     //if no id, no matching ngram, or if somethign goes wrong
 #ifdef TEST_MODE

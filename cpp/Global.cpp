@@ -40,6 +40,11 @@ GlobalK::GlobalK() :
     CPV_TRANS=false;
     WEB_TRANS=false;
     CLUSTER=false;
+
+    //TRANS_DONT_WAIT=false;
+    USE_QBE=true;
+    AUTO_TRANS_LEN_THRESH=3;
+    AUTO_APPROVE=true;
 #if defined(NO_NAN) || defined(TEST_MODE)
     corpusXLetterStartBounds=NULL;
     corpusXLetterEndBounds=NULL;

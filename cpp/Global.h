@@ -46,14 +46,14 @@
 #define NGRAM_Q_COUNT_THRESH_WORD 505//6 or 80?
 #define TRANS_READY_THRESH 10//50
 
-#define AUTO_APPROVE 1 //Whether to use approved ngrams to approve instances of subngrams
+//#define AUTO_APPROVE 1 //Whether to use approved ngrams to approve instances of subngrams
 #define AUTO_APPROVE_THRESH 0.70 //Overlap needed for auto approve to happend
 
 #define INTERLEAVE_NGRAMS 1 //This is the order of ngrams for first starting. False means all trigrams go first, then bigrams, etc.
 
 #define TRANS_DONT_WAIT 0 //if there are too many lexical matches, just send a batch (ordered) and see if its there
-#define AUTO_TRANS_LEN_THRESH 3 //all words this length and below are auto trans if there is only 1 lexical match
-#define USE_QBE 1
+//#define AUTO_TRANS_LEN_THRESH 3 //all words this length and below are auto trans if there is only 1 lexical match
+//#define USE_QBE 1
 #define NO_EXEMPLARS 1 //whether to use exemplars extracted from transcd words. Doesn't work well.
 
 #define MAX_BATCHES_OUT_PER_NGRAM 5 //to prevent step critiria from being misinformed
@@ -243,6 +243,11 @@ class GlobalK
         bool CPV_TRANS;
         bool WEB_TRANS;
         bool CLUSTER;
+
+        //bool TRANS_DONT_WAIT; //false
+        bool USE_QBE; //true
+        int AUTO_TRANS_LEN_THRESH; //3
+        bool AUTO_APPROVE; //true
 };
 
 #endif

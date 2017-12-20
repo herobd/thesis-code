@@ -310,18 +310,69 @@ int main(int argc, char** argv)
     string SR_mode="fancy";
     if (argc==1)
     {
-        cout<<"usage: "<<argv[0]<<" savePrefix simSave.csv numSimThreads [fancy,take_from_top,otsu_fixed,none_take_from_top,none,gaussian_draw,fancy_one,fancy_two,  phoc_trans,cpv_trans,web_trans,cluster_step,cluster_top] lexiconFile.txt pageImageDir segmentationFile.gtp ngramWWFile.txt charSegFile.csv spottingModelPrefix (ngram list)"<<endl;
+        cout<<"usage: "<<argv[0]<<" savePrefix simSave.csv [numSimThreads OR -FLAGS] [fancy,take_from_top,otsu_fixed,none_take_from_top,none,gaussian_draw,fancy_one,fancy_two,  phoc_trans,cpv_trans,web_trans,cluster_step,cluster_top] lexiconFile.txt pageImageDir segmentationFile.gtp ngramWWFile.txt charSegFile.csv spottingModelPrefix (ngram list)"<<endl;
         return 0;
     }
 
     if (argc>1)
         savePrefix=argv[1];
+
+    if (savePrefix.find("NAMES")!=string::npos)
+        dataname="NAMES";
+    if (savePrefix.find("noQbS")!=string::npos || savePrefix.find("NoQbS")!=string::npos)
+         GlobalK::knowledge()->USE_QBE=false;
+    else
+        GlobalK::knowledge()->USE_QBE=true;
+
     if (argc>2)
         GlobalK::knowledge()->setSimSave(argv[2]);
     else
         GlobalK::knowledge()->setSimSave("save/simulationTracking_net_BENTHAM.csv");
     if (argc>3)
-        numSimThreads=atoi(argv[3]);
+    {
+        if (argv[3][0]=='-')
+        {
+            numSimThreads=0;
+            /* FLAGS
+             * e = QbS only
+             * a# = auto-trans at len #
+             * aa = no auto-approve
+             * w = no wait
+             */
+            int i=1;
+            while (argv[3][i]!='\0')
+            {
+                if (argv[3][i]=='e')
+                {
+                    GlobalK::knowledge()->USE_QBE=false;
+                    cout<<"No QbE"<<endl;
+                }
+                else if (argv[3][i]=='a')
+                {
+                    i++;
+                    if (argv[3][i]=='a')
+                    {
+                        GlobalK::knowledge()->AUTO_APPROVE=false;
+                        cout<<"No auto approving spottings"<<endl;
+                    }
+                    else
+                    {
+                        GlobalK::knowledge()->AUTO_TRANS_LEN_THRESH=argv[3][i] - '0';
+                        cout<<"Auto transcribe words less than "<<GlobalK::knowledge()->AUTO_TRANS_LEN_THRESH<<endl;
+                    }
+                }
+                /*else if (argv[3][i]=='w')
+                {
+                    GlobalK::knowledge()->TRANS_DONT_WAIT=true;
+                    cout<<"No waiting for transc"<<endl;
+                }*/
+                i++;
+            }
+
+        }
+        else
+            numSimThreads=atoi(argv[3]);
+    }
     if (argc>4)
         SR_mode=argv[4];
     if (argc>5)

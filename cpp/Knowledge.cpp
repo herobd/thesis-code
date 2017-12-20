@@ -853,7 +853,7 @@ TranscribeBatch* Knowledge::Word::queryForBatch(vector<Spotting*>* newExemplars)
                 iter++;
         }
 #endif*/
-        if (matches.size() == 1 && matches[0].length()<=AUTO_TRANS_LEN_THRESH)
+        if (matches.size() == 1 && matches[0].length()<=GlobalK::knowledge()->AUTO_TRANS_LEN_THRESH)
         {
             transcription=matches[0];
             done=true;
