@@ -40,7 +40,7 @@
 //MASTER QUEUE PARAMS
 #define ROTATE 1 //forces it to feed up batches from different spotting results.
 #define BEFORE_ROT 5 //but it can do this many in a row
-#define LARGE_ROT 1 //causes rotation to skip ahead to get coverage of bottom ngrams
+#define LARGE_ROT 0 //causes rotation to skip ahead to get coverage of bottom ngrams
 
 #define NGRAM_Q_COUNT_THRESH_NEW 505//4 or 60? I think I raised this becuase using precomputed embeddings makes this very quick
 #define NGRAM_Q_COUNT_THRESH_WORD 505//6 or 80?

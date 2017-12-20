@@ -685,6 +685,8 @@ ClusterBatcher::ClusterBatcher(ifstream& in, PageRef* pageRef, string saveDir)
 //
     string crossFile = saveDir+"/crossScores_"+ngram+".dat";
     ifstream crossIn(crossFile);
+    if (!crossIn.good())
+        cout<<"cannot open "<<crossFile<<endl;
     assert(crossIn.good());
     crossScores = GlobalK::readFloatMat(crossIn);
     crossIn.close();

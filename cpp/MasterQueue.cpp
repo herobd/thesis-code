@@ -340,7 +340,7 @@ BatchWraper* MasterQueue::getBatch(unsigned int numberOfInstances, bool hard, un
     }
 
 #ifdef NO_NAN
-    if (ret==NULL && !finish.load())
+    if (ret==NULL && !finish.load()) 
         ret = new BatchWraperRanOut();
     else if (ret!=NULL)
     {

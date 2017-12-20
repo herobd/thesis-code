@@ -65,12 +65,12 @@ void showSleeper(CATTSS* cattss, MasterQueue* q, Knowledge::Corpus* c, int heigh
 
 //for checking stuff
 CATTSS::CATTSS(  
-                string save,
+                string savePrefix,
                 string outCompleted,
                 string outIncomplete)
 {
 
-    ifstream in (save);
+    ifstream in (savePrefix+"_CATTSS.sav");
     if (in.good())
     {
         cout<<"Load file found."<<endl;
@@ -78,7 +78,7 @@ CATTSS::CATTSS(
         corpus = new Knowledge::Corpus(in);
         CorpusRef* corpusRef = corpus->getCorpusRef();
         PageRef* pageRef = corpus->getPageRef();
-        masterQueue = new MasterQueue(in,corpusRef,pageRef,save);
+        masterQueue = new MasterQueue(in,corpusRef,pageRef,savePrefix);
         in.close();
 
         if (outCompleted.length()>0 && outIncomplete.length()>0)
@@ -100,7 +100,7 @@ CATTSS::CATTSS(
         }
     }
     else
-        cout<<"error, could not read "<<save<<endl;
+        cout<<"error, could not read "<<savePrefix<<endl;
 }
 
 

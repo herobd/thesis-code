@@ -11,7 +11,7 @@ int main(int argc, char** argv)
 {
     if (argc!=2)
     {
-        cout<<"usage: "<<argv[0]<<" saveFile"<<endl;
+        cout<<"usage: "<<argv[0]<<" savePrefix"<<endl;
         return 1;
     }
     string save=argv[1];
