@@ -925,19 +925,20 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
             }
             classById[id]=true;
 
-#ifdef AUTO_APPROVE
-            for (int subLen=ngram.length()-1; subLen>0; subLen--)
+            if (GlobalK::knowledge()->AUTO_APPROVE)
             {
-                for (int subPos=0; subPos<=ngram.length()-subLen; subPos++)
+                for (int subLen=ngram.length()-1; subLen>0; subLen--)
                 {
-                    string sub = ngram.substr(subPos,subLen);
-                    int width = (instancesById.at(id).brx-instancesById.at(id).tlx+1)*subLen/(0.0+ngram.length());
-                    int xStart = width*subPos + instancesById.at(id).tlx;
-                    int xEnd = xStart+width-1;
-                    (*forAutoApproval)[sub].emplace_back(instancesById.at(id).pageId,xStart,instancesById.at(id).tly,xEnd,instancesById.at(id).bry,instancesById.at(id).wordId);
+                    for (int subPos=0; subPos<=ngram.length()-subLen; subPos++)
+                    {
+                        string sub = ngram.substr(subPos,subLen);
+                        int width = (instancesById.at(id).brx-instancesById.at(id).tlx+1)*subLen/(0.0+ngram.length());
+                        int xStart = width*subPos + instancesById.at(id).tlx;
+                        int xEnd = xStart+width-1;
+                        (*forAutoApproval)[sub].emplace_back(instancesById.at(id).pageId,xStart,instancesById.at(id).tly,xEnd,instancesById.at(id).bry,instancesById.at(id).wordId);
+                    }
                 }
             }
-#endif
         }
         else if (userClassifications[i]==0)
         {
@@ -1916,9 +1917,10 @@ void SpottingResults::updateSpottingTrueNoScore(const SpottingExemplar& spotting
 }
 
 //combMin
-#if USE_QBE
 bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
 {
+    if (GlobalK::knowledge()->USE_QBE)
+    {
     bool fresh=false;
 #ifdef GRAPH_SPOTTING_RESULTS
     fullInstancesByScore.clear();
@@ -2417,9 +2419,9 @@ bool SpottingResults::updateSpottings(vector<Spotting>* spottings)
     //debugState();
     assert(((int)instancesByScore.size())>= initSize || check_didRemove);
     delete spottings;
+    }//USE_QBS
     return false;
 }
-#endif
 
 
 void SpottingResults::autoApprove(vector<Spotting> toApprove, vector<Spotting>* ret)

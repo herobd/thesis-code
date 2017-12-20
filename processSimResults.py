@@ -23,8 +23,9 @@ for i in range(1,len(sys.argv)):
         manualEnd = ('MANUAL' in endString)
         blankEnd = ('BLANK' in endString)
         if not manualEnd != blankEnd:
-            outRow.append('nonstandard ending: '+endString)
-        elif len(data)>1:
+            #outRow.append('nonstandard ending: '+endString)
+            outRow[0]+='!NotFinished!'
+        if len(data)>1:
 
             startTime = (int(data[1][0][-8:-6])*60 + int(data[1][0][-5:-3]))*60 + int(data[1][0][-2:])
             endIndex=-1

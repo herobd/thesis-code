@@ -148,7 +148,7 @@ Mat drawCPV(Mat cpv, Mat image, float netScale)
         string letter=" ";
         letter[0]=i+'a';
 
-        cv::putText(draw,letter,cv::Point(1,image.rows+i*letterSize+15),cv::FONT_HERSHEY_COMPLEX_SMALL,0.75,cv::Scalar(250,250,255));
+        cv::putText(draw,letter,cv::Point(1,image.rows+i*letterSize+17),cv::FONT_HERSHEY_COMPLEX_SMALL,0.75,cv::Scalar(250,250,255));
         for (int c=0; c<cpv.cols; c++)
         {
             float v = cpv.at<float>(i,c);
@@ -853,7 +853,7 @@ TranscribeBatch* Knowledge::Word::queryForBatch(vector<Spotting*>* newExemplars)
                 iter++;
         }
 #endif*/
-        if (matches.size() == 1 && matches[0].length()<=AUTO_TRANS_LEN_THRESH)
+        if (matches.size() == 1 && matches[0].length()<=GlobalK::knowledge()->AUTO_TRANS_LEN_THRESH)
         {
             transcription=matches[0];
             done=true;
