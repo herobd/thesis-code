@@ -267,7 +267,7 @@ BatchWraper* MasterQueue::getBatch(unsigned int numberOfInstances, bool hard, un
     pthread_rwlock_rdlock(&semResultsQueue);
     ngramQueueCount=(GlobalK::knowledge()->CLUSTER)?clusterBatchersQueue.size():resultsQueue.size();
     pthread_rwlock_unlock(&semResultsQueue);
-    if ((GlobalK::knowledge()->CLUSTER)?clusterBatchers.size():results.size()==0 && !finish.load())
+    if (((GlobalK::knowledge()->CLUSTER)?clusterBatchers.size():results.size())==0 && !finish.load())
     {
         //we haven't even begun
         return NULL;
