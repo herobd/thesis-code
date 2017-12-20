@@ -2,6 +2,7 @@
 
 #include <ctime>
 #include <random>
+#include <csignal>
 
 
 atomic_ulong Spotting::_id;

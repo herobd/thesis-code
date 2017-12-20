@@ -535,6 +535,7 @@ int main(int argc, char** argv)
         controlLoop(cattss,&cont);
 
     cout<<"---DONE---"<<endl;
+    cattss->save();
     //delete cattss;
     for (int i=0; i<numSimThreads; i++)
         delete taskThreads[i];

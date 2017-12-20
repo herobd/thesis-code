@@ -210,17 +210,17 @@ SpottingsBatch* ClusterBatcher::getBatch(int* done, unsigned int num, bool hard,
 
 
 #ifdef TEST_MODE
-    cout<<"["<<ngram<<"] sending cluster/batch of size "<<ret->size()<<" from level "<<curLevel<<", ids: ";
+    //cout<<"["<<ngram<<"] sending cluster/batch of size "<<ret->size()<<" from level "<<curLevel<<", ids: ";
 #endif 
     for (int i=0; i<ret->size(); i++)
     {
         starts[ret->at(i).id] = chrono::system_clock::now();
 #ifdef TEST_MODE
-        cout<<ret->at(i).id<<", ";
+        //cout<<ret->at(i).id<<", ";
 #endif 
     }
 #ifdef TEST_MODE
-    cout<<endl;
+    //cout<<endl;
 #endif 
 
 
@@ -277,19 +277,20 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
                 if (spottingRes.at(sindex).type!=SPOTTING_TYPE_AUTO_APPROVED)
                 {
                     ret->push_back(spottingRes.at(sindex));
-#ifdef AUTO_APPROVE
-                    for (int subLen=ngram.length()-1; subLen>0; subLen--)
+                    if (GlobalK::knowledge()->AUTO_APPROVE)
                     {
-                        for (int subPos=0; subPos<=ngram.length()-subLen; subPos++)
+                        for (int subLen=ngram.length()-1; subLen>0; subLen--)
                         {
-                            string sub = ngram.substr(subPos,subLen);
-                            int width = (spottingRes.at(sindex).brx-spottingRes.at(sindex).tlx+1)*subLen/(0.0+ngram.length());
-                            int xStart = width*subPos + spottingRes.at(sindex).tlx;
-                            int xEnd = xStart+width-1;
-                            (*forAutoApproval)[sub].emplace_back(spottingRes.at(sindex).pageId,xStart,spottingRes.at(sindex).tly,xEnd,spottingRes.at(sindex).bry,spottingRes.at(sindex).wordId);
+                            for (int subPos=0; subPos<=ngram.length()-subLen; subPos++)
+                            {
+                                string sub = ngram.substr(subPos,subLen);
+                                int width = (spottingRes.at(sindex).brx-spottingRes.at(sindex).tlx+1)*subLen/(0.0+ngram.length());
+                                int xStart = width*subPos + spottingRes.at(sindex).tlx;
+                                int xEnd = xStart+width-1;
+                                (*forAutoApproval)[sub].emplace_back(spottingRes.at(sindex).pageId,xStart,spottingRes.at(sindex).tly,xEnd,spottingRes.at(sindex).bry,spottingRes.at(sindex).wordId);
+                            }
                         }
                     }
-#endif
                 }
                 spottingRes.at(sindex).type=SPOTTING_TYPE_APPROVED;
 #if NO_ERROR
