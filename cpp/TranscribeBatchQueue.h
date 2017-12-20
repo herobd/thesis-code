@@ -14,6 +14,11 @@
 #include "CorpusRef.h"
 #include "Global.h"
 
+#define TBQ_NONE 0
+#define TBQ_ERROR 1
+#define TBQ_REMOVE 2
+#define TBQ_RESULT 3
+
 using namespace std;
 
 class TranscribeBatchQueue
@@ -54,6 +59,6 @@ class TranscribeBatchQueue
         int contextPad;
         void lock() { mutLock.lock(); }
         void unlock() { mutLock.unlock(); }
-        void feedbackProcess(unsigned long id, string transcription, vector<pair<unsigned long, string> >* toRemoveExemplars, WordBackPointer* backPointer, bool resend, deque<TranscribeBatch*>& queue, map<unsigned long, TranscribeBatch*>& returnMap, map<unsigned long, chrono::system_clock::time_point>& timeMap, map<unsigned long, WordBackPointer*>& doneMap, vector<Spotting*>* newNgramExemplars, unsigned long* badSpotting=NULL);
+        int feedbackProcess(unsigned long id, string transcription, vector<pair<unsigned long, string> >* toRemoveExemplars, WordBackPointer* backPointer, bool resend, deque<TranscribeBatch*>& queue, map<unsigned long, TranscribeBatch*>& returnMap, map<unsigned long, chrono::system_clock::time_point>& timeMap, map<unsigned long, WordBackPointer*>& doneMap, vector<Spotting*>* newNgramExemplars, unsigned long* badSpotting=NULL);
 };
 #endif

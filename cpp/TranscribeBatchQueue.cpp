@@ -126,15 +126,17 @@ TranscribeBatch* TranscribeBatchQueue::dequeue(unsigned int maxWidth, bool need)
     return ret;
 }
 
-void TranscribeBatchQueue::feedbackProcess(unsigned long id, string transcription, vector<pair<unsigned long, string> >* toRemoveExemplars, WordBackPointer* backPointer, bool resend, deque<TranscribeBatch*>& queue, map<unsigned long, TranscribeBatch*>& returnMap, map<unsigned long, chrono::system_clock::time_point>& timeMap, map<unsigned long, WordBackPointer*>& doneMap, vector<Spotting*>* newNgramExemplars, unsigned long* badSpotting)
+int TranscribeBatchQueue::feedbackProcess(unsigned long id, string transcription, vector<pair<unsigned long, string> >* toRemoveExemplars, WordBackPointer* backPointer, bool resend, deque<TranscribeBatch*>& queue, map<unsigned long, TranscribeBatch*>& returnMap, map<unsigned long, chrono::system_clock::time_point>& timeMap, map<unsigned long, WordBackPointer*>& doneMap, vector<Spotting*>* newNgramExemplars, unsigned long* badSpotting)
 {
+    int toDoCode=TBQ_NONE;
     if ((transcription[0]=='$' && transcription[transcription.length()-1]=='$') || transcription.length()==0)
     {
         if (transcription.compare("$ERROR$")==0)
         {//This may occur with bad segmentation, but primarily just bad ngram alignments
-            TranscribeBatch* newBatch = backPointer->error(id,resend,newNgramExemplars,toRemoveExemplars);//change into manual batch or remove spottings?
-            if (newBatch!=NULL)
-                queue.push_back(newBatch);
+            //TranscribeBatch* newBatch = backPointer->error(id,resend,newNgramExemplars,toRemoveExemplars);//change into manual batch or remove spottings?
+            toDoCode=TBQ_ERROR;
+            //if (newBatch!=NULL)
+            //    queue.push_back(newBatch);
             if (!resend)
             {
                 doneMap[id] = backPointer;
@@ -151,11 +153,12 @@ void TranscribeBatchQueue::feedbackProcess(unsigned long id, string transcriptio
             //{
                 sid= stoul(transcription.substr(8,transcription.length()-9));
 
-                TranscribeBatch* newBatch = backPointer->removeSpotting(sid,id,resend,newNgramExemplars,toRemoveExemplars);
+                //TranscribeBatch* newBatch = backPointer->removeSpotting(sid,id,resend,newNgramExemplars,toRemoveExemplars);
+                toDoCode=TBQ_REMOVE;
                 if (badSpotting!=NULL)
                     *badSpotting=sid;
-                if (newBatch!=NULL)
-                    queue.push_back(newBatch);
+                //if (newBatch!=NULL)
+                //    queue.push_back(newBatch);
             //}
             //catch (const invalid_argument& ia)
             //{
@@ -185,7 +188,8 @@ void TranscribeBatchQueue::feedbackProcess(unsigned long id, string transcriptio
     }
     else
     {
-        *newNgramExemplars = backPointer->result(transcription,id,resend,toRemoveExemplars);
+        //*newNgramExemplars = backPointer->result(transcription,id,resend,toRemoveExemplars);
+        toDoCode=TBQ_RESULT;
         if (!resend)
         {
             doneMap[id] = backPointer;
@@ -206,6 +210,8 @@ vector<Spotting*> TranscribeBatchQueue::feedback(unsigned long id, string transc
     lock();
     WordBackPointer* backPointer=NULL;
     bool resend=false;
+    int toDoCode=TBQ_NONE;
+    bool useLow=false;
     if (returnMap.find(id) != returnMap.end())
     {
         backPointer=returnMap[id]->getBackPointer();
@@ -221,7 +227,7 @@ vector<Spotting*> TranscribeBatchQueue::feedback(unsigned long id, string transc
 
     if (backPointer!=NULL)
     {
-        feedbackProcess(id,transcription,toRemoveExemplars, backPointer, resend, queue, returnMap, timeMap, doneMap, &newNgramExemplars, badSpotting);
+        toDoCode=feedbackProcess(id,transcription,toRemoveExemplars, backPointer, resend, queue, returnMap, timeMap, doneMap, &newNgramExemplars, badSpotting);
     }
 #if TRANS_DONT_WAIT
     else
@@ -241,7 +247,8 @@ vector<Spotting*> TranscribeBatchQueue::feedback(unsigned long id, string transc
 
         if (backPointer!=NULL)
         {
-            feedbackProcess(id,transcription,toRemoveExemplars, backPointer, resend, lowQueue, lowReturnMap, lowTimeMap, lowDoneMap, &newNgramExemplars, badSpotting);
+            useLow=true;
+            toDoCode=feedbackProcess(id,transcription,toRemoveExemplars, backPointer, resend, lowQueue, lowReturnMap, lowTimeMap, lowDoneMap, &newNgramExemplars, badSpotting);
         }
         else
         {
@@ -258,6 +265,27 @@ vector<Spotting*> TranscribeBatchQueue::feedback(unsigned long id, string transc
     }
 #endif
     unlock();
+    TranscribeBatch* newBatch = NULL;
+    if (toDoCode == TBQ_ERROR)
+        newBatch = backPointer->error(id,resend,&newNgramExemplars,toRemoveExemplars);
+    if (toDoCode == TBQ_REMOVE)
+    {
+        unsigned long sid= stoul(transcription.substr(8,transcription.length()-9));
+        newBatch = backPointer->removeSpotting(sid,id,resend,&newNgramExemplars,toRemoveExemplars);
+    }
+    if (toDoCode == TBQ_REMOVE)
+        newNgramExemplars = backPointer->result(transcription,id,resend,toRemoveExemplars);
+    if (newBatch!=NULL)
+    {
+        lock();
+#if TRANS_DONT_WAIT
+        if (useLow)
+            lowQueue.push_back(newBatch);
+        else
+#endif
+            queue.push_back(newBatch);
+        unlock();
+    }
     return newNgramExemplars;
 }
 
