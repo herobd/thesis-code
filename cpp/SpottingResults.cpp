@@ -1734,20 +1734,30 @@ bool SpottingResults::checkIncomplete()
         if (pass.count() > 20) //if 20 mins has passed
         {
             unsigned long restartId=start.first;
+            bool present=true;
             if (instancesById.find(restartId) == instancesById.end())
             {
                 if (updateMap.find(restartId) != updateMap.end())
                     restartId = updateMap.at(start.first);
                 else
-                    assert(false && "SpottingResults::checkIncomplete() is trying to restart a non-existant spotting id");
-            }
-            instancesByScoreInsert(restartId);
-            tracer = instancesByScore.begin();
-            incomp=true;
-            //toRemove.push_back(start.first);
+                {
+                    cout<<"ERROR: SpottingResults::checkIncomplete() is trying to restart a non-existant spotting id: "<<restartId<<endl;
+                    present=false;
 #ifdef TEST_MODE
-            cout<<"Timeout ("<<pass.count()<<") on batch "<<start.first<<endl;
+                    raise(SIGINT);
+#endif
+                }
+            }
+            if (present)
+            {
+                instancesByScoreInsert(restartId);
+                tracer = instancesByScore.begin();
+                incomp=true;
+                //toRemove.push_back(start.first);
+#ifdef TEST_MODE
+                cout<<"Timeout ("<<pass.count()<<") on batch "<<start.first<<endl;
 #endif     
+            }
             iter = starts.erase(iter);
             if (iter!=starts.begin())
                 iter--;

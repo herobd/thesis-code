@@ -1,8 +1,8 @@
 CXX = g++
 LINK = g++
-CXX_FLAGS_NO_G =  -std=c++11 -pthread -DNO_NAN #-DTEST_MODE #-DGRAPH_SPOTTING_RESULTS #-DDEBUG_AUTO#-ansi -fexceptions -fPIC -fno-omit-frame-pointer -pthread
+CXX_FLAGS_NO_G =  -std=c++11 -pthread -DNO_NAN -DTEST_MODE #-DGRAPH_SPOTTING_RESULTS #-DDEBUG_AUTO#-ansi -fexceptions -fPIC -fno-omit-frame-pointer -pthread
 CXX_FLAGS_NO_G += -DOPENCV2 -DCPU_ONLY
-CXX_FLAGS =  $(CXX_FLAGS_NO_G) -g#-O3 #-g
+CXX_FLAGS =  $(CXX_FLAGS_NO_G) -g
 
 LIBS += -lpthread
 
@@ -25,7 +25,8 @@ LIBS += -L ../../brian_caffe/scripts/cnnspp_spotter -lcnnspp_spotter
 INCLUDE += -I ../../brian_caffe/scripts/cnnspp_spotter
 LIBS += -L ../../brian_caffe/build/lib
 INCLUDE +=-I ../../brian_caffe/include
-LIBS += -lcaffe -lboost_system
+#LIBS += -lcaffe -lboost_system
+LIBS += -lcaffe -l:libboost_system.so.1.58.0
 
 #LIBS += -L ../../caffe/scripts/cnnspp_spotter -lcnnspp_spotter
 #INCLUDE += -I ../../caffe/scripts/cnnspp_spotter
