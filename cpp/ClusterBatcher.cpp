@@ -81,7 +81,7 @@ SpottingsBatch* ClusterBatcher::getBatch(int* done, unsigned int num, bool hard,
     }
     else if (batchesOut>=MAX_BATCHES_OUT_PER_NGRAM)
     {
-        cout<<"["<<ngram<<"] need making me send out extra batch: "<<batchesOut+1<<endl;
+        cout<<"["<<ngram<<"] need making me send out extra batch: "<<batchesOut+1<<"  ("<<(batchesOut+1)-MAX_BATCHES_OUT_PER_NGRAM<<" extra)"<<endl;
     }
 
     int clusterToReturn=incompleteCluster;

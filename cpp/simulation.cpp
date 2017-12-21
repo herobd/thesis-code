@@ -297,7 +297,7 @@ int main(int argc, char** argv)
 
     int numSpottingThreads = 1;//CNNSPPSpotter will use the same network object
     int numSimThreads=1;
-    set<int> nsOfInterest;
+    //set<int> nsOfInterest;
 
     string dataname="BENTHAM";
     string lexiconFile = "/home/brian/intel_index/data/wordsEnWithNames.txt";
@@ -310,7 +310,7 @@ int main(int argc, char** argv)
     string SR_mode="fancy";
     if (argc==1)
     {
-        cout<<"usage: "<<argv[0]<<" savePrefix simSave.csv [numSimThreads OR -FLAGS] [fancy,take_from_top,otsu_fixed,none_take_from_top,none,gaussian_draw,fancy_one,fancy_two,  phoc_trans,cpv_trans,web_trans,cluster_step,cluster_top] lexiconFile.txt pageImageDir segmentationFile.gtp ngramWWFile.txt charSegFile.csv spottingModelPrefix (ngram list)"<<endl;
+        cout<<"usage: "<<argv[0]<<" savePrefix simSave.csv [numSimThreads OR -FLAGS] [fancy,take_from_top,otsu_fixed,none_take_from_top,none,gaussian_draw,fancy_one,fancy_two,  phoc_trans,cpv_trans,web_trans,cluster_step,cluster_top] lexiconFile.txt pageImageDir segmentationFile.gtp ngramWWFile.txt charSegFile.csv spottingModelPrefix [i (ideal)]"<<endl;
         return 0;
     }
 
@@ -401,11 +401,12 @@ int main(int argc, char** argv)
                 GlobalK::knowledge()->MIN_SPOTTING_AP=atof(argv[i]);
             }
             else
-                nsOfInterest.insert(atoi(argv[i]));
+                cout<<"WARNING, n-grams specified in width file"<<endl;
+                //nsOfInterest.insert(atoi(argv[i]));
         }
     }
-    else
-        nsOfInterest.insert(2);
+    //else
+        //nsOfInterest.insert(2);
 
     if (SR_mode.compare("take_from_top")==0)
     {
