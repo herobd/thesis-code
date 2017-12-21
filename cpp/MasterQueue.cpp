@@ -469,6 +469,7 @@ SpottingsBatch* MasterQueue::_getSpottingsBatch(map<unsigned long, pair<sem_t*,T
 
     auto iterStart=iter;
     int startIndexHolder=indexHolder;
+    int failsafe=1000;
     do
     {
         
@@ -535,7 +536,7 @@ SpottingsBatch* MasterQueue::_getSpottingsBatch(map<unsigned long, pair<sem_t*,T
                 for (int i=0; i<std::min(indexHolder,(int)batcherQueue.size()); i++)
                     iter++;
                 iterStart = batcherQueue.begin();
-                startIndexHolder = std::min(startIndexHolder,(int)batcherQueue.size()-1);
+                startIndexHolder = std::min(startIndexHolder,(int)batcherQueue.size());
                 for (int i=0; i<startIndexHolder; i++)
                     iterStart++;
             }
@@ -552,7 +553,7 @@ SpottingsBatch* MasterQueue::_getSpottingsBatch(map<unsigned long, pair<sem_t*,T
             iter=batcherQueue.begin();
             indexHolder=0;
         }
-    } while (iter!=iterStart);
+    } while (iter!=iterStart && failsafe--<0);
     if (batch==NULL)
     {
         pthread_rwlock_unlock(&semResultsQueue);
