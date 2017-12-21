@@ -37,6 +37,7 @@ using namespace cv;
 #define PURITY_THRESHOLD 0.1
 
 #define RUNNING_ACCURACY_COUNT 7
+#define ACCURACY_STOP_COUNT 10
 #define ACCURACY_STOP_THRESH 0.3
 
 
