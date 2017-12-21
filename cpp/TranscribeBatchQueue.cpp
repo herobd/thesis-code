@@ -202,6 +202,7 @@ int TranscribeBatchQueue::feedbackProcess(unsigned long id, string transcription
         returnMap.erase(id);
         timeMap.erase(id);
     }
+    return toDoCode;
 }
 
 vector<Spotting*> TranscribeBatchQueue::feedback(unsigned long id, string transcription, vector<pair<unsigned long, string> >* toRemoveExemplars, unsigned long* badSpotting)
@@ -268,12 +269,12 @@ vector<Spotting*> TranscribeBatchQueue::feedback(unsigned long id, string transc
     TranscribeBatch* newBatch = NULL;
     if (toDoCode == TBQ_ERROR)
         newBatch = backPointer->error(id,resend,&newNgramExemplars,toRemoveExemplars);
-    if (toDoCode == TBQ_REMOVE)
+    else if (toDoCode == TBQ_REMOVE)
     {
         unsigned long sid= stoul(transcription.substr(8,transcription.length()-9));
         newBatch = backPointer->removeSpotting(sid,id,resend,&newNgramExemplars,toRemoveExemplars);
     }
-    if (toDoCode == TBQ_REMOVE)
+    else if (toDoCode == TBQ_RESULT)
         newNgramExemplars = backPointer->result(transcription,id,resend,toRemoveExemplars);
     if (newBatch!=NULL)
     {

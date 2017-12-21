@@ -307,9 +307,6 @@ BatchWraper* MasterQueue::getBatch(unsigned int numberOfInstances, bool hard, un
             TranscribeBatch* batch = transcribeBatchQueue.dequeue(maxWidth);
             if (batch!=NULL) {
                 ret = new BatchWraperTranscription(batch);
-#ifdef TEST_MODE
-//                finish=true;
-#endif
             }
         }
         if (ret==NULL)
