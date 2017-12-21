@@ -264,7 +264,7 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
     for (unsigned int i=0; i< ids.size(); i++)
     {
 #ifdef TEST_MODE
-        cout<<userClassifications[i]<<", ";
+        //cout<<userClassifications[i]<<", ";
 #endif
         int sid = stoi(ids[i]);
         int sindex = spottingIdToIndex[sid];
@@ -326,7 +326,7 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
         //}
     }
 #ifdef TEST_MODE
-    cout<<endl;
+    //cout<<endl;
 #endif
 
     if (numTrue+numFalse==0)

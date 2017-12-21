@@ -60,8 +60,8 @@ Simulator::Simulator(string dataname, string mode, string segCSV) : cluster(mode
 
     if (dataname.compare("test")==0)
     {
-        spottingAverageMilli=100;
-        spottingAverageMilli_prev=100;
+        spottingAverageMilli=300;
+        spottingAverageMilli_prev=300;
         //spottingErrorProbConst=0.035;
         //spottingSkipProbConst=0.078;
         spottingErrorProb_m=0; //https://plot.ly/create/
@@ -70,15 +70,15 @@ Simulator::Simulator(string dataname, string mode, string segCSV) : cluster(mode
         spottingSkipProb_b=0;
 
 
-        transMilli_b=1;//position 0.07 (no -1)
-        transMilli_m=1;
+        transMilli_b=300;//position 0.07 (no -1)
+        transMilli_m=300;
         transMilli_notAvail=100;
         transErrorProbAvail=0;
         transErrorProbNotAvail=0;
         //transSkipProb=0;
 
-        manMilli_b=100;
-        manMilli_m=100;
+        manMilli_b=300;
+        manMilli_m=300;
         manErrorProb=0;
     }
     else if (dataname.compare("BENTHAM")==0)
