@@ -48,7 +48,13 @@ void threadLoop(CATTSS* cattss, Simulator* sim, atomic_bool* cont, bool noManual
     string thread = ss.str();
     while (cont->load())
     {
-        BatchWraper* batch = cattss->getBatch(5,500,0,prevNgram);
+        BatchWraper* batch;
+        if (GlobalK::knowledge()->MANUAL_LINES)
+        {
+            batch= cattss->getLineBatch(500);
+        }
+        else
+            batch = cattss->getBatch(5,500,0,prevNgram);
         if (batch->getType()==SPOTTINGS)
         {
             string id;
@@ -310,7 +316,7 @@ int main(int argc, char** argv)
     string SR_mode="fancy";
     if (argc==1)
     {
-        cout<<"usage: "<<argv[0]<<" savePrefix simSave.csv [numSimThreads OR -FLAGS] [fancy,take_from_top,otsu_fixed,none_take_from_top,none,gaussian_draw,fancy_one,fancy_two,  phoc_trans,cpv_trans,web_trans,cluster_step,cluster_top] lexiconFile.txt pageImageDir segmentationFile.gtp ngramWWFile.txt charSegFile.csv spottingModelPrefix (ngram list)"<<endl;
+        cout<<"usage: "<<argv[0]<<" savePrefix simSave.csv [numSimThreads OR -FLAGS] [fancy,take_from_top,otsu_fixed,none_take_from_top,none,gaussian_draw,fancy_one,fancy_two,  phoc_trans,cpv_trans,web_trans,cluster_step,cluster_top,manual] lexiconFile.txt pageImageDir segmentationFile.gtp ngramWWFile.txt charSegFile.csv spottingModelPrefix (ngram list)"<<endl;
         return 0;
     }
 
@@ -469,7 +475,12 @@ int main(int argc, char** argv)
     {
         GlobalK::knowledge()->CLUSTER=true;
         numSpottingThreads = 0;
-    }
+    } 
+    else if (SR_mode.compare("manual")==0)
+    {
+        GlobalK::knowledge()->MANUAL_LINES=true;
+        numSpottingThreads = 0;
+    } 
     else if (SR_mode.compare("fancy")!=0)
     {
         cout<<"Error, unknown SpottingResults mode: "<<SR_mode<<endl;
@@ -514,6 +525,8 @@ int main(int argc, char** argv)
                         0,//pad
                         numSimThreads==0
                         );
+    if (GlobalK::knowledge()->MANUAL_LINES)
+        cattss->initLines(0);
     atomic_bool cont(true);
     vector<thread*> taskThreads(numSimThreads);
     //string line;

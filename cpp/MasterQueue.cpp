@@ -262,6 +262,7 @@ bool MasterQueue::test_autoBatch()
 
 BatchWraper* MasterQueue::getBatch(unsigned int numberOfInstances, bool hard, unsigned int maxWidth, int color, string prevNgram)
 {
+    assert(!GlobalK::knowledge()->MANUAL_LINES);
 
     int ngramQueueCount;
     pthread_rwlock_rdlock(&semResultsQueue);

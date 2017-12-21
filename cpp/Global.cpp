@@ -45,6 +45,7 @@ GlobalK::GlobalK() :
     USE_QBE=true;
     AUTO_TRANS_LEN_THRESH=3;
     AUTO_APPROVE=true;
+    MANUAL_LINES=false;
 #if defined(NO_NAN) || defined(TEST_MODE)
     corpusXLetterStartBounds=NULL;
     corpusXLetterEndBounds=NULL;

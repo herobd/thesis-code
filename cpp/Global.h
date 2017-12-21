@@ -248,6 +248,7 @@ class GlobalK
         bool USE_QBE; //true
         int AUTO_TRANS_LEN_THRESH; //3
         bool AUTO_APPROVE; //true
+        bool MANUAL_LINES; //flase
 };
 
 #endif

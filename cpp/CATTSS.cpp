@@ -243,6 +243,7 @@ CATTSS::CATTSS( string lexiconFile,
         if (GlobalK::knowledge()->PHOC_TRANS)
         {
             float transKeep = numSpottingThreads/100.0;
+            numSpottingThreads=0;
             vector<TranscribeBatch*> newBatches = corpus->phocTrans(transKeep);
             masterQueue->enqueueTranscriptionBatches(newBatches,NULL);
         }
@@ -288,6 +289,7 @@ CATTSS::CATTSS( string lexiconFile,
             {
 #ifdef CTC
                 float transKeep = numSpottingThreads/100.0;
+                numSpottingThreads=0;
                 cout<<"Commencing CPV-CTC transcription."<<endl;
                 vector<TranscribeBatch*> newBatches = corpus->cpvTransCTC(transKeep,ngrams);
                 cout<<"Finished CPV-CTC transcription."<<endl;
@@ -358,6 +360,7 @@ CATTSS::CATTSS( string lexiconFile,
                     }
                     //assert(tC>0); 'you' is not in the corpus
                     bool stepMode = numSpottingThreads;
+                    numSpottingThreads=0;
                     masterQueue->insertClusterBatcher(ngram,contextPad,stepMode,spottings,crossScores);
                 }
             }
@@ -1073,7 +1076,6 @@ void CATTSS::printBatchStats(string ngram, string file)
 }
 
 
-#ifndef NO_NAN
 void CATTSS::initLines(int contextPad) 
 {   
     ifstream in (savePrefix+"_LineManTrans.sav");
@@ -1116,7 +1118,6 @@ BatchWraper* CATTSS::getLineBatch(int width)
 #endif
     return new BatchWraperBlank();
 }
-#endif
 BatchWraper* CATTSS::getManualBatch(int width)
 {
 #if !defined(TEST_MODE) && !defined(NO_NAN)
