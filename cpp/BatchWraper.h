@@ -14,6 +14,7 @@ using namespace cv;
 #define NEW_EXEMPLARS 2
 #define TRANSCRIPTION 3
 #define RAN_OUT 4
+#define CONTINUE_WORKING 5
 #include "batches.h"
 #endif
 using namespace std;
@@ -35,6 +36,7 @@ class BatchWraper
         {
             return images;
         }
+        virtual void continueWorking() {}
     protected:
         vector<Mat> images;
 #endif
@@ -72,7 +74,11 @@ class BatchWraperBlank : public BatchWraper
 class BatchWraperRanOut : public BatchWraper
 {
     public:
-        virtual int getType(){return RAN_OUT;}
+        BatchWraperRanOut() : type(RAN_OUT) {}
+        virtual int getType(){return type;}
+        virtual void continueWorking() {type=CONTINUE_WORKING;}
+    private:
+        int type;
         
 };
 #endif

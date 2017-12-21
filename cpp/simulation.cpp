@@ -164,6 +164,11 @@ void threadLoop(CATTSS* cattss, Simulator* sim, atomic_bool* cont, bool noManual
                 cattss->misc("manualFinish");
             }
         }
+        else if (batch->getType()==CONTINUE_WORKING)
+        {
+            this_thread::sleep_for(chrono::minutes(1));
+            slept+=1;
+        }
         else
         {
             cout<<"Blank batch given to sim"<<endl;
