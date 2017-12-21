@@ -535,7 +535,8 @@ SpottingsBatch* MasterQueue::_getSpottingsBatch(map<unsigned long, pair<sem_t*,T
                 for (int i=0; i<std::min(indexHolder,(int)batcherQueue.size()); i++)
                     iter++;
                 iterStart = batcherQueue.begin();
-                for (int i=0; i<std::min(startIndexHolder,(int)batcherQueue.size()); i++)
+                startIndexHolder = std::min(startIndexHolder,(int)batcherQueue.size()-1);
+                for (int i=0; i<startIndexHolder; i++)
                     iterStart++;
             }
             
