@@ -554,7 +554,7 @@ SpottingsBatch* MasterQueue::_getSpottingsBatch(map<unsigned long, pair<sem_t*,T
             iter=batcherQueue.begin();
             indexHolder=0;
         }
-    } while (iter!=iterStart && failsafe--<0);
+    } while (iter!=iterStart && failsafe-->0);
     if (batch==NULL)
     {
         pthread_rwlock_unlock(&semResultsQueue);

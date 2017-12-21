@@ -81,7 +81,7 @@ SpottingsBatch* ClusterBatcher::getBatch(int* done, unsigned int num, bool hard,
     }
     else if (batchesOut>=MAX_BATCHES_OUT_PER_NGRAM)
     {
-        cout<<"["<<ngram<<"] need making me send out extra batch: "<<batchesOut+1<<endl;
+        cout<<"["<<ngram<<"] need making me send out extra batch: "<<batchesOut+1<<"  ("<<(batchesOut+1)-MAX_BATCHES_OUT_PER_NGRAM<<" extra)"<<endl;
     }
 
     int clusterToReturn=incompleteCluster;
@@ -176,6 +176,9 @@ SpottingsBatch* ClusterBatcher::getBatch(int* done, unsigned int num, bool hard,
 
     if (clusterToReturn==-1)
     {
+#ifdef TEST_MODE
+        cout<<"["<<ngram<<"] no cluster to return"<<endl;
+#endif
         *done=finished?1:2;
         finished=true;
         return NULL;
@@ -253,7 +256,7 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
     int numFalse=0;
 
 #ifdef TEST_MODE
-    cout<<"["<<ngram<<"] revieved feedback: ";
+    //cout<<"["<<ngram<<"] revieved feedback: ";
 #endif
 
     vector<Spotting>* ret = new vector<Spotting>();
@@ -343,13 +346,13 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
         runningPurity=0;
         for (float p : windowPurity)
             runningPurity+=p;
-        runningPurity/=windowPurity.size();
+        runningPurity/=std::max((int)windowPurity.size(),1);
     //}
     assert(runningPurity>=0);
     assert(windowPurity.size()<=RUNNING_PURITY_COUNT);
 
 #ifdef TEST_MODE
-    cout<<"["<<ngram<<"] Estimated purity: "<<runningPurity<<", Actual: "<<meanCPurity[curLevel];
+    //cout<<"["<<ngram<<"] Estimated purity: "<<runningPurity<<", Actual: "<<meanCPurity[curLevel];
 #endif
     if (abs(GOAL_PURITY-runningPurity) > PURITY_THRESHOLD)
     {
@@ -370,25 +373,26 @@ vector<Spotting>* ClusterBatcher::feedback(int* done, const vector<string>& ids,
         {
             float popped = windowAccuracy.front();
             windowAccuracy.pop_front();
-            runningAccuracy += (accuracy-popped)/RUNNING_ACCURACY_COUNT;
+            //runningAccuracy += (accuracy-popped)/RUNNING_ACCURACY_COUNT;
         }
-        else
-        {
+        //else
+        //{
             runningAccuracy=0;
             for (float p : windowAccuracy)
                 runningAccuracy+=p;
             runningAccuracy/=windowAccuracy.size();
-        }
+        //}
         assert(windowAccuracy.size()<=RUNNING_ACCURACY_COUNT);
 
 #ifdef TEST_MODE
-        cout<<", Window acc: "<<runningAccuracy<<", batch acc: "<<accuracy<<endl;
+        //cout<<", Window acc: "<<runningAccuracy<<", batch acc: "<<accuracy<<endl;
 #endif
 
-        if (windowAccuracy.size()>=RUNNING_ACCURACY_COUNT && runningAccuracy<ACCURACY_STOP_THRESH)
+        //if (windowAccuracy.size()>=RUNNING_ACCURACY_COUNT && runningAccuracy<ACCURACY_STOP_THRESH)
+        if (batchTracking.size()>=ACCURACY_STOP_COUNT && runningAccuracy<ACCURACY_STOP_THRESH)
         {
 #ifdef TEST_MODE
-            cout<<"["<<ngram<<"] running acc: "<<runningAccuracy<<" below thresh: "<<ACCURACY_STOP_THRESH<<endl;
+            cout<<"["<<ngram<<"] running acc: "<<runningAccuracy<<" below thresh: "<<ACCURACY_STOP_THRESH<<"  total batches processed: "<<batchTracking.size()<<endl;
 #endif
             *done=finished?1:2;//-1 resurrect, 0 not done, 1 done, 2 just finished
             finished=true;
