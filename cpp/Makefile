@@ -43,7 +43,7 @@ CXX_FLAGS_NO_G += -DOPENCV2
 #LIBS += -lcaffe -l:libboost_system.so.1.59.0 -lglog
 
 
-CXX_FLAGS =  $(CXX_FLAGS_NO_G) -O3 #-g
+CXX_FLAGS =  $(CXX_FLAGS_NO_G) -g
 
 PROGRAM_NAME = test
 
