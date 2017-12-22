@@ -30,7 +30,7 @@ void checkIncompleteSleeper(CATTSS* cattss, MasterQueue* q, Knowledge::Corpus* c
         }
     }
 }
-void showSleeper(CATTSS* cattss, MasterQueue* q, Knowledge::Corpus* c, int height, int width, int milli)
+void showSleeper(CATTSS* cattss, MasterQueue* q, Knowledge::Corpus* c, LineQueue* lineQueue, int height, int width, int milli)
 {
     //This is the lowest priority of the systems threads
     nice(3);
@@ -53,6 +53,12 @@ void showSleeper(CATTSS* cattss, MasterQueue* q, Knowledge::Corpus* c, int heigh
                 string misTrans_IV;
                 float accTrans_IV,pWordsTrans_IV;
                 float pWords80_100_IV, pWords60_80_IV, pWords40_60_IV, pWords20_40_IV, pWords0_20_IV, pWords0_IV;
+             if (GlobalK::knowledge()->MANUAL_LINES)
+             {
+                 lineQueue->getStats(&accTrans,&pWordsTrans);
+                 pWords0=1-pWordsTrans;
+             }
+             else
                 c->getStats(&accTrans,&pWordsTrans, &pWords80_100, &pWords60_80, &pWords40_60, &pWords20_40, &pWords0_20, &pWords0, &pWordsBad, &misTrans,
                             &accTrans_IV,&pWordsTrans_IV, &pWords80_100_IV, &pWords60_80_IV, &pWords40_60_IV, &pWords20_40_IV, &pWords0_20_IV, &pWords0_IV, &misTrans_IV);
                 GlobalK::knowledge()->saveTrack(accTrans,pWordsTrans, pWords80_100, pWords60_80, pWords40_60, pWords20_40, pWords0_20, pWords0, pWordsBad, misTrans,
@@ -124,6 +130,24 @@ CATTSS::CATTSS( string lexiconFile,
 {
     cont.store(1);
     sem_init(&semLock, 0, 0);
+    if (GlobalK::knowledge()->MANUAL_LINES)
+    {
+        ifstream in (savePrefix+"_LineManTrans.sav");
+        if (in.good())
+        {
+            lineQueue = new LineQueue(in,contextPad,corpus);
+
+            in.close(); 
+        }
+        else
+        {
+            lineQueue = new LineQueue(contextPad,corpus);
+        }
+        showChecker = new thread(showSleeper,this,masterQueue,corpus,lineQueue,showHeight,showWidth,showMilli);
+        showChecker->detach();
+        run(numTaskThreads);
+        return;
+    }
 
     ifstream in (savePrefix+"_CATTSS.sav");
     if (in.good())
@@ -414,7 +438,7 @@ CATTSS::CATTSS( string lexiconFile,
     //should be priority 77 
     incompleteChecker = new thread(checkIncompleteSleeper,this,masterQueue,corpus);//This could be done by a thread for each sr
     incompleteChecker->detach();
-    showChecker = new thread(showSleeper,this,masterQueue,corpus,showHeight,showWidth,showMilli);
+    showChecker = new thread(showSleeper,this,masterQueue,corpus,lineQueue,showHeight,showWidth,showMilli);
     showChecker->detach();
 //#ifndef GRAPH_SPOTTING_RESULTS
     spottingQueue->run(numSpottingThreads);
@@ -725,7 +749,11 @@ void CATTSS::threadLoop()
                     //t = clock();
 #endif
                     vector<pair<unsigned long, string> > toRemoveExemplars;
-                    if (updateTask->resent_manual_bool)
+                    if (GlobalK::knowledge()->MANUAL_LINES)
+                    {
+                        lineQueue->feedback(updateTask->strings.front(),stoi(updateTask->id));
+                    }
+                    else if (updateTask->resent_manual_bool)
                     {
                         vector<Spotting*> newExemplars = corpus->transcriptionFeedback(stoul(updateTask->id),updateTask->strings.front(),&toRemoveExemplars);
                         masterQueue->enqueueNewExemplars(newExemplars,&toRemoveExemplars);
@@ -913,6 +941,12 @@ void CATTSS::printFinalStats()
      vector<string> badNgrams;
      map<int, float> unigramSpottingsPerLen, bigramSpottingsPerLen,trigramSpottingsPerLen;
 
+     if (GlobalK::knowledge()->MANUAL_LINES)
+     {
+         lineQueue->getStats(&accTrans,&pWordsTrans);
+         pWords0=1-pWordsTrans;
+     }
+     else
     corpus->getStats(&accTrans,&pWordsTrans, &pWords80_100, &pWords60_80, &pWords40_60, &pWords20_40, &pWords0_20, &pWords0, &pWordsBad, &misTrans,
                 &accTrans_IV,&pWordsTrans_IV, &pWords80_100_IV, &pWords60_80_IV, &pWords40_60_IV, &pWords20_40_IV, &pWords0_20_IV, &pWords0_IV, &misTrans_IV,
                 &wordsTrans80_100,  &wordsTrans60_80,  &wordsTrans40_60,  &wordsTrans20_40,  &wordsTrans0_20,  &wordsTrans0 ,  &wordsTransBad,
@@ -1077,16 +1111,19 @@ void CATTSS::printBatchStats(string ngram, string file)
 
 void CATTSS::initLines(int contextPad) 
 {   
-    ifstream in (savePrefix+"_LineManTrans.sav");
-    if (in.good())
+    if (lineQueue==NULL)
     {
-        lineQueue = new LineQueue(in,contextPad,corpus);
+        ifstream in (savePrefix+"_LineManTrans.sav");
+        if (in.good())
+        {
+            lineQueue = new LineQueue(in,contextPad,corpus);
 
-        in.close(); 
-    }
-    else
-    {
-        lineQueue = new LineQueue(contextPad,corpus);
+            in.close(); 
+        }
+        else
+        {
+            lineQueue = new LineQueue(contextPad,corpus);
+        }
     }
 }
 

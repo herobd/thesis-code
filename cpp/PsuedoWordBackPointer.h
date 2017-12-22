@@ -7,7 +7,7 @@ using namespace std;
 class PsuedoWordBackPointer : public WordBackPointer
 {
     public:
-        PsuedoWordBackPointer(int i) : i(i) {}
+        PsuedoWordBackPointer(int i, string gt, int numWords) : i(i), gt(gt), numWords(numWords) {}
         vector<Spotting*> result(string selected, unsigned long batchId, bool resend, vector< pair<unsigned long, string> >* toRemoveExemplars)
         {
             return vector<Spotting*>();
@@ -27,6 +27,9 @@ class PsuedoWordBackPointer : public WordBackPointer
         {
             return i;
         }
+
+        int numWords;
+        string gt;
 
     private:
         int i;

@@ -6,11 +6,11 @@
 LineQueue::LineQueue(int contextPad, Knowledge::Corpus* corpus) : contextPad(contextPad), corpus(corpus)
 {
     int lineNum=0;
+    totalWords=0;
     for (Knowledge::Page* page : corpus->getPages())
     {
         for (Knowledge::Line* line : page->lines())
         {
-            origins.push_back(new PsuedoWordBackPointer(lineNum++));
             int tlx=999999;
             int brx=-99999;
             int tly, bry;
@@ -34,10 +34,14 @@ LineQueue::LineQueue(int contextPad, Knowledge::Corpus* corpus) : contextPad(con
             iter++;
             for (; iter!=gts.end(); iter++)
                 gt+=" "+iter->second;
+            origins.push_back(new PsuedoWordBackPointer(lineNum++,gt,gts.size()));
+            totalWords += gts.size();
             batches.emplace_back(origins.back(), vector<string>(), page->getImg(), &spottings, tlx, tly, brx, bry, gt);
         }
     }
+#ifndef NO_NAN
     random_shuffle(batches.begin(),batches.end());
+#endif
     on=0;
 }
 LineQueue::~LineQueue()
@@ -60,9 +64,38 @@ void LineQueue::save(ofstream& out)
 
 BatchWraper* LineQueue::getBatch(int width)
 {
+#ifdef NO_NAN
+    mutLock.lock();
+    if (on>=batches.size())
+    {
+        return new BatchWraperRanOut();
+    }
+#endif
     TranscribeBatch& ret = batches.at((on++)%batches.size());
+#ifdef NO_NAN
+    mutLock.unlock();
+#endif
     ret.setWidth(width, contextPad);
     return new BatchWraperTranscription(&ret);
 }
 
+#ifdef NO_NAN
+void LineQueue::feedback(string trans, int line)
+{
+    string gt = origins.at(line)->gt;
+    //score
+    float acc;
+
+    mutLock.lock();
+    sumAcc += acc*origins.at(line)->numWords;
+    wordsDone += origins.at(line)->numWords;
+    mutLock.unlock();
+}
+
+void LineQueue::getStats(float* accTrans, float* pWordsTrans)
+{
+    *accTrans = sumAcc/wordsDone;
+    *pWordsTrans = wordsDone/(0.0+totalWords);
+}
+#endif
 
