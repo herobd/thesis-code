@@ -130,24 +130,6 @@ CATTSS::CATTSS( string lexiconFile,
 {
     cont.store(1);
     sem_init(&semLock, 0, 0);
-    if (GlobalK::knowledge()->MANUAL_LINES)
-    {
-        ifstream in (savePrefix+"_LineManTrans.sav");
-        if (in.good())
-        {
-            lineQueue = new LineQueue(in,contextPad,corpus);
-
-            in.close(); 
-        }
-        else
-        {
-            lineQueue = new LineQueue(contextPad,corpus);
-        }
-        showChecker = new thread(showSleeper,this,masterQueue,corpus,lineQueue,showHeight,showWidth,showMilli);
-        showChecker->detach();
-        run(numTaskThreads);
-        return;
-    }
 
     ifstream in (savePrefix+"_CATTSS.sav");
     if (in.good())
@@ -166,7 +148,7 @@ CATTSS::CATTSS( string lexiconFile,
         }
         delete corpusRef;
         delete pageRef;
-        if (showMilli!=9999)
+        if (showMilli!=9999 && !GlobalK::knowledge()->MANUAL_LINES)
         corpus->loadSpotter(spottingModelPrefix);
 
         string line;
@@ -197,6 +179,7 @@ CATTSS::CATTSS( string lexiconFile,
         set<string> ngramsToUse;
         corpus = new Knowledge::Corpus(contextPad, ngramWWFile, &ngramsToUse);//the ngrams happen to be read in, so we just get them as a convience
         corpus->addWordSegmentaionAndGT(pageImageDir, segmentationFile);
+        if (showMilli!=9999 && !GlobalK::knowledge()->MANUAL_LINES)
         corpus->loadSpotter(spottingModelPrefix);
         spottingQueue = new SpottingQueue(masterQueue,corpus);
         if (GlobalK::knowledge()->WEB_TRANS)
@@ -395,6 +378,21 @@ CATTSS::CATTSS( string lexiconFile,
         }
 
 #endif
+    }
+
+    if (GlobalK::knowledge()->MANUAL_LINES)
+    {
+        ifstream in (savePrefix+"_LineManTrans.sav");
+        if (in.good())
+        {
+            lineQueue = new LineQueue(in,contextPad,corpus);
+
+            in.close(); 
+        }
+        else
+        {
+            lineQueue = new LineQueue(contextPad,corpus);
+        }
     }
 
 #ifdef TEST_MODE
@@ -751,7 +749,7 @@ void CATTSS::threadLoop()
                     vector<pair<unsigned long, string> > toRemoveExemplars;
                     if (GlobalK::knowledge()->MANUAL_LINES)
                     {
-                        lineQueue->feedback(updateTask->strings.front(),stoi(updateTask->id));
+                        lineQueue->feedback(updateTask->strings.front(),stoul(updateTask->id));
                     }
                     else if (updateTask->resent_manual_bool)
                     {

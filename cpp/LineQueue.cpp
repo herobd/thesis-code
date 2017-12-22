@@ -37,6 +37,7 @@ LineQueue::LineQueue(int contextPad, Knowledge::Corpus* corpus) : contextPad(con
             origins.push_back(new PsuedoWordBackPointer(lineNum++,gt,gts.size()));
             totalWords += gts.size();
             batches.emplace_back(origins.back(), vector<string>(), page->getImg(), &spottings, tlx, tly, brx, bry, gt);
+            oPointer[batches.back().getId()]=origins.back();
         }
     }
 #ifndef NO_NAN
@@ -80,15 +81,16 @@ BatchWraper* LineQueue::getBatch(int width)
 }
 
 #ifdef NO_NAN
-void LineQueue::feedback(string trans, int line)
+void LineQueue::feedback(string trans, unsigned long id)
 {
-    string gt = origins.at(line)->gt;
+    PsuedoWordBackPointer* origin = oPointer.at(id);
+    string gt = origin->gt;
     //score
     float acc;
 
     mutLock.lock();
-    sumAcc += acc*origins.at(line)->numWords;
-    wordsDone += origins.at(line)->numWords;
+    sumAcc += acc*origin->numWords;
+    wordsDone += origin->numWords;
     mutLock.unlock();
 }
 

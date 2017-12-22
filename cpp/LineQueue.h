@@ -16,6 +16,7 @@ class LineQueue
     vector<TranscribeBatch> batches;
     atomic_uint on;
     vector<PsuedoWordBackPointer*> origins;
+    map<unsigned long,PsuedoWordBackPointer*> oPointer;
     multimap<int,Spotting> spottings;
     int contextPad;
     int totalWords;
@@ -31,7 +32,7 @@ class LineQueue
     ~LineQueue();
     void save(ofstream& out);
     BatchWraper* getBatch(int width);
-    void feedback(string trans, int line);
+    void feedback(string trans, unsigned long id);
     void getStats(float* accTrans, float* pWordsTrans);
 };
 
