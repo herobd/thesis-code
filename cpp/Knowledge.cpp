@@ -604,7 +604,7 @@ void Knowledge::Word::reAddSpottings(unsigned long batchId, vector<Spotting*>* n
     if (s != removedSpottings.end())
     {
         for (Spotting& spotting : s->second)
-            addSpotting(spotting,newExemplars, false);
+            addSpotting(spotting,newExemplars, false,false);
         removedSpottings.erase(s);
     }
 }
@@ -725,18 +725,24 @@ TranscribeBatch* Knowledge::Word::error(unsigned long batchId, bool resend, vect
     return newBatch;
 }
 
-TranscribeBatch* Knowledge::Word::addSpotting(Spotting s, vector<Spotting*>* newExemplars, bool findBatch)
+TranscribeBatch* Knowledge::Word::addSpotting(Spotting s, vector<Spotting*>* newExemplars, bool findBatch, bool doLock)
 {
 #ifdef TEST_MODE
         //cout<<"[write] "<<gt<<" ("<<tlx<<","<<tly<<") addSpotting"<<endl;
 #endif
-    pthread_rwlock_wrlock(&lock);
+    if (doLock)
+    {
+        pthread_rwlock_wrlock(&lock);
+    }
 #if NO_ERROR
     assert (gt.find(s.ngram) != string::npos);
 #endif
     if (done && (s.type==SPOTTING_TYPE_TRANS_FALSE || transcription.find(s.ngram) == string::npos))
     {
-        pthread_rwlock_unlock(&lock);
+        if (doLock)
+        {
+            pthread_rwlock_unlock(&lock);
+        }
         return NULL;
     }
     //decide if it should be merge with another
@@ -768,7 +774,10 @@ TranscribeBatch* Knowledge::Word::addSpotting(Spotting s, vector<Spotting*>* new
     TranscribeBatch* ret=NULL;
     if (findBatch && !done)
         ret=queryForBatch(newExemplars);//This has an id matching the sent batch (if it exists)
-    pthread_rwlock_unlock(&lock);
+    if (doLock)
+    {
+        pthread_rwlock_unlock(&lock);
+    }
 #ifdef TEST_MODE
         //cout<<"[unlock] "<<gt<<" ("<<tlx<<","<<tly<<") addSpotting"<<endl;
 #endif
@@ -1052,12 +1061,12 @@ TranscribeBatch* Knowledge::Word::removeSpotting(unsigned long sid, unsigned lon
     TranscribeBatch* ret=NULL;
     if (spottings.size()>0)
         ret=queryForBatch(newExemplars);
-    pthread_rwlock_unlock(&lock);
 #ifdef TEST_MODE
         //cout<<"[unlock] "<<gt<<" ("<<tlx<<","<<tly<<") removeSpotting"<<endl;
 #endif
     if (ret==NULL)
         this->sentBatchId=0;
+    pthread_rwlock_unlock(&lock);
     return ret;
 }
 
@@ -2304,11 +2313,18 @@ void Knowledge::Word::getBaselines(int* top, int* bot)
         cv::Mat wordImg, b;
         getWordImgAndBin(wordImg,b);
         findBaselines(wordImg,b);
+
+        *top=topBaseline;
+        *bot=botBaseline;
+        pthread_rwlock_unlock(&lock);
     }
+    else
+    {
     
-    *top=topBaseline;
-    *bot=botBaseline;
-    pthread_rwlock_unlock(&lock);
+        *top=topBaseline;
+        *bot=botBaseline;
+        pthread_rwlock_unlock(&lock);
+    }
 #ifdef TEST_MODE
         //cout<<"[unlock] "<<gt<<" ("<<tlx<<","<<tly<<") getBaselines"<<endl;
 #endif
