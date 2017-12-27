@@ -117,9 +117,9 @@ void SpottingQueue::spottingLoop()
             continue;
         }
 
-        progLock[threadId].lock();
+        progLock.lock();
         inProgress[threadId]=query;
-        progLock[threadId].unlock();
+        progLock.unlock();
 
 #ifdef TEST_MODE
         cout<<"START spotting: "<<query->getNgram()<<" ["<<query->getId()<<"]"<<endl;
@@ -131,12 +131,13 @@ void SpottingQueue::spottingLoop()
         t = clock() - t;
         cout<<"END spotting: "<<query->getNgram()<<" ["<<query->getId()<<"], took: "<<((float)t)/CLOCKS_PER_SEC<<" secs"<<endl;
 #endif
-        progLock[threadId].lock();
-        inProgress[threadId]=NULL;
+        progLock.lock();
+        //inProgress[threadId]=NULL;
+        inProgress.erase(threadId);
         if (results==NULL)
         {
-            progLock[threadId].unlock();
             delete query;
+            progLock.unlock();
             continue;
         }
         bool cont=true;
@@ -148,11 +149,13 @@ void SpottingQueue::spottingLoop()
             cont=false;
         }
         emLock.unlock();
+        delete query;
+        progLock.unlock();
         if (cont)
         {
             masterQueue->updateSpottingResults(results);
         }
-        progLock[threadId].unlock();
+        //prog lock?
 
 #ifdef NO_NAN
         if (query->getType() == SPOTTING_TYPE_EXEMPLAR)
@@ -163,7 +166,6 @@ void SpottingQueue::spottingLoop()
         //else
             //cout<<"Successful mid-run cancel."<<endl;
 #endif
-        delete query;
     }
 }
     
@@ -383,12 +385,11 @@ void SpottingQueue::save(ofstream& out)
     mutLock.lock();
    
     vector<SpottingQuery*> saveProg;
+    progLock.lock();
     for (auto p : inProgress)
     {
-        progLock[p.first].lock();
         if (inProgress[p.first]!=NULL && emList.find(inProgress[p.first]->getId())==emList.end())
             saveProg.push_back(inProgress[p.first]);
-        progLock[p.first].unlock();
     }
     //out<<saveProg.size()<<"\n";
 
@@ -397,6 +398,7 @@ void SpottingQueue::save(ofstream& out)
     {
         s->save(out);
     }
+    progLock.unlock();
     for (SpottingQuery* s : onDeck)
     {
         s->save(out);

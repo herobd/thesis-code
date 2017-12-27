@@ -50,7 +50,8 @@ class SpottingQueue
     atomic_char cont;
     vector<thread*> spottingThreads;
     map<thread::id,SpottingQuery*> inProgress;
-    map<thread::id,mutex> progLock;
+    //map<thread::id,mutex> progLock;
+    mutex progLock;
 
     sem_t semLock;
     mutex mutLock;
