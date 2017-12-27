@@ -249,6 +249,8 @@ class GlobalK
         int AUTO_TRANS_LEN_THRESH; //3
         bool AUTO_APPROVE; //true
         bool MANUAL_LINES; //flase
+
+        int time_spent;
 };
 
 #endif

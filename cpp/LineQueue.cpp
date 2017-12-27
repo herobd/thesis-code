@@ -69,6 +69,9 @@ BatchWraper* LineQueue::getBatch(int width)
     mutLock.lock();
     if (on>=batches.size())
     {
+        cout<<"Manual finished."<<endl;
+        cout<<"Total time in minutes: "<<GlobalK::knowledge()->time_spent/(1000.0*60)<<endl;
+        cout<<"comp./day: "<<1.0/(GlobalK::knowledge()->time_spent/(1000.0*60*60*24))<<endl;
         return new BatchWraperRanOut();
     }
 #endif

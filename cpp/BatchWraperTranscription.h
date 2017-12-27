@@ -34,7 +34,7 @@ class BatchWraperTranscription: public BatchWraper
 
     public:
         BatchWraperTranscription(TranscribeBatch* batch);
-        ~BatchWraperTranscription() {}
+        //~BatchWraperTranscription() {}
 #ifndef NO_NAN
         virtual void doCallback(Callback* callback);
 #else

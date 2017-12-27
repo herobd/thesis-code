@@ -70,9 +70,9 @@ Simulator::Simulator(string dataname, string mode, string segCSV) : cluster(mode
         spottingSkipProb_b=0;
 
 
-        transMilli_b=300;//position 0.07 (no -1)
-        transMilli_m=300;
-        transMilli_notAvail=100;
+        transMilli_b=200;//position 0.07 (no -1)
+        transMilli_m=0;
+        transMilli_notAvail=200;
         transErrorProbAvail=0;
         transErrorProbNotAvail=0;
         //transSkipProb=0;
@@ -451,6 +451,9 @@ string Simulator::manual(int wordIndex, vector<string> poss, string gt, bool las
     string ret=gt;
     if (RAND_PROB < manErrorProb)
         ret[0]='!';
+    if (GlobalK::knowledge()->MANUAL_LINES)
+        GlobalK::knowledge()->time_spent += milli;
+    //else
     this_thread::sleep_for(chrono::milliseconds(milli));
     return ret;
 }
