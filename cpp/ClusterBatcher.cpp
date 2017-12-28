@@ -152,22 +152,22 @@ SpottingsBatch* ClusterBatcher::getBatch(int* done, unsigned int num, bool hard,
         {
             int seedInstance = trueInstancesToSeed.front();
             trueInstancesToSeed.pop_front();
-            float maxClustMinDist=-999999;
+            float maxClustMinSimlarity=-999999;
             for (int clusterI=0; clusterI<clusterLevels.at(curLevel).size(); clusterI++)
             {
                 const vector<int>& clust = clusterLevels.at(curLevel)[clusterI];
-                float minDist=9999999;
+                float minSimlarity=9999999;
                 for (int i : clust)
                 {
                     if (spottingRes.at(i).type == SPOTTING_TYPE_NONE &&  //only include unlabeled instances in cluster comparison
                             starts.find(spottingRes.at(i).id)==starts.end() && 
-                            crossScores.at<float>(seedInstance,i) < minDist)
-                        minDist=crossScores.at<float>(seedInstance,i);
+                            crossScores.at<float>(seedInstance,i) < minSimlarity)
+                        minSimlarity=crossScores.at<float>(seedInstance,i);
                 }
-                if (minDist!=9999999 && minDist > maxClustMinDist)
+                if (minSimlarity!=9999999 && minSimlarity > maxClustMinSimlarity)
                 {
                     clusterToReturn=clusterI;
-                    maxClustMinDist=minDist;
+                    maxClustMinSimlarity=minSimlarity;
                 }
             }
         //assert(clusterToReturn!=-1);

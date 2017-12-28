@@ -523,7 +523,7 @@ BatchWraper* CATTSS::getBatch(int num, int width, int color, string prevNgram)
         return ret;
 #endif
 #ifdef NO_NAN
-        if (ret!=NULL && ret->getType()==RAN_OUT && (spottingQueue->isRunning()||taskQueue.size()>0))
+        if (ret!=NULL && ret->getType()==RAN_OUT && (spottingQueue->isRunning()||!taskQueue.empty()))
         {
             ret->continueWorking();
         }

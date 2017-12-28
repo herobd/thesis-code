@@ -1605,11 +1605,17 @@ void SpottingResults::EM_fancy(bool init)
         if (rejectThreshold<=acceptThreshold)
         {
             acceptThreshold=minScore();
-            auto iterScore = instancesByScore.begin();
-            iterScore++;
-            for (int ii=1; ii<min(RUNNING_CLASSIFICATIONS_COUNT*10*runningClassificationTrueAverage(),(float)instancesByScore.size()); ii++)
+            if (instancesByScore.size()>0)
+            {
+                auto iterScore = instancesByScore.begin();
                 iterScore++;
-            rejectThreshold = iterScore->first;
+                for (int ii=1; ii<min(RUNNING_CLASSIFICATIONS_COUNT*10*runningClassificationTrueAverage(),(float)instancesByScore.size()); ii++)
+                    iterScore++;
+                rejectThreshold = iterScore->first;
+            }
+            else
+                rejectThreshold = acceptThreshold;
+
         }
         //assert(rejectThreshold>acceptThreshold);
 #ifdef TEST_MODE
