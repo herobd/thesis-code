@@ -32,11 +32,12 @@ class BatchWraper
         virtual void getSpottings(string* resId,string* ngram, vector<string>* ids, vector<Location>* locs, vector<string>* gt) {}
         virtual void getNewExemplars(string* batchId,vector<string>* ngrams, vector<Location>* locs) {}
         virtual void getTranscription(string* batchId,int* wordIndex, vector<SpottingPoint>* spottings, vector<string>* poss, bool* manual, string* gt) {}
+        virtual void getDebug(bool* spotterRunning, bool* taskQueueEmpty) {}
         virtual vector<Mat> getImages()
         {
             return images;
         }
-        virtual void continueWorking() {}
+        virtual void continueWorking(bool spotterRunning, bool taskQueueEmpty) {}
     protected:
         vector<Mat> images;
 #endif
@@ -76,9 +77,20 @@ class BatchWraperRanOut : public BatchWraper
     public:
         BatchWraperRanOut() : type(RAN_OUT) {}
         virtual int getType(){return type;}
-        virtual void continueWorking() {type=CONTINUE_WORKING;}
+        virtual void continueWorking(bool spotterRunning, bool taskQueueEmpty)
+        {
+            type=CONTINUE_WORKING;
+            this->spotterRunning=spotterRunning;
+            this->taskQueueEmpty=taskQueueEmpty;
+        }
+        virtual void getDebug(bool* spotterRunning, bool* taskQueueEmpty)
+        {
+            *spotterRunning=this->spotterRunning;
+            *taskQueueEmpty=this->taskQueueEmpty;
+        }
     private:
         int type;
+        bool spotterRunning, taskQueueEmpty;
         
 };
 #endif

@@ -174,11 +174,22 @@ void threadLoop(CATTSS* cattss, Simulator* sim, atomic_bool* cont, bool noManual
         {
             this_thread::sleep_for(chrono::minutes(1));
             slept+=1;
+            bool spotterRunning, taskQueueEmpty;
+            batch->getDebug(&spotterRunning,&taskQueueEmpty);
+            cout<<"continue working: ";
+            if (spotterRunning)
+                cout<<"spotter running ";
+            else
+                cout<<"spotter finished ";
+            cout <<"taskQueue ";
+            if (!taskQueueEmpty)
+                cout<<"not ";
+            cout<<" empty."<<endl;
         }
         else
         {
             cout<<"Blank batch given to sim"<<endl;
-            if (prevNgram.compare("-----")==0)
+            if (prevNgram.compare("---")==0)
             {
                 cattss->misc("stopSpotting");
                 cont->store(false);
