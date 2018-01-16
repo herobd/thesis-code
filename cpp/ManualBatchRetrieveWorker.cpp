@@ -12,7 +12,7 @@ using namespace v8;
 
 class ManualBatchRetrieveWorker : public AsyncWorker {
     public:
-        ManualBatchRetrieveWorker(Callback *callback, CATTSS* cattss, int width, bool line)
+        ManualBatchRetrieveWorker(Callback *callback, CATTSS* cattss, int width, int line)
         : AsyncWorker(callback), width(width), cattss(cattss), line(line) {}
 
 
@@ -20,8 +20,8 @@ class ManualBatchRetrieveWorker : public AsyncWorker {
 
 
         void Execute () {
-            if (line)
-                batch = cattss->getLineBatch(width);
+            if (line>=0)
+                batch = cattss->getLineBatch(width,line);
             else
                 batch = cattss->getManualBatch(width);
         }
@@ -37,7 +37,7 @@ class ManualBatchRetrieveWorker : public AsyncWorker {
         //input
         int width;
         CATTSS* cattss;
-        bool line;
+        int line;
         
 };
 

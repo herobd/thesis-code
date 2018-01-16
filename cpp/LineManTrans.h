@@ -40,7 +40,7 @@ class LineManTrans
         delete corpus;
         delete saveThread;
     }
-    BatchWraper* getBatch(int width);
+    BatchWraper* getBatch(int width,int index=-1);
 
 
     void save();

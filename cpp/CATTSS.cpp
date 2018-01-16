@@ -1078,7 +1078,7 @@ void CATTSS::printFinalStats()
     cout<<"[1]\t"<<(uniP/uniC)<<"\t"<<(uniA/uniC)<<"\t"<<(uniS/uniC)<<"\t"<<uniC<<endl;
     cout<<"[2]\t"<<(biP/biC)<<"\t"<<(biA/biC)<<"\t"<<(biS/biC)<<"\t"<<biC<<endl;
     cout<<"[3]\t"<<(triP/triC)<<"\t"<<(triA/triC)<<"\t"<<(triS/triC)<<"\t"<<triC<<endl;
-    assert(get<2>(masterQueue->getBatchTracking()["a"].front())<2*corpus->size());
+    //assert(get<2>(masterQueue->getBatchTracking()["a"].front())<2*corpus->size());
 }
 
 void CATTSS::printBatchStats(string ngram, string file)
@@ -1125,7 +1125,7 @@ void CATTSS::initLines(int contextPad)
     }
 }
 
-BatchWraper* CATTSS::getLineBatch(int width)
+BatchWraper* CATTSS::getLineBatch(int width, int index)
 {
 #if !defined(TEST_MODE) && !defined(NO_NAN)
     try
@@ -1133,7 +1133,7 @@ BatchWraper* CATTSS::getLineBatch(int width)
 #endif
         assert(lineQueue!=NULL);
 
-        BatchWraper* ret= lineQueue->getBatch(width);
+        BatchWraper* ret= lineQueue->getBatch(width,index);
         if (ret==NULL)
         {
             return new BatchWraperBlank();

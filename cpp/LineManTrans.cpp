@@ -44,14 +44,14 @@ LineManTrans::LineManTrans(
     saveThread->detach();
 }
 
-BatchWraper* LineManTrans::getBatch(int width)
+BatchWraper* LineManTrans::getBatch(int width, int index)
 {
 #if !defined(TEST_MODE) && !defined(NO_NAN)
     try
     {
 #endif
 
-        BatchWraper* ret= lineQueue->getBatch(width);
+        BatchWraper* ret= lineQueue->getBatch(width,index);
         if (ret==NULL)
         {
             return new BatchWraperBlank();

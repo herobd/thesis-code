@@ -21,8 +21,8 @@ var Database = require('./database')();
 var passport = require('passport')
   , LocalStrategy = require('passport-local').Strategy;
 
-//var spottingaddon = require("./cpp/build/Debug/spottingaddon");
-var spottingaddon = require("./cpp/build/Release/spottingaddon")
+var spottingaddon = require("./cpp/build/Debug/spottingaddon");
+//var spottingaddon = require("./cpp/build/Release/spottingaddon")
 
 numberOfTests=2;
 
@@ -83,12 +83,12 @@ var timingTestMode=false;
 
 //modes
 //var lineMode=true; //full-line annotation more
-var newTimingTestMode=false; //timimng test using system as is
+var newTimingTestMode=true; //timimng test using system as is
 var labelUnknownMode=false; //gt unknown spottings
 var trainUsers=false;
 var debug=true;
 //The mode, either trans method or spotting batch serving method. See SpottingAddon.cpp
-var mode = 'cluster_step';
+var mode = 'phoc_trans';
 //if (lineMode)
 //    mode='line';
 var cluster = (mode.length>=5 && mode.substr(0,5)=="clust");
@@ -111,6 +111,8 @@ var showMilli=4000;
 
 var startN=2;//ngrams to spot
 var endN=2;
+
+var testIndex = {}
 
 if (labelUnknownMode)
     showMilli=9999;
@@ -570,6 +572,15 @@ var ControllerApp = function(port) {
                     res.send('ok');
             });
         });
+        self.app.get('/line', function(req, res) {
+
+            spottingaddon.getNextLineBatch(800,+req.query.line,
+                function(err,batchType,batchId,wordImg,ngrams,possibilities,loc,correct,index) {
+                    if (err==null) {
+                        res.send('<img src="data:image/png;base64,'+wordImg+'" />');
+                    }
+                });
+        });
         self.nextBatch =  function(req, res) {
             res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate"); // HTTP 1.1.
             res.setHeader("Pragma", "no-cache"); // HTTP 1.0.
@@ -659,8 +670,10 @@ var ControllerApp = function(port) {
                                 
                             });
                 } else if (newTimingTestMode && req.query.labelMode=='line') {
-                    spottingaddon.getNextLineBatch(+req.query.width,
-                            function(err,batchType,batchId,wordImg,ngrams,possibilities,loc,correct) {
+                    if (!testIndex.hasOwnProperty(req.user.id))
+                        testIndex[req.user.id]=Math.floor(Math.random() * 10000);
+                    spottingaddon.getNextLineBatch(+req.query.width,testIndex[req.user.id]++,
+                            function(err,batchType,batchId,wordImg,ngrams,possibilities,loc,correct,index) {
                                 if (err==null) {
                                     res.send({batchType:batchType,batchId:batchId,wordImg:wordImg,ngrams:ngrams,possibilities:possibilities,correct:correct});
                                 } else {
@@ -935,6 +948,8 @@ var ControllerApp = function(port) {
                                     batchId:req.body.batchId,
                                     numChar:req.body.label.length, 
                                     accuracy:accuracy, 
+                                    gt:self.testTransLabels['l'+req.body.batchId],
+                                    trans:req.body.label,
                                     undos:req.body.undos,
                                     batchTime:req.body.batchTime};
                         self.database.saveTimingTestManual(datasetName+'line',info,printErr);
@@ -1032,6 +1047,8 @@ var ControllerApp = function(port) {
                                         numPossible:req.body.numPossible, 
                                         positionCorrect:req.body.positionCorrect,
                                         accuracy:accuracy, 
+                                        gt:self.testTransLabels[req.body.batchId],
+                                        trans:req.body.label,
                                         wasBadNgram:wasBadNgram,
                                         wasError:wasError,
                                         skipped:skipped,
@@ -1078,6 +1095,8 @@ var ControllerApp = function(port) {
                                         prevWasManual:req.body.prevWasManual,
                                         numChar:req.body.label.length, 
                                         accuracy:accuracy, 
+                                        gt:self.testTransLabels[req.body.batchId],
+                                        trans:req.body.label,
                                         skipped:skipped,
                                         undos:req.body.undos,
                                         batchTime:req.body.batchTime};

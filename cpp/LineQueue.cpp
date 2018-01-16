@@ -63,8 +63,10 @@ void LineQueue::save(ofstream& out)
     out<<on<<endl;
 }
 
-BatchWraper* LineQueue::getBatch(int width)
+BatchWraper* LineQueue::getBatch(int width, int index)
 {
+    if (index<0)
+    {
 #ifdef NO_NAN
     mutLock.lock();
     if (on>=batches.size())
@@ -79,8 +81,19 @@ BatchWraper* LineQueue::getBatch(int width)
 #ifdef NO_NAN
     mutLock.unlock();
 #endif
-    ret.setWidth(width, contextPad);
+    ret.setWidthCrop(width, contextPad);
     return new BatchWraperTranscription(&ret);
+    }
+    else
+    {
+        TranscribeBatch& ret = batches.at(index%batches.size());
+        mutLock.lock();
+        ret.setWidthCrop(width, contextPad);
+        ret.setId(index);
+        BatchWraperTranscription* rr = new BatchWraperTranscription(&ret);
+        mutLock.unlock();
+        return rr;
+    }
 }
 
 #ifdef NO_NAN
