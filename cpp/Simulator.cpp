@@ -60,6 +60,7 @@ Simulator::Simulator(string dataname, string mode, string segCSV) : cluster(mode
 
     if (dataname.compare("test")==0)
     {
+        cout<<"TEST MODE TIMINGS BEING USED"<<endl;
         spottingAverageMilli=50;
         spottingAverageMilli_prev=50;
         //spottingErrorProbConst=0.035;
@@ -257,13 +258,14 @@ vector<int> Simulator::spottings(string ngram, vector<Location> locs, vector<str
     //int same = ngram.compare(prevNgram)==0?1:0;
     //int milli = c + numT*t  + same*p + (1.0-error)*a;
     bool prev =ngram.compare(prevNgram);
-    int milli = (labels.size()/5.0)*spottingAverageMilli + prev?spottingAverageMilli_prev:0;
+    int milli = (labels.size()/5.0)*spottingAverageMilli + (prev?(labels.size()/5.0)*spottingAverageMilli_prev:0);
     if (cluster)
         milli = labels.size()*spottingTime_m + spottingTime_b;
     if (spottingsUseTrues)
         milli = numTrues*spottingTime_m + spottingTime_b;
 
     this_thread::sleep_for(chrono::milliseconds(milli));
+    GlobalK::knowledge()->timeSpentSpot+=milli;
 
     return labels;
 }
@@ -441,6 +443,7 @@ string Simulator::transcription(int wordIndex, vector<SpottingPoint> spottings, 
     }
             
     this_thread::sleep_for(chrono::milliseconds(milli));
+    GlobalK::knowledge()->timeSpentTrans+=milli;
 
     return ret;
 }
