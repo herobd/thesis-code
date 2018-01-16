@@ -31,7 +31,7 @@ CATTSS* cattss;
 TrainingInstances* trainingInstances;
 map<string, Knowledge::Corpus*> testingCorpi;
 map<string, TestingInstances*> testingInstances;
-LineManTrans* lineManTrans;
+//LineManTrans* lineManTrans;
 
 NAN_METHOD(getNextBatch) {
     int width = To<int>(info[0]).FromJust();
@@ -356,8 +356,8 @@ NAN_METHOD(start) {
     info.GetReturnValue().Set(cattss->getMaxImageWidth());
 }
 NAN_METHOD(stopSpotting) {
-    if (lineManTrans!=NULL)
-        lineManTrans->stop();
+    //if (lineManTrans!=NULL)
+    //    lineManTrans->stop();
 
     Callback *callback = new Callback(info[0].As<Function>());
 
@@ -575,10 +575,11 @@ NAN_METHOD(clearTestUsers) {
 NAN_METHOD(getNextLineBatch) {
     assert(cattss!=NULL);
     int width = To<int>(info[0]).FromJust();
+    int index = To<int>(info[1]).FromJust();
     
-    Callback *callback = new Callback(info[1].As<Function>());
+    Callback *callback = new Callback(info[2].As<Function>());
 
-    AsyncQueueWorker(new ManualBatchRetrieveWorker(callback,cattss, width,true));
+    AsyncQueueWorker(new ManualBatchRetrieveWorker(callback,cattss, width,index));
 }
 NAN_METHOD(getNextManualBatch) {
     assert(cattss!=NULL);
@@ -586,7 +587,7 @@ NAN_METHOD(getNextManualBatch) {
     
     Callback *callback = new Callback(info[1].As<Function>());
 
-    AsyncQueueWorker(new ManualBatchRetrieveWorker(callback,cattss, width,false));
+    AsyncQueueWorker(new ManualBatchRetrieveWorker(callback,cattss, width,-1));
 }
 
 NAN_MODULE_INIT(Init) {

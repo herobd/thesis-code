@@ -74,7 +74,8 @@ Simulator::Simulator(string dataname, string mode, string segCSV) : cluster(mode
         transMilli_b=50;//position 0.07 (no -1)
         transMilli_m=0;
         transMilli_notAvail=50;
-        transErrorProbAvail=0;
+        transErrorProbAvailError=0;
+        transErrorProbAvailWord=0;
         transErrorProbNotAvail=0;
         //transSkipProb=0;
 
@@ -115,19 +116,20 @@ Simulator::Simulator(string dataname, string mode, string segCSV) : cluster(mode
         }
 
 
-        transMilli_b=2081.012;
-        transMilli_m=725.621;
-        transMilli_notAvail=4746.724;
-        transErrorProbAvail=1- 0.967;
-        transErrorProbNotAvail=1- 0.793;
+        transMilli_b=1354.996;
+        transMilli_m=1021.526;
+        transMilli_notAvail=5490.7;
+        transErrorProbAvailNone=0.01415;
+        transErrorProbAvailWord=0.01179;
+        transErrorProbNotAvail=1- 0.921;
         //transSkipProb=0.012;
 
-        manMilli_b=3906.996;
-        manMilli_m=208.397;
+        manMilli_b=1734.123;
+        manMilli_m=260.813;
 #if NO_ERROR
         manErrorProb=0;
 #else
-        manErrorProb=1-0.688;
+        manErrorProb=1-0.927;
 #endif
     }
     else if (dataname.compare("NAMES")==0)
@@ -163,19 +165,20 @@ Simulator::Simulator(string dataname, string mode, string segCSV) : cluster(mode
             spottingSkipProb_b=-4.952;
         }
 
-        transMilli_b=(3370.036+2081.012)/2;
-        transMilli_m=(376.378+725.621)/2;
-        transMilli_notAvail=4748.307;
-        transErrorProbAvail=1- 0.967;
-        transErrorProbNotAvail=1- 0.364;
+        transMilli_b=2543.413;
+        transMilli_m=345.995;
+        transMilli_notAvail=5526;
+        transErrorProbAvailError=0.01739;
+        transErrorProbAvailWord=0.03043;
+        transErrorProbNotAvail=1- 0.904;
         //transSkipProb=0.012;
 
-        manMilli_b=1992.655;
-        manMilli_m=522.802;
+        manMilli_b=36.011;
+        manMilli_m=516.171;
 #if NO_ERROR
         manErrorProb=0;
 #else
-        manErrorProb=1-0.745;
+        manErrorProb=1-0.840;
 #endif
 
 
@@ -400,6 +403,7 @@ vector<int> Simulator::newExemplars(vector<string> ngrams, vector<Location> locs
 string Simulator::transcription(int wordIndex, vector<SpottingPoint> spottings, vector<string> poss, string gt, bool lastWasTrans)
 {
     string ret ="";
+    int corIdx=-1;
     int milli;
     transform(gt.begin(), gt.end(), gt.begin(), ::tolower);
     for (int i=0; i< poss.size(); i++)
@@ -407,6 +411,7 @@ string Simulator::transcription(int wordIndex, vector<SpottingPoint> spottings, 
         if (gt.compare(poss[i])==0)
         {
             ret=poss[i];
+            corIdx=i;
             milli=transMilli_b + transMilli_m*i;
         }
     }
@@ -425,8 +430,8 @@ string Simulator::transcription(int wordIndex, vector<SpottingPoint> spottings, 
 
         if (ret.length()==0)
         {
-            if (spottings.size()>0 && RAND_PROB < transErrorProbNotAvail)
-                ret="$REMOVE:"+spottings.front().getId()+"$";//If a user-error is made, I'm just removing a spottings. Not sure what actually should happen
+            if (RAND_PROB < transErrorProbNotAvail)
+                ret=poss[0];//just pick first trans
             else
                 ret="$ERROR$";
         }
@@ -438,8 +443,11 @@ string Simulator::transcription(int wordIndex, vector<SpottingPoint> spottings, 
     }
     else
     {
-        if (RAND_PROB < transErrorProbAvail)
-            ret="$ERROR$";//Assume user didn't see correct trans
+        float rp = RAND_PROB
+        if (rp < transErrorProbAvailError)
+            ret="$ERROR$";//user didn't see correct trans
+        else if (rp < transErrorProbAvailError + transErrorProbAvailWord)
+            ret=poss[(corIdx+1)%poss.size()];//wrong word selected
     }
             
     this_thread::sleep_for(chrono::milliseconds(milli));

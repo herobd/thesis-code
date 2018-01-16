@@ -126,6 +126,10 @@ vector<TranscribeBatch*> Knowledge::Corpus::phocTrans(float keep)
         TranscribeBatch* newBatch = new TranscribeBatch(getWord(i),words,getWord(i)->getPage(),NULL,tlx,tly,brx,bry,gt);
         ret.at(j) = newBatch;
     }
+#ifdef TIMING_TEST
+    cout<<"shuffle timing test"<<endl;
+    random_shuffle(ret.begin(),ret.end());
+#endif
     return ret;
 }
 
@@ -3110,7 +3114,8 @@ void Knowledge::Corpus::showInteractive(int pageId)
             word->getBoundsAndDone(&tlx, &tly, &brx, &bry, &done);
             if (done)
             {
-                cv::putText(draw,word->getTranscription(),cv::Point(tlx+(brx-tlx)/2,tly+(bry-tly)/2),cv::FONT_HERSHEY_COMPLEX_SMALL,1.0,cv::Scalar(50,50,255));
+                //cv::putText(draw,word->getTranscription(),cv::Point(tlx+(brx-tlx)/2,tly+(bry-tly)/2),cv::FONT_HERSHEY_COMPLEX_SMALL,1.0,cv::Scalar(50,50,255));
+                cv::putText(draw,word->getTranscription(),cv::Point(tlx+(brx-tlx)/5,bry-3),cv::FONT_HERSHEY_COMPLEX_SMALL,1.5,cv::Scalar(5,5,105));
             }
             //else
             //    cout<<"word not done at "<<tlx<<", "<<tly<<endl;

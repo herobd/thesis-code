@@ -190,10 +190,12 @@ public:
     unsigned long getId() {return id;}
     WordBackPointer* getBackPointer() {return origin;}
     void setWidth(unsigned int width, int contextPad);
+    void setWidthCrop(unsigned int width, int contextPad);
     vector<SpottingPoint> getSpottingPoints() {return spottingPoints;}
     bool isManual() {return manual;}
     string getGT() {return gt;}
     double getScale() {return scale;}
+    void setId(int index) {id=index;}
 
     //For saving and loading
     static unsigned long getIdCounter() {return _id.load();}

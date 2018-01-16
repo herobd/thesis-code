@@ -610,14 +610,14 @@ function setTimesUp() {
     {
         var time;
         if (labelMode=='normal')
-            time=14*60*1000;
+            time=5*60*1000;
         else if (labelMode=='manual')
-            time=4*60*1000;
+            time=5*60*1000;
         else if (labelMode=='line')
-            time=4*60*1000;
+            time=5*60*1000;
         else
             return;
-        time+=3000;
+        time+=1000;
         setTimeout(function() {
             alert("Time's up!");
             exit();

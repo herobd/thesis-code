@@ -32,12 +32,15 @@ TranscribeBatch::TranscribeBatch(WordBackPointer* origin, multimap<float,string>
     if (!gtPoss) //for new timing test, we want to know what the error should be
     {
         bool badNgram=false;
-        for (auto& p : *spottings)
+        if (spottings != NULL)
         {
-            if (p.second.gt==0)
+            for (auto& p : *spottings)
             {
-                badNgram=true;
-                break;
+                if (p.second.gt==0)
+                {
+                    badNgram=true;
+                    break;
+                }
             }
         }
         if (badNgram)
@@ -199,6 +202,48 @@ void TranscribeBatch::setWidth(unsigned int width, int contextPad)
     //cv::waitKey(1);
 #endif
 }
+void TranscribeBatch::setWidthCrop(unsigned int width, int contextPad) 
+{
+
+    int wordH = wordImg.rows;
+    int wordW = wordImg.cols;
+    int topPad = min(contextPad, tly);
+    int bottomPad = min(contextPad, origImg->rows-(bry+1));
+    int wordHPad = wordH+topPad+bottomPad;
+    //int textH= textImg.rows;
+    //newTextImg = cv::Mat::zeros(textH,width,CV_8UC3);
+    int padLeft = max((((int)width)-wordW)/2,0);
+    for (SpottingPoint& sp : spottingPoints)
+        sp.setPad(padLeft);
+    scale=1.0;
+    if (width>=wordW)
+    {
+        newWordImg = cv::Mat::zeros(wordHPad,width,origImg->type());
+        if (newWordImg.type() != CV_8UC3)
+            cv::cvtColor(newWordImg,newWordImg,CV_GRAY2RGB);
+        (*origImg)(cv::Rect(tlx,tly-topPad,wordW,wordHPad)).copyTo(newWordImg(cv::Rect(padLeft, 0, wordW, wordHPad)));
+        wordImg(cv::Rect(0,0,wordW,wordH)).copyTo(newWordImg(cv::Rect(padLeft, topPad, wordW, wordH)));
+        //textImg(cv::Rect(0,0,wordW,textH)).copyTo(newTextImg(cv::Rect(padLeft, 0, wordW, textH)));
+    }
+    else
+    {
+        
+        newWordImg = cv::Mat::zeros(wordHPad,wordW,origImg->type());
+        (*origImg)(cv::Rect(tlx,tly-topPad,wordW,wordHPad)).copyTo(newWordImg(cv::Rect(0, 0, wordW, wordHPad)));
+        if (newWordImg.type() != CV_8UC3)
+            cv::cvtColor(newWordImg,newWordImg,CV_GRAY2RGB);
+        wordImg(cv::Rect(0,0,wordW,wordH)).copyTo(newWordImg(cv::Rect(0, topPad, wordW, wordH)));
+        scale = width/(0.0+wordW);//we save the scale to allow a proper display of ngram locations
+        cv::resize(newWordImg, newWordImg, cv::Size(), scale,scale, cv::INTER_CUBIC );
+        //cv::resize(textImg(cv::Rect(0,0,wordW,textH)), newTextImg, cv::Size(), scale,1, cv::INTER_CUBIC );
+    }
+
+#ifdef TEST_MODE_LONG
+    //cout <<"transcription word"<<endl;
+    //cv::imshow("trans",newWordImg);
+    //cv::waitKey(1);
+#endif
+}
 
 void TranscribeBatch::save(ofstream& out)
 {
@@ -274,6 +319,17 @@ TranscribeBatch::TranscribeBatch(ifstream& in, CorpusRef* corpusRef)
         assert(corpusRef->verify(spottingPoints[i].page,spottingPoints[i].x1,spottingPoints[i].y1,spottingPoints[i].x2,spottingPoints[i].y2));
     }
     getline(in,gt);
+    if (gt[0]=='$' || gt[0]=='R')
+    {
+        for (string p : possibilities)
+        {
+            if (origin->getGT().compare(p)==0)
+            {
+                gt=p;
+                break;
+            }
+        }
+    }
     getline(in,line);
     manual=stoi(line);
     getline(in,line);

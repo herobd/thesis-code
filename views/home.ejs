@@ -9,7 +9,7 @@
 </head>
 <body>
 <div class="container">
-    <h1>Segment 4: Names, cluster UI</h1>
+    <h1>Segment 6: Names transcription redo</h1>
     <div id="title"><h1>Welcome <%= id %></h1></div>
     <!--
     <p>Thank you for volunteering your time. This is an experiment to characterize how fast and accurate people are at using the CATTSS app. It should take about 15 minutes.</p>
@@ -17,28 +17,16 @@
     <p id=user_specific_message"><%= message %></p>
     -->
     <p>Thank you for your time!</p>
-    <p>There is 1 session in this segment. Please do it in an uninturrpted sitting, otherwise the timing collection will be inaccurate.</p>
+    <p>There are 2 sessions in this segment. Please do each of them in an uninturrpted sitting, otherwise the timing collection will be inaccurate.</p>
     <p>You will be alerted when you're finished with a session. If not automatically redirected, use <b>menu -> exit </b> to return here when finished with a session.</p>
     <div id='apps'>
-        <a href="/app-label">Labeling</a> <br><br>
-        <h2>Session 1: full system</h2>
-        <p>You will work in this mode for about 14 minutes. The same UI instructions for the previous task are below if you want to review them. Hopefully the off-screen button problem is resolved.</p>
-        <a href="/app-normal">Full system</a>   
-        <p>This interface differs in the spotting approval task from the original one you used earlier. You are now shown a batch, which represents (part of) a visual cluster. I use a heirarchical clustering, so you may notice two different clusters merged together. Rather than classifying each instance, you need to simply click on the outliers and then classify the batch as "good" or "bad".</p>
-        <p>Here is an example batch. (spotting "min")</p>
-        <img src="/goodbatch.png">
-        <p>First you would recognize this as a "good" batch as most spotting instances are correct. Then click on any incorrect spotting instances (red 1)</p>
-        <img src="/goodbatchclicks.png">
-        <p>Then you click on the "<b>good</b>" button at the bottom to classify the batch (red 2).</p>
-        <p>Here is another example. (spotting "ave")</p>
-        <img src="/badbatch.png">
-        <p>You can identify this as a "bad" batch as most spotting instances are wrong. Now you click on the <i>correct</i> instances (red 1 and 2).</p>
-        <img src="/badbatchclicks.png">
-        <p>Then you click the "<b>bad</b>" button to classify the batch as bad (red 3).</p>
-        <p>The "good"/"bad" decision is arbitrary, it is something given to you to reduce the amount to clicks you have to make. Just be sure you classify it according to how you marked the instances (marking incorrect=<b>good</b> batch, marking correct=<b>bad</b> batch)</p>
-        <p>You can skip individual spotting instances (removing them from the batch) by using the space bar. It removes the instance you last clicked on.</p>
-        <p>Let me know if these instructions are confusing.</p>
+        <h2>Session 1: select transcription</h2>
+        <p>Select the correct transcription for the highlighted word (or error/none). You will work in this mode for about 5 minutes.</p>
+        <a href="/app-normal">Select transcription</a>   
 
+        <h2>Session 2: manual transcription</h2>
+        <p>Type the transcription. This is case insensitive and puctuation is ignored. You will work in this mode for about 5 minutes.</p>
+        <a href="/app-line">Manual transcription</a>   
         <!--
         <a href="/app-normal-train">Full system (with training)</a> <br><br>
         <h2>Session 2: manual words only</h2>
@@ -50,7 +38,7 @@
         -->
     </div>
 
-    <p>Email <a href='mailto:briandavis@byu.net?Subject=Seg2: Bentham classic done'>Brian</a> when you're done.</p>
+    <p>Email <a href='mailto:briandavis@byu.net?Subject=Seg6 done'>Brian</a> when you're done.</p>
     
 </div>
 <br>

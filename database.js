@@ -48,11 +48,11 @@ module.exports =  function() {
             self.timingManualCollection={};
             dataNames.forEach( function(dataName) {
                 console.log('opening '+dataName);
-                var savedSpottings='SAVED_SPOTTINGS_'+dataName+'2';
-                var savedTrans = 'SAVED_TRANS_'+dataName+'2';
-                var timingSpottings = 'TIMING_SPOTTINGS_'+dataName+'2';
-                var timingManual = 'TIMING_MANUAL_'+dataName+'2';
-                var timingTrans = 'TIMING_TRANS_'+dataName+'2';
+                var savedSpottings='SAVED_SPOTTINGS_'+dataName+'3';
+                var savedTrans = 'SAVED_TRANS_'+dataName+'3';
+                var timingSpottings = 'TIMING_SPOTTINGS_'+dataName+'3';
+                var timingManual = 'TIMING_MANUAL_'+dataName+'3';
+                var timingTrans = 'TIMING_TRANS_'+dataName+'3';
                 db.collection(savedSpottings, function(err, collection) {
                     if(!err) {
                         self.savedSpottingsCollection[dataName]=collection;
@@ -405,7 +405,9 @@ module.exports =  function() {
                                         bad:doc.wasBadNgram,
                                         error:doc.wasError,
                                         skip:doc.skipped,
-                                        user:doc.userId
+                                        user:doc.userId,
+                                        trans:doc.trans,
+                                        gt:doc.gt
                                         //n:doc.batchNum
                                     });
                     }
@@ -448,7 +450,10 @@ module.exports =  function() {
                                         time:doc.batchTime,
                                         numChar:doc.numChar,
                                         skip:doc.skipped,
-                                        user:doc.userId
+                                        user:doc.userId,
+                                        trans:doc.trans,
+                                        gt:doc.gt,
+                                        line:doc.batchId
                                         //n:doc.batchNum
                                     });
                     }
@@ -575,12 +580,12 @@ module.exports =  function() {
                 }
             });
         } else {
-            self.db.collection('TIMING_MANUAL_'+dataName+'2', function(err, collection) {
+            self.db.collection('TIMING_MANUAL_'+dataName+'3', function(err, collection) {
                 if(!err) {
                     self.timingManualCollection[dataName]=collection;
                     self.timingManualCollection[dataName].insert(info, {w:1}, callback);
                 } else {
-                    console.log('ERROR: conencting to MongoDB colection TIMING_MANUAL_'+dataName+'2: '+err);
+                    console.log('ERROR: conencting to MongoDB colection TIMING_MANUAL_'+dataName+'3: '+err);
                 }
             });
         }

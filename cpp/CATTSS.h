@@ -173,7 +173,7 @@ class CATTSS
     int getMaxImageWidth() {return corpus->getMaxImageWidth();}
 
     void initLines(int contextPad);
-    BatchWraper* getLineBatch(int width);
+    BatchWraper* getLineBatch(int width, int index=-1);
     BatchWraper* getManualBatch(int width);
 };
 #endif

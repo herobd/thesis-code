@@ -31,6 +31,11 @@ class PsuedoWordBackPointer : public WordBackPointer
         int numWords;
         string gt;
 
+        string getGT()
+        {
+            return gt;
+        }
+
     private:
         int i;
 };

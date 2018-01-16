@@ -22,16 +22,14 @@ class LineQueue
     int totalWords;
     int wordsDone;
     float sumAcc;
-#ifdef NO_NAN
     mutex mutLock;
-#endif
 
     public:
     LineQueue(int contextPad, Knowledge::Corpus* corpus);
     LineQueue(ifstream& in, int contextPad, Knowledge::Corpus* corpus);
     ~LineQueue();
     void save(ofstream& out);
-    BatchWraper* getBatch(int width);
+    BatchWraper* getBatch(int width, int index=-1);
     void feedback(string trans, unsigned long id);
     void getStats(float* accTrans, float* pWordsTrans);
 };

@@ -1,8 +1,13 @@
 const assert = require('assert');
 var fs = require('fs');
+const readline = require('readline');
 
-var datanames=['BENTHAMfancy','BENTHAMcluster_step','NAMESfancy','NAMEScluster_step'];
-var lineDatanames=['BENTHAMline','NAMESline'];
+
+//var datanames=['BENTHAMfancy','BENTHAMcluster_step','NAMESfancy','NAMEScluster_step'];
+var datanames=['BENTHAMphoc_trans'];//,'NAMESphoc_trans'];
+var lineDatanames=['BENTHAMline'];//,'NAMESline'];
+//var datanames=['NAMESphoc_trans'];
+//var lineDatanames=['NAMESline'];
 
 
 function shuffle(array) { //from: http://stackoverflow.com/a/2450976/1018830
@@ -24,6 +29,104 @@ function shuffle(array) { //from: http://stackoverflow.com/a/2450976/1018830
   return array;
 }
 
+function findParamsManNew(err,manTimingInstances,dataname) {
+    console.log('----MAN----'+dataname);
+    console.log(manTimingInstances.length+' instances');
+    if (manTimingInstances.length==0) {
+        console.log("maxTimingInstances is empty");
+        return;
+    }
+    var meanTime=0.0;
+
+    var minTime=999999;
+    var maxTime=-1;
+
+    var meanAcc=0.0;
+    var numWords=0;
+
+
+    const rl = readline.createInterface({
+          input: process.stdin,
+            output: process.stdout
+    });
+
+    var allCSV='acc,time,numChar,prev,user\n';
+    var finishLine = function(i,inst) {
+
+        if (inst != null) {
+            meanTime+= inst.time;
+            meanAcc+= inst.accuracy*inst.wordC;
+            numWords += inst.wordC;
+
+            allCSV+=inst.accuracy+','+inst.time+','+inst.numChar+','+(inst.prev?1:0)+','+inst.user+'\n';
+        }
+
+        if (i<manTimingInstances.length-1)
+            recur(i+1);
+        else {
+            //write
+            console.log(dataname+' done');
+            console.log(dataname+' acc (by word): '+meanAcc/numWords);
+            var stream = fs.createWriteStream("userNew/man_all_"+dataname+".csv");
+            stream.once('open', function(fd) {
+                stream.write(allCSV);
+                stream.close();
+            });
+            rl.close();
+        }
+    }
+    var recur = function(i) {
+        var inst = manTimingInstances[i];
+        var label=inst.trans.toLowerCase().trim().replace(/\s/g,' ').replace(/[^ \w]/g,'').replace(/ +/g,' ').split(' ');
+        inst.wordC = label.length;
+        if (inst.accuracy<1.0)
+        {
+            console.log(dataname+" acc: "+inst.accuracy);
+            console.log(dataname+' gt:    '+inst.gt);
+            console.log(dataname+' trans: '+inst.trans);
+            console.log(dataname+' line: '+inst.line);
+            rl.question(dataname+' new gt( ! ): ', function(answer) {
+                  //console.log('Thank you for your valuable feedback: '+answer);
+
+                if (answer.length>0) {
+                    if (answer[0]=='!') {
+                        console.log(dataname+' skipped');
+                        inst=null;
+                    } else {
+                        var gt=answer.toLowerCase().trim().replace(/\s/g,' ').replace(/[^ \w]/g,'').replace(/ +/g,' ').split(' ');
+                        //var label above
+                        //Dymanic programming for word alignment
+                            var dtmap = [];
+                            dtmap[0]=(label[0]==gt[0]?0:1);
+                            for (var gtP=1; gtP<gt.length; gtP++) {
+                                dtmap[(gtP)] = gtP;
+                            }
+                            for (var labelP=1; labelP<label.length; labelP++) {
+                                dtmap[(labelP)*gt.length] = labelP;
+                            }
+                            for (var gtP=1; gtP<gt.length; gtP++) {
+                                for (var labelP=1; labelP<label.length; labelP++) {
+                                    var stepScore = dtmap[(gtP-1)+(labelP-1)*gt.length] + (label[labelP]==gt[gtP]?0:1);
+                                    var skipGtScore = dtmap[(gtP)+(labelP-1)*gt.length] + 1;
+                                    var skipLabelScore = dtmap[(gtP-1)+(labelP)*gt.length] + 1;
+                                    dtmap[(gtP)+(labelP)*gt.length] = Math.min(stepScore,skipGtScore,skipLabelScore);
+                                }
+                            }
+                            var score = dtmap[gt.length*label.length-1];
+                            var accuracy = Math.max(0,gt.length-score)/(0.0+gt.length);
+                        inst.accuracy=accuracy;
+                        console.log(dataname+' new acc: '+accuracy);
+                    }
+                }
+                finishLine(i,inst);
+            });
+        } else {
+            finishLine(i,inst);
+        }
+    }
+    //commence
+    recur(0);
+}
 //time = c + numChars*n + numPoss*p + position*i + prevTrans*t + 
 function findParamsMan(err,manTimingInstances,dataname) {
     console.log('----MAN----'+dataname);
@@ -73,6 +176,106 @@ function findParamsMan(err,manTimingInstances,dataname) {
     return;
 }
 
+function findParamsTransNew(err,transTimingInstances,dataname) {
+    console.log('---TRANS----'+dataname);
+    console.log(transTimingInstances.length+' instances');
+    if (transTimingInstances.length==0) {
+        console.log("transTimingInstances is empty");
+        return;
+    }
+    //overall time and acc and error-types
+    var allCount=0.0;
+    var allTime=0;
+    var allAcc=0;
+    var allErrorNone=0;
+    var allErrorWord=0;
+    //when-present time and acc and error-types
+    var availCount=0.0;
+    var availTime=0;
+    var availAcc=0;
+    var availErrorNone=0;
+    var availErrorWord=0;
+    //when-not-present time and acc (one error type)
+    var notCount=0.0;
+    var notTime=0;
+    var notAcc=0;
+
+    var allCSV='acc,time,numPoss,position,prev,avail,bad,error,user\n';
+    var availCSV='acc,time,numPoss,position,prev,user';
+    var notCSV='acc,time,numPoss,position,prev,user';
+    for (var inst of transTimingInstances)
+    {
+        position = inst.position==-1?-10:inst.position;
+        //if (inst.time<minTime)
+        //    minTime=inst.time;
+        //if (inst.time<maxTime)
+        //    maxTime=inst.time;
+
+        allCount++;
+        allAcc+= inst.accuracy;
+        allTime+= inst.time;
+
+        if (inst.position>-1) {
+            availCount++;
+            availAcc+=inst.accuracy;
+            availTime+=inst.time;
+            availCSV+=inst.accuracy+','+inst.time+','+inst.numPoss+','+position+','+(inst.prev?1:0)+','+inst.user+'\n';
+        }
+        else {
+            notCount++;
+            notAcc+=inst.accuracy;
+            notTime+=inst.time;
+            notCSV+=inst.accuracy+','+inst.time+','+inst.numPoss+','+position+','+(inst.prev?1:0)+','+inst.user+'\n';
+        }
+
+        if (inst.accuracy<1) {
+            console.log(dataname+' error trans: '+inst.trans+'   gt: '+inst.gt)
+            if (inst.trans=="$ERROR$") {
+                allErrorNone++;
+                if (inst.position>-1)
+                    availErrorNone++;
+            } else {
+                allErrorWord++;
+                if (inst.position>-1)
+                    availErrorWord++;
+            }
+        }
+                
+
+        allCSV+=inst.accuracy+','+inst.time+','+inst.numPoss+','+position+','+(inst.prev?1:0)+','+(inst.position>-1?1:0)+','+(inst.bad?1:0)+','+(inst.error?1:0)+','+inst.user+'\n';
+    }
+    console.log(dataname+' ALL');
+    console.log(dataname+'  time: '+(allTime/allCount));
+    console.log(dataname+'  acc: '+(allAcc/allCount));
+    console.log(dataname+'  error-none: '+(allErrorNone/allCount));
+    console.log(dataname+'  error-word: '+(allErrorWord/allCount));
+    console.log(dataname+' TRANS AVAIL');
+    console.log(dataname+'  time: '+(availTime/availCount));
+    console.log(dataname+'  acc: '+(availAcc/availCount));
+    console.log(dataname+'  error-none: '+(availErrorNone/availCount));
+    console.log(dataname+'  error-word: '+(availErrorWord/availCount));
+    console.log(dataname+' NOT AVAIL');
+    console.log(dataname+'  time: '+(notTime/notCount));
+    console.log(dataname+'  acc: '+(notAcc/notCount));
+    var stream = fs.createWriteStream("userNew/trans_all_"+dataname+".csv");
+    stream.once('open', function(fd) {
+        stream.write(allCSV);
+        stream.close();
+
+        stream = fs.createWriteStream("userNew/trans_avail_"+dataname+".csv");
+        stream.once('open', function(fd) {
+            stream.write(availCSV);
+            stream.close();
+
+            stream = fs.createWriteStream("userNew/trans_not_"+dataname+".csv");
+            stream.once('open', function(fd) {
+                stream.write(notCSV);
+                stream.close();
+            });
+        });
+    });
+}
+
 //time = c + numChars*n + numPoss*p + position*i + prevTrans*t + 
 function findParamsTrans(err,transTimingInstances,dataname) {
     console.log('---TRANS----'+dataname);
@@ -105,6 +308,11 @@ function findParamsTrans(err,transTimingInstances,dataname) {
     var notCSV='acc,time,numPoss,position,prev,user';
     var badCSV='';
     var errorCSV='';
+
+    var misclassified=0;
+    var misclassifiedCount=0;
+    var misclassified2=0;
+    var misclassified2Count=0;
     //var avgN={};
     //var countN={};
     for (var inst of transTimingInstances)
@@ -124,8 +332,12 @@ function findParamsTrans(err,transTimingInstances,dataname) {
             meanTimeAvail += inst.time;
             countAvail+=1;
             availCSV+=inst.accuracy+','+inst.time+','+inst.numPoss+','+position+','+(inst.prev?1:0)+','+inst.user+'\n';
+            misclassifiedCount++;
+            misclassified+=inst.badTrans;
         }
         else {
+            misclassified2Count++;
+            misclassified2+=inst.badTrans;
             meanTimeNotAvail+=inst.time;
             meanAccNotAvail += inst.accuracy;
             notCSV+=inst.accuracy+','+inst.time+','+inst.numPoss+','+position+','+(inst.prev?1:0)+','+inst.user+'\n';
@@ -151,6 +363,9 @@ function findParamsTrans(err,transTimingInstances,dataname) {
         //avgN[inst.n]+=inst.time;
         //countN[inst.n]+=1.0;
     }
+    console.log(misclassified+' / '+misclassifiedCount+' = '+(misclassified/(0.0+misclassifiedCount)));
+    console.log(misclassified2+' / '+misclassified2Count+' = '+(misclassified2/(0.0+misclassified2Count)));
+    return;
     meanTime /= transTimingInstances.length;
     meanAcc /= transTimingInstances.length;
     
@@ -350,18 +565,19 @@ var database=new Database('localhost:27017/cattss', datanames.concat(lineDatanam
     console.log('Start stats collecting');
     //store as such{ngram, numSkip, numT, numF, prevSame, numObv, accuracy, time}
     //
-    /*for (var i=0; i<datanames.length; i++)
+    for (var i=0; i<datanames.length; i++)
     {
         console.log('--'+datanames[i]+'--');
-        db.getNewSpottingTimings(datanames[i],findParams2);
+        //db.getNewSpottingTimings(datanames[i],findParams2);
         //db.getManTimings(datanames[i],findParamsMan);
-    }*/
-    db.getDoubleTransTimings('BENTHAMfancy','BENTHAMcluster_step',findParamsTrans);
-    db.getDoubleTransTimings('NAMESfancy','NAMEScluster_step',findParamsTrans);
-    /*for (var i=0; i<lineDatanames.length; i++)
+        db.getTransTimings(datanames[i],findParamsTransNew);
+    }
+    //db.getDoubleTransTimings('BENTHAMfancy','BENTHAMcluster_step',findParamsTrans);
+    //db.getDoubleTransTimings('NAMESfancy','NAMEScluster_step',findParamsTrans);
+    for (var i=0; i<lineDatanames.length; i++)
     {
         console.log('--'+lineDatanames[i]+'--');
-        db.getManTimings(lineDatanames[i],findParamsMan);
-    }*/
+        db.getManTimings(lineDatanames[i],findParamsManNew);
+    }
 });
 
