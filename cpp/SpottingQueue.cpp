@@ -155,7 +155,6 @@ void SpottingQueue::spottingLoop()
         {
             masterQueue->updateSpottingResults(results);
         }
-        //prog lock?
 
 #ifdef NO_NAN
         if (query->getType() == SPOTTING_TYPE_EXEMPLAR)

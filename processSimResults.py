@@ -1,9 +1,10 @@
 import sys
 import csv
 
-#time,accuracyTrans,pWordsTrans,pWords80_100,pWords60_80,pWords40_60,pWords20_40,pWords0_20,pWords0,pWordsBad,transSent,badTransBatchs,badTransNgram,spotSent,spotAccept,spotReject,spotAutoAccept,spotAutoReject,newExemplarsSpotted,badPrunes,accuracyTrans_IV,pWordsTrans_IV,pWords80_100_IV,pWords60_80_IV,pWords40_60_IV,pWords20_40_IV,pWords0_20_IV,pWords0_IV,misTrans
+#0 time, 1 accuracyTrans, 2 pWordsTrans, 3 pWords80_100, 4 pWords60_80, 5 pWords40_60, 6 pWords20_40, 7 pWords0_20, 8 pWords0, 9 pWordsBad, 10 transSent, 11 badTransBatchs, 12 badTransNgram, 13 spotSent, 14 spotAccept, 15 spotReject, 16 spotAutoAccept, 17 spotAutoReject, 18 spottingTime, 19 transTime, 20 badPrunes, 21 accuracyTrans_IV, 22 pWordsTrans_IV, 23 pWords80_100_IV, 24 pWords60_80_IV, 25 pWords40_60_IV, 26 pWords20_40_IV, 27 pWords0_20_IV, 28 pWords0_IV, 29 misTrans
+#
 
-out=[['file','% comp.','comp./day','trans sent','true ratio']]
+out=[['file','% comp.','comp./day','trans sent','true ratio','minutes','acc']]
 usingBad=0
 
 for i in range(1,len(sys.argv)):
@@ -19,7 +20,7 @@ for i in range(1,len(sys.argv)):
         #is using new pWordsBad?
         if (data[0][9]=='pWordsBad'):
             usingBad=1
-        endString = data[-1][27+usingBad]
+        endString = data[-1][-1]
         manualEnd = ('MANUAL' in endString)
         blankEnd = ('BLANK' in endString)
         if not manualEnd != blankEnd:
@@ -55,6 +56,10 @@ for i in range(1,len(sys.argv)):
             outRow.append(transSent)
             if trueDone+falseDone>0:
                 outRow.append(float(trueDone)/float(trueDone+falseDone))
+
+            outRow.append(time*60)
+            acc = float(data[endIndex][1])
+            outRow.append(acc)
     out.append(outRow)
             
 
