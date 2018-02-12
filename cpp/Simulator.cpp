@@ -119,13 +119,13 @@ Simulator::Simulator(string dataname, string mode, string segCSV) : cluster(mode
         transMilli_b=1354.996;
         transMilli_m=1021.526;
         transMilli_notAvail=5490.7;
-        transErrorProbAvailNone=0.01415;
+        transErrorProbAvailError=0.01415;
         transErrorProbAvailWord=0.01179;
         transErrorProbNotAvail=1- 0.921;
         //transSkipProb=0.012;
 
-        manMilli_b=1734.123;
-        manMilli_m=260.813;
+        manMilli_b=0;//1734.123;
+        manMilli_m=475.2370893;//260.813;
 #if NO_ERROR
         manErrorProb=0;
 #else
@@ -173,8 +173,8 @@ Simulator::Simulator(string dataname, string mode, string segCSV) : cluster(mode
         transErrorProbNotAvail=1- 0.904;
         //transSkipProb=0.012;
 
-        manMilli_b=36.011;
-        manMilli_m=516.171;
+        manMilli_b=0;//36.011;
+        manMilli_m=518.6982641;//516.171;
 #if NO_ERROR
         manErrorProb=0;
 #else
@@ -443,7 +443,7 @@ string Simulator::transcription(int wordIndex, vector<SpottingPoint> spottings, 
     }
     else
     {
-        float rp = RAND_PROB
+        float rp = RAND_PROB;
         if (rp < transErrorProbAvailError)
             ret="$ERROR$";//user didn't see correct trans
         else if (rp < transErrorProbAvailError + transErrorProbAvailWord)

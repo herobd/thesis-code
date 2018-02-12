@@ -251,6 +251,7 @@ class GlobalK
         bool MANUAL_LINES; //flase
 
         int time_spent;
+        atomic_int timeSpentSpot, timeSpentTrans;
 };
 
 #endif

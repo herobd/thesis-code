@@ -38,7 +38,7 @@ using namespace cv;
 
 #define RUNNING_ACCURACY_COUNT 7
 #define ACCURACY_STOP_COUNT 10
-#define ACCURACY_STOP_THRESH 0.3
+#define ACCURACY_STOP_THRESH 0.4
 
 
 class ClusterBatcher : public Batcher
