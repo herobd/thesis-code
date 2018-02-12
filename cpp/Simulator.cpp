@@ -118,7 +118,7 @@ Simulator::Simulator(string dataname, string mode, string segCSV) : cluster(mode
         transMilli_b=1354.996;
         transMilli_m=1021.526;
         transMilli_notAvail=5490.7;
-        transErrorProbAvailNone=0.01415;
+        transErrorProbAvailError=0.01415;
         transErrorProbAvailWord=0.01179;
         transErrorProbNotAvail=1- 0.921;
         //transSkipProb=0.012;
@@ -441,7 +441,7 @@ string Simulator::transcription(int wordIndex, vector<SpottingPoint> spottings, 
     }
     else
     {
-        float rp = RAND_PROB
+        float rp = RAND_PROB;
         if (rp < transErrorProbAvailError)
             ret="$ERROR$";//user didn't see correct trans
         else if (rp < transErrorProbAvailError + transErrorProbAvailWord)
