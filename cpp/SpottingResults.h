@@ -18,11 +18,12 @@
 #include "PageRef.h"
 #include "BatchWraperSpottings.h"
 
-#define TAIL_DENSITY_TRUE_THRESHOLD 0.0139
-#define GOOD_TAIL_SCORE -0.01 //Hueristic
+#define TAIL_DENSITY_TRUE_THRESHOLD 0.005
+#define GOOD_TAIL_SCORE (garbage-0.01) //Hueristic
 
 #define ACCEPT_THRESH 2 //number of false instances acceptable above accept threshold
 #define TAIL_THRESH 20 //approximate number of instances in the "tail"
+#define TAIL_MAX_THRESH 60
 
 #define CVT_MARGIN 0.05
 
@@ -380,6 +381,10 @@ private:
     int contextPad;
     int batchesSinceChange;
 #ifdef GRAPH_SPOTTING_RESULTS
+    int graphCount;
+    vector<float> binScores;
+    float binSize;
+    int sumTrue,sumFalse;
     string undoneGraphName;
     cv::Mat undoneGraph;
     string fullGraphName;

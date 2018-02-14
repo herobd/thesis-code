@@ -122,14 +122,14 @@ void SpottingQueue::spottingLoop()
         progLock.unlock();
 
 #ifdef TEST_MODE
-        cout<<"START spotting: "<<query->getNgram()<<" ["<<query->getId()<<"]"<<endl;
-        clock_t t;
-        t = clock();
+        //cout<<"START spotting: "<<query->getNgram()<<" ["<<query->getId()<<"]"<<endl;
+        //clock_t t;
+        //t = clock();
 #endif
         vector<Spotting>* results = corpus->runQuery(query);
 #ifdef TEST_MODE
-        t = clock() - t;
-        cout<<"END spotting: "<<query->getNgram()<<" ["<<query->getId()<<"], took: "<<((float)t)/CLOCKS_PER_SEC<<" secs"<<endl;
+        //t = clock() - t;
+        //cout<<"END spotting: "<<query->getNgram()<<" ["<<query->getId()<<"], took: "<<((float)t)/CLOCKS_PER_SEC<<" secs"<<endl;
 #endif
         progLock.lock();
         //inProgress[threadId]=NULL;

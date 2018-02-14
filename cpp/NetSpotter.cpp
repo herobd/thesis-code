@@ -13,6 +13,7 @@ NetSpotter::NetSpotter(const Dataset* corpus, string modelPrefix, string ngramWW
 vector<SpottingResult> NetSpotter::runQuery(SpottingQuery* query)
 {
     vector< SubwordSpottingResult > res;
+#if CUT_OFF_SPOTTING_RESULTS
     float refinePortion=0.25;
     float refinePortionQbE=0.25;
     if (query->getNgram().length()==1)
@@ -25,17 +26,23 @@ vector<SpottingResult> NetSpotter::runQuery(SpottingQuery* query)
         refinePortion=0.15;
         refinePortionQbE=0.15;
     }
+#else
+    float refinePortion=0.98;//get rid of bad outliers
+    float refinePortionQbE=0.98;
+#endif
+
 #ifdef NO_NAN
-    float ap, accumAP;
+    float ap=-1;
+    float accumAP=-1;
     int initAccumResSize = GlobalK::knowledge()->accumResFor(query->getNgram())->size();
 #endif
     if (query->getImg().cols==0)
     {
-//#ifdef NO_NAN
-//           res = spotter->subwordSpot_eval(query->getNgram(),refinePortion, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, &accumAP, &resLock);
-//#else
+#ifdef NO_NAN
+           res = spotter->subwordSpot_eval(query->getNgram(),refinePortion, GlobalK::knowledge()->accumResFor(query->getNgram()), GlobalK::knowledge()->getCorpusXLetterStartBounds(), GlobalK::knowledge()->getCorpusXLetterEndBounds(), &ap, NULL, &resLock);
+#else
            res = spotter->subwordSpot(query->getNgram(), refinePortion);
-//#endif
+#endif
     }
     else
     {

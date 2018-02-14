@@ -211,8 +211,8 @@ vector<TranscribeBatch*> Knowledge::Corpus::cpvTransCTC(float keep, const vector
         }
         */
 #ifdef TEST_MODE
-        //Mat draw = drawCPV(cpv,getWord(i)->getImg(),0.25);
-        //imwrite(DEBUG_DIR+string("/cpv")+to_string(i)+".png",draw);
+        Mat draw = drawCPV(cpv,getWord(i)->getImg(),0.25);
+        imwrite(DEBUG_DIR+string("/cpv")+to_string(i)+".png",draw);
         //imshow("cpv",draw);
 #endif
         multimap<float,string> topMatches;// = Lexicon::instance()->ctc(cpv,THRESH_SCORING_COUNT);
@@ -246,6 +246,11 @@ vector<TranscribeBatch*> Knowledge::Corpus::cpvTransCTC(float keep, const vector
         }
 #ifdef TEST_MODE
         dout<<endl;
+        if (i>50)
+        {
+            cout<<"test mode stop early"<<endl;
+            break;
+        }
 #endif
         topMatches.erase(iter,topMatches.end());
         //return ret;
