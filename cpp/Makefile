@@ -43,7 +43,7 @@ LIBS += -lopencv_imgcodecs
 LIBS += -lcaffe -l:libboost_system.so.1.59.0 -lglog
 
 
-CXX_FLAGS =  $(CXX_FLAGS_NO_G) -g
+CXX_FLAGS =  $(CXX_FLAGS_NO_G) -O3 #-g
 
 PROGRAM_NAME = test
 
@@ -66,6 +66,7 @@ OBJECTS = obj/Global.o \
           obj/Simulator.o \
           obj/NetSpotter.o \
           obj/CTCWrapper.o \
+	  obj/LineQueue.o \
           obj/Web.o
           #obj/tester.o \
           #obj/AlmazanSpotter.o \
@@ -92,6 +93,7 @@ OBJECTSDONTLOAD = obj/Global.o \
           obj/Simulator.o \
           obj/NetSpotter.o \
           obj/CTCWrapper.o \
+	  obj/LineQueue.o \
           obj/Web.o
           #obj/tester.o 
 OBJECTS2 = obj/TranscribeBatchQueue2.o \
@@ -247,13 +249,13 @@ obj/batches.o: batches.h batches.cpp WordBackPointer.h
 #	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/SpottingQuery.o SpottingQuery.cpp $(LIBS)
 
 
-obj/MasterQueue.o: MasterQueue.h MasterQueue.cpp SpottingResults.h Global.h ClusterBatcher.h
+obj/MasterQueue.o: MasterQueue.h MasterQueue.cpp SpottingResults.h Global.h ClusterBatcher.h BatchWraper.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/MasterQueue.o MasterQueue.cpp $(LIBS)
 
-obj/SpottingResults.o: SpottingResults.h SpottingResults.cpp Batcher.h
+obj/SpottingResults.o: SpottingResults.h SpottingResults.cpp Batcher.h BatchWraper.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/SpottingResults.o SpottingResults.cpp $(LIBS)
 	
-obj/ClusterBatcher.o: ClusterBatcher.h ClusterBatcher.cpp Batcher.h
+obj/ClusterBatcher.o: ClusterBatcher.h ClusterBatcher.cpp Batcher.h BatchWraper.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/ClusterBatcher.o ClusterBatcher.cpp $(LIBS)
 	
 obj/TestQueue.o: TestQueue.h TestQueue.cpp SpottingResults.h
@@ -270,6 +272,9 @@ obj/Lexicon.o: Lexicon.h Lexicon.cpp
 
 obj/CTCWrapper.o: CTCWrapper.h CTCWrapper.cpp
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/CTCWrapper.o CTCWrapper.cpp $(LIBS)
+
+obj/LineQueue.o: LineQueue.h LineQueue.cpp PsuedoWordBackPointer.h batches.h Knowledge.h BatchWraperTranscription.h
+	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/LineQueue.o LineQueue.cpp $(LIBS)
 
 obj/Web.o: Web.h Web.cpp Global.h spotting.h Knowledge.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/Web.o Web.cpp $(LIBS)
