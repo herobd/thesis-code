@@ -822,6 +822,13 @@ SpottingsBatch* SpottingResults::getBatch(int* done, unsigned int num, bool hard
             cout<<"["<<ngram<<"] continuing past thresh due to running classification avg: "<<runningClassificationTrueAverage()<<endl;
 #endif
         }
+        else if (!*done && runningClassificationTrueAverage() < END_EARLY_THRESH && batchTracking.size() >= END_EARLY_COUNT)
+        {
+            *done=1;
+#ifdef TEST_MODE
+            cout<<"["<<ngram<<"] ending early due to running classification avg: "<<runningClassificationTrueAverage()<<endl;
+#endif
+        }
     }
     
     if (*done)

@@ -412,7 +412,7 @@ SpottingsBatch* MasterQueue::_getSpottingsBatch(map<unsigned long, pair<sem_t*,T
     auto iter = batcherQueue.begin();
     int indexHolder=0;
     //for (auto ele : batcherQueue)
-    for (; iter!=batcherQueue.end(); iter++, indexHolder++)
+    /*for (; iter!=batcherQueue.end(); iter++, indexHolder++)
     {
         T*  res = iter->second.second;
         if (prevNgram.compare(res->ngram)==0)
@@ -430,7 +430,7 @@ SpottingsBatch* MasterQueue::_getSpottingsBatch(map<unsigned long, pair<sem_t*,T
     }
 
 
-    if (iter==batcherQueue.end())
+    if (iter==batcherQueue.end())*/
     {
         iter = batcherQueue.begin();
         indexHolder=0;
