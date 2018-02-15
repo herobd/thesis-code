@@ -83,12 +83,12 @@ var timingTestMode=false;
 
 //modes
 //var lineMode=true; //full-line annotation more
-var newTimingTestMode=true; //timimng test using system as is
+var newTimingTestMode=false; //timimng test using system as is
 var labelUnknownMode=false; //gt unknown spottings
 var trainUsers=false;
 var debug=true;
 //The mode, either trans method or spotting batch serving method. See SpottingAddon.cpp
-var mode = 'phoc_trans';
+var mode = 'fancy_two';//'phoc_trans';
 //if (lineMode)
 //    mode='line';
 var cluster = (mode.length>=5 && mode.substr(0,5)=="clust");

@@ -1,6 +1,6 @@
 CXX = g++
 LINK = g++
-CXX_FLAGS_NO_G =  -std=c++11 -pthread -DNO_NAN #-DGRAPH_SPOTTING_RESULTS #-DDEBUG_AUTO#-ansi -fexceptions -fPIC -fno-omit-frame-pointer -pthread
+CXX_FLAGS_NO_G =  -std=c++11 -pthread -DNO_NAN -DTEST_MODE #-DGRAPH_SPOTTING_RESULTS #-DDEBUG_AUTO#-ansi -fexceptions -fPIC -fno-omit-frame-pointer -pthread
 CXX_FLAGS_NO_G += -DCPU_ONLY
 
 LIBS += -lpthread
@@ -14,8 +14,8 @@ LIBS += -pthread
 
 ##########
 #ironsides
-##LIBS += -L ../../warp-ctc/build -lwarpctc
-##INCLUDE += -I ../../warp-ctc/include
+###LIBS += -L ../../warp-ctc/build -lwarpctc
+###INCLUDE += -I ../../warp-ctc/include
 #CXX_FLAGS_NO_G += -DCTC
 #LIBS += -L/home/brian/robert_stuff/documentproject/lib -ldtwarp
 #INCLUDE += -I/home/brian/robert_stuff/documentproject/src
@@ -24,7 +24,7 @@ LIBS += -pthread
 #INCLUDE += -I ../../brian_caffe/scripts/cnnspp_spotter
 #LIBS += -L ../../brian_caffe/build/lib
 #INCLUDE +=-I ../../brian_caffe/include
-#LIBS += -lcaffe -lboost_system
+#LIBS += -lcaffe -l:libboost_system.so.1.58.0
 #
 #CXX_FLAGS_NO_G += -DOPENCV2
 
@@ -209,7 +209,7 @@ viewer: $(OBJECTS) viewer.cpp
 makeData: $(OBJECTS)
 	$(LINK) $(CXX_FLAGS) -o makeData makeData.cpp $(INCLUDE) $(OBJECTS) $(LIBS)
 	
-obj/tester.o: tester.cpp tester.h CATTSS.h Simulator.h
+obj/tester.o: tester.cpp tester.h CATTSS.h Simulator.h BatchWraper.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/tester.o tester.cpp $(LIBS)
 
 obj/Global.o: Global.h Global.cpp
