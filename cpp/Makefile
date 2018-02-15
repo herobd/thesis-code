@@ -1,6 +1,6 @@
 CXX = g++
 LINK = g++
-CXX_FLAGS_NO_G =  -std=c++11 -pthread -DNO_NAN #-DGRAPH_SPOTTING_RESULTS #-DDEBUG_AUTO#-ansi -fexceptions -fPIC -fno-omit-frame-pointer -pthread
+CXX_FLAGS_NO_G =  -std=c++11 -pthread -DNO_NAN -DTEST_MODE -DGRAPH_SPOTTING_RESULTS #-DDEBUG_AUTO#-ansi -fexceptions -fPIC -fno-omit-frame-pointer -pthread
 CXX_FLAGS_NO_G += -DCPU_ONLY
 
 LIBS += -lpthread
@@ -16,31 +16,31 @@ LIBS += -pthread
 #ironsides
 ##LIBS += -L ../../warp-ctc/build -lwarpctc
 ##INCLUDE += -I ../../warp-ctc/include
-#CXX_FLAGS_NO_G += -DCTC
-#LIBS += -L/home/brian/robert_stuff/documentproject/lib -ldtwarp
-#INCLUDE += -I/home/brian/robert_stuff/documentproject/src
-#
-#LIBS += -L ../../brian_caffe/scripts/cnnspp_spotter -lcnnspp_spotter
-#INCLUDE += -I ../../brian_caffe/scripts/cnnspp_spotter
-#LIBS += -L ../../brian_caffe/build/lib
-#INCLUDE +=-I ../../brian_caffe/include
-#LIBS += -lcaffe -lboost_system
-#
-#CXX_FLAGS_NO_G += -DOPENCV2
+CXX_FLAGS_NO_G += -DCTC
+LIBS += -L/home/brian/robert_stuff/documentproject/lib -ldtwarp
+INCLUDE += -I/home/brian/robert_stuff/documentproject/src
+
+LIBS += -L ../../brian_caffe/scripts/cnnspp_spotter -lcnnspp_spotter
+INCLUDE += -I ../../brian_caffe/scripts/cnnspp_spotter
+LIBS += -L ../../brian_caffe/build/lib
+INCLUDE +=-I ../../brian_caffe/include
+LIBS += -lcaffe -l:libboost_system.so.1.58.0
+
+CXX_FLAGS_NO_G += -DOPENCV2
 
 ##########
 #Supercomp, fawkes
 
-CXX_FLAGS_NO_G += -DCTC
-LIBS += -L../../docproj/lib -ldtwarp
-INCLUDE += -I../../docproj/src
-
-LIBS += -L ../../caffe/scripts/cnnspp_spotter -lcnnspp_spotter
-INCLUDE += -I ../../caffe/scripts/cnnspp_spotter
-LIBS += -L ../../caffe/build/lib
-INCLUDE +=-I ../../caffe/include
-LIBS += -lopencv_imgcodecs
-LIBS += -lcaffe -l:libboost_system.so.1.59.0 -lglog
+#CXX_FLAGS_NO_G += -DCTC
+#LIBS += -L../../docproj/lib -ldtwarp
+#INCLUDE += -I../../docproj/src
+#
+#LIBS += -L ../../caffe/scripts/cnnspp_spotter -lcnnspp_spotter
+#INCLUDE += -I ../../caffe/scripts/cnnspp_spotter
+#LIBS += -L ../../caffe/build/lib
+#INCLUDE +=-I ../../caffe/include
+#LIBS += -lopencv_imgcodecs
+#LIBS += -lcaffe -l:libboost_system.so.1.59.0 -lglog
 
 
 CXX_FLAGS =  $(CXX_FLAGS_NO_G) -g
@@ -66,6 +66,7 @@ OBJECTS = obj/Global.o \
           obj/Simulator.o \
           obj/NetSpotter.o \
           obj/CTCWrapper.o \
+          obj/LineQueue.o \
           obj/Web.o
           #obj/tester.o \
           #obj/AlmazanSpotter.o \
@@ -92,6 +93,7 @@ OBJECTSDONTLOAD = obj/Global.o \
           obj/Simulator.o \
           obj/NetSpotter.o \
           obj/CTCWrapper.o \
+          obj/LineQueue.o \
           obj/Web.o
           #obj/tester.o 
 OBJECTS2 = obj/TranscribeBatchQueue2.o \
@@ -207,7 +209,7 @@ viewer: $(OBJECTS) viewer.cpp
 makeData: $(OBJECTS)
 	$(LINK) $(CXX_FLAGS) -o makeData makeData.cpp $(INCLUDE) $(OBJECTS) $(LIBS)
 	
-obj/tester.o: tester.cpp tester.h CATTSS.h Simulator.h
+obj/tester.o: tester.cpp tester.h CATTSS.h Simulator.h BatchWraper.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/tester.o tester.cpp $(LIBS)
 
 obj/Global.o: Global.h Global.cpp
@@ -250,10 +252,10 @@ obj/batches.o: batches.h batches.cpp WordBackPointer.h
 obj/MasterQueue.o: MasterQueue.h MasterQueue.cpp SpottingResults.h Global.h ClusterBatcher.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/MasterQueue.o MasterQueue.cpp $(LIBS)
 
-obj/SpottingResults.o: SpottingResults.h SpottingResults.cpp Batcher.h
+obj/SpottingResults.o: SpottingResults.h SpottingResults.cpp Batcher.h BatchWraper.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/SpottingResults.o SpottingResults.cpp $(LIBS)
 	
-obj/ClusterBatcher.o: ClusterBatcher.h ClusterBatcher.cpp Batcher.h
+obj/ClusterBatcher.o: ClusterBatcher.h ClusterBatcher.cpp Batcher.h BatchWraper.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/ClusterBatcher.o ClusterBatcher.cpp $(LIBS)
 	
 obj/TestQueue.o: TestQueue.h TestQueue.cpp SpottingResults.h
@@ -270,6 +272,9 @@ obj/Lexicon.o: Lexicon.h Lexicon.cpp
 
 obj/CTCWrapper.o: CTCWrapper.h CTCWrapper.cpp
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/CTCWrapper.o CTCWrapper.cpp $(LIBS)
+
+obj/LineQueue.o: LineQueue.h LineQueue.cpp PsuedoWordBackPointer.h batches.h Knowledge.h BatchWraperTranscription.h
+	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/LineQueue.o LineQueue.cpp $(LIBS)
 
 obj/Web.o: Web.h Web.cpp Global.h spotting.h Knowledge.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/Web.o Web.cpp $(LIBS)
