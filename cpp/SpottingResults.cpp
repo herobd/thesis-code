@@ -86,9 +86,9 @@ SpottingResults::SpottingResults(string ngram, int contextPad) :
     numSpottingsQbEMax=-1;
 
 #ifdef GRAPH_SPOTTING_RESULTS
+    graphCount=0;
     undoneGraphName="save/graph/graph_undone_"+this->ngram+".png";
     fullGraphName="save/graph/graph_full_"+this->ngram+".png";
-    graphCount=0;
     //cv::namedWindow(undoneGraphName);
 #endif
 #ifdef TEST_MODE
@@ -499,6 +499,7 @@ int SpottingResults::setDebugInfo(SpottingsBatch* b)
 
 void SpottingResults::saveHistogram(float actualModelDif)
 {
+#ifdef GRAPH_SPOTTING_RESULTS
     if (graphCount%4==0)
     {
         int numBuckets=100;
@@ -596,6 +597,7 @@ void SpottingResults::saveHistogram(float actualModelDif)
         file.close();
     }
     graphCount++;
+    #endif
 }
 #endif
 
