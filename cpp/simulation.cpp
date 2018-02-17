@@ -332,7 +332,7 @@ int main(int argc, char** argv)
     string SR_mode="fancy";
     if (argc==1)
     {
-        cout<<"usage: "<<argv[0]<<" savePrefix simSave.csv [numSimThreads OR -FLAGS] [fancy,take_from_top,otsu_fixed,none_take_from_top,none,gaussian_draw,fancy_one,fancy_two,  phoc_trans,cpv_trans,web_trans,cluster_step,cluster_top,manual] lexiconFile.txt pageImageDir segmentationFile.gtp ngramWWFile.txt charSegFile.csv spottingModelPrefix [i (ideal)]"<<endl;
+        cout<<"usage: "<<argv[0]<<" savePrefix simSave.csv [numSimThreads OR -FLAGS] [fancy,take_from_top,otsu_fixed,none_take_from_top,none,gaussian_draw,fancy_one,fancy_two, two_walk, phoc_trans,cpv_trans,web_trans,cluster_step,cluster_top,manual] lexiconFile.txt pageImageDir segmentationFile.gtp ngramWWFile.txt charSegFile.csv spottingModelPrefix [i (ideal)]"<<endl;
         return 0;
     }
 
@@ -458,6 +458,10 @@ int main(int argc, char** argv)
     else if (SR_mode.compare("fancy_two")==0)
     {
         GlobalK::knowledge()->SR_FANCY_TWO=true;
+    }
+    else if (SR_mode.compare("two_walk")==0)
+    {
+        GlobalK::knowledge()->SR_TWO_WALK=true;
     }
     else if (SR_mode.substr(0,10).compare("phoc_trans")==0)
     {

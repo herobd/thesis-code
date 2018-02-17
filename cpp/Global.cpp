@@ -32,6 +32,7 @@ GlobalK::GlobalK() :
     SR_FANCY_ONE=false;
     SR_FANCY_TWO=false;
     SR_GAUSSIAN_DRAW=false;
+    SR_TWO_WALK=false;
 
     MIN_SPOTTING_AP=-1;
     IDEAL_COMB=false;

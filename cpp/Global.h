@@ -235,6 +235,7 @@ class GlobalK
         bool SR_FANCY_ONE;
         bool SR_FANCY_TWO;
         bool SR_GAUSSIAN_DRAW;
+        bool SR_TWO_WALK;
 
         float MIN_SPOTTING_AP;
         bool IDEAL_COMB;

@@ -129,7 +129,7 @@ float CTCWrapper::loss(Mat cpv, string label)
     int *path = new int[(1+fvCPV.vectLen)*(1+fvLabel.vectLen)];
     float score = DDynamicProgramming::findDPAlignment(fvCPV,fvLabel,bandRad,bandCost,nonDiagonalCost,&pathLen,path);
     
-    /*
+    /**/
     double minV,maxV;
     minMaxLoc(cpv,&minV,&maxV);
     int cpvI=-1;

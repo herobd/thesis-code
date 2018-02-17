@@ -42,6 +42,14 @@
 #define MAX_REJECT_THRESHOLD_FROM_FALSE 1.1
 #define MAX_ACCEPT_THRESHOLD_FROM_FALSE 1.6
 
+#define OTSU_USE_THRESH ((maxScore()-minScore())/3.0 + minScore())
+
+#define TWO_WALK_EST_USE_THRESH 15.0 //set for Bentham
+#define TWO_WALK_PAD_MIN (fabs(TWO_WALK_EST_USE_THRESH)*0.01)
+#define TWO_WALK_ACCEPT_THRESHOLD 0.92
+#define TWO_WALK_REJECT_THRESHOLD 0.2
+#define RUNNING_CLASSIFICATIONS_TWO_WALK_COUNT 15
+
 using namespace std;
 
 

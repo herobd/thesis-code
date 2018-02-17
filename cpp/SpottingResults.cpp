@@ -626,210 +626,245 @@ SpottingsBatch* SpottingResults::getBatch(int* done, unsigned int num, bool hard
     if (ngram.compare("a")==0 or ngram.compare("ad")==0 or ngram.compare("act")==0 or ngram.compare("c")==0 or ngram.compare("st")==0)
     setDebugInfo(ret);
 #endif
-    set<float> scoresToDraw;
-    if (GlobalK::knowledge()->SR_TAKE_FROM_TOP)
+    if (GlobalK::knowledge()->SR_TWO_WALK)
     {
+        //this is very differen that the other methods
         auto iterScore = instancesByScore.begin();
-        for (int i=0; i<min(toRet,(unsigned int)instancesByScore.size()); i++)
-        {
-            scoresToDraw.insert(iterScore->first);
+        while (iterScore!=instancesByScore.end() && iterScore->first<pullFromScore)
             iterScore++;
-        }
-    }
-    else if (GlobalK::knowledge()->SR_GAUSSIAN_DRAW)
-    {
-        normal_distribution<float> distribution(pullFromScore, takeStd);
-        for (int i=0; i<min(toRet,(unsigned int)instancesByScore.size()); i++)
+        while (ret->size() < toRet)
         {
-            float v = distribution(generator);
-            if (v<=acceptThreshold)
-                v=2*acceptThreshold-v;
-            if (v>=rejectThreshold)
-                v=2*rejectThreshold-v;
-            scoresToDraw.insert(v);
+            if (acceptThreshold>0 && iterScore!=instancesByScore.begin())
+            {
+                iterScore--;
+                SpottingImage tmp(instancesById.at(iterScore->second),maxWidth,contextPad,color,prevNgram);
+                ret->push_back(tmp);
+                iterScore = instancesByScore.erase(iterScore);
+            }
+            if (ret->size() < toRet && rejectThreshold>0 && iterScore!=instancesByScore.end())
+            {
+                SpottingImage tmp(instancesById.at(iterScore->second),maxWidth,contextPad,color,prevNgram);
+                ret->push_back(tmp);
+                iterScore = instancesByScore.erase(iterScore);
+            }
+            if (iterScore==instancesByScore.end())
+            {
+#ifdef TEST_MODE
+                cout<<"["<<ngram<<"] Ran out of instances"<<endl;
+#endif
+                *done=allBatchesSent?1:2;
+                break;
+            }
+
         }
     }
     else
     {
-        uniform_real_distribution<float> distribution(acceptThreshold,rejectThreshold);
-        for (int i=0; i<min(toRet,(unsigned int)instancesByScore.size()); i++)
+        set<float> scoresToDraw;
+        if (GlobalK::knowledge()->SR_TAKE_FROM_TOP)
         {
-            float v = distribution(generator);
-            if (v<=acceptThreshold)
-                v=2*acceptThreshold-v;
-            if (v>=rejectThreshold)
-                v=2*rejectThreshold-v;
-            scoresToDraw.insert(v);
+            auto iterScore = instancesByScore.begin();
+            for (int i=0; i<min(toRet,(unsigned int)instancesByScore.size()); i++)
+            {
+                scoresToDraw.insert(iterScore->first);
+                iterScore++;
+            }
         }
-    }
+        else if (GlobalK::knowledge()->SR_GAUSSIAN_DRAW)
+        {
+            normal_distribution<float> distribution(pullFromScore, takeStd);
+            for (int i=0; i<min(toRet,(unsigned int)instancesByScore.size()); i++)
+            {
+                float v = distribution(generator);
+                if (v<=acceptThreshold)
+                    v=2*acceptThreshold-v;
+                if (v>=rejectThreshold)
+                    v=2*rejectThreshold-v;
+                scoresToDraw.insert(v);
+            }
+        }
+        else
+        {
+            uniform_real_distribution<float> distribution(acceptThreshold,rejectThreshold);
+            for (int i=0; i<min(toRet,(unsigned int)instancesByScore.size()); i++)
+            {
+                float v = distribution(generator);
+                if (v<=acceptThreshold)
+                    v=2*acceptThreshold-v;
+                if (v>=rejectThreshold)
+                    v=2*rejectThreshold-v;
+                scoresToDraw.insert(v);
+            }
+        }
 #ifdef TEST_MODE
-    //cout <<"\n["<<ngram<<"] getBatch, from: ";
-    //for (float v : scoresToDraw)
-    //    cout<<v<<", ";
-    //cout<<endl;
+        //cout <<"\n["<<ngram<<"] getBatch, from: ";
+        //for (float v : scoresToDraw)
+        //    cout<<v<<", ";
+        //cout<<endl;
 #endif
 
-    /*auto iterR = instancesByScore.end();
-    do
-    {
-        iterR--;
-        assert(instancesById.find(iterR->second) != instancesById.end());
-    } while(iterR!=instancesByScore.begin() && instancesById.at(iterR->second).score(useQbE) >rejectThreshold);
-    for (float drawScore : scoresToDraw)
-    {
-        auto iter=iterR;
-        assert(instancesById.find(iter->second) != instancesById.end());
-        while (instancesById.at(iter->second).score(useQbE) >drawScore && iter!=instancesByScore.begin())
+        /*auto iterR = instancesByScore.end();
+        do
         {
-            iter--;
-        }
-        assert(instancesById.find(iter->second) != instancesById.end());
-        if (instancesById.at(iter->second).score(useQbE)<acceptThreshold && iter!=instancesByScore.end())
+            iterR--;
+            assert(instancesById.find(iterR->second) != instancesById.end());
+        } while(iterR!=instancesByScore.begin() && instancesById.at(iterR->second).score(useQbE) >rejectThreshold);
+        for (float drawScore : scoresToDraw)
         {
-            iter++;
-            if (iter==instancesByScore.end())
-                iter--;
-        }
-        if (iter==iterR)
-        {
-            if (iterR!=instancesByScore.begin())
+            auto iter=iterR;
+            assert(instancesById.find(iter->second) != instancesById.end());
+            while (instancesById.at(iter->second).score(useQbE) >drawScore && iter!=instancesByScore.begin())
             {
-                iterR--;
+                iter--;
             }
-            else
+            assert(instancesById.find(iter->second) != instancesById.end());
+            if (instancesById.at(iter->second).score(useQbE)<acceptThreshold && iter!=instancesByScore.end())
+            {
+                iter++;
+                if (iter==instancesByScore.end())
+                    iter--;
+            }
+            if (iter==iterR)
+            {
+                if (iterR!=instancesByScore.begin())
+                {
+                    iterR--;
+                }
+                else
+                {
+                    iterR++;
+                }
+            }
+        
+            assert (updateMap.find(iter->second)==updateMap.end());
+            assert(instancesById.find(iter->second) != instancesById.end());
+
+            SpottingImage tmp(instancesById.at(iter->second),maxWidth,contextPad,color,prevNgram);
+            ret->push_back(tmp);
+
+            assert(ret->at(ret->size()-1).id == (iter->second));
+            
+            instancesByScore.erase(iter);
+        }*/
+
+        //scoresToDraw will be ordered by set<>, so we just need to increment the iterator along
+        auto iterR = instancesByScore.begin();
+        while(iterR!=instancesByScore.end() && instancesById.at(iterR->second).score(useQbE) < acceptThreshold)
+        {
+            iterR++;
+        } 
+        for (float drawScore : scoresToDraw)
+        {
+            while (iterR!=instancesByScore.end() && instancesById.at(iterR->second).score(useQbE) < drawScore)
             {
                 iterR++;
             }
-        }
-    
-        assert (updateMap.find(iter->second)==updateMap.end());
-        assert(instancesById.find(iter->second) != instancesById.end());
-
-        SpottingImage tmp(instancesById.at(iter->second),maxWidth,contextPad,color,prevNgram);
-        ret->push_back(tmp);
-
-        assert(ret->at(ret->size()-1).id == (iter->second));
-        
-        instancesByScore.erase(iter);
-    }*/
-
-    //scoresToDraw will be ordered by set<>, so we just need to increment the iterator along
-    auto iterR = instancesByScore.begin();
-    while(iterR!=instancesByScore.end() && instancesById.at(iterR->second).score(useQbE) < acceptThreshold)
-    {
-        iterR++;
-    } 
-    for (float drawScore : scoresToDraw)
-    {
-        while (iterR!=instancesByScore.end() && instancesById.at(iterR->second).score(useQbE) < drawScore)
-        {
-            iterR++;
-        }
-        if (iterR==instancesByScore.end() || (instancesById.at(iterR->second).score(useQbE)>rejectThreshold && iterR!=instancesByScore.begin()))
-        {
-            iterR--;
-        }
-    
-        assert (updateMap.find(iterR->second)==updateMap.end());
-        assert(instancesById.find(iterR->second) != instancesById.end());
-
-        SpottingImage tmp(instancesById.at(iterR->second),maxWidth,contextPad,color,prevNgram);
-        ret->push_back(tmp);
-
-        assert(ret->at(ret->size()-1).id == (iterR->second));
-        
-        iterR = instancesByScore.erase(iterR);
-        if (iterR == instancesByScore.end() && iterR != instancesByScore.begin())
-            iterR--;
-    }
-
-    //check if done, that is we don't have spottings left between the thresholds
-    *done=0;
-    if (instancesByScore.size()<=1)
-    {
-#ifdef TEST_MODE
-        if (!allBatchesSent)
-            cout<<"["<<ngram<<"] all instances sent setting done"<<endl;
-#endif
-        *done=allBatchesSent?1:2;
-    }
-    else
-    {
-        if (instancesById.at(iterR->second).score(useQbE) > rejectThreshold)
-        {
-            if (iterR==instancesByScore.begin())
-            {
-#ifdef TEST_MODE
-                if (!allBatchesSent)
-                    cout<<"["<<ngram<<"] no instanes above reject threshold (or below accept)."<<endl;
-#endif
-                *done=allBatchesSent?1:2;
-            }
-            else
+            if (iterR==instancesByScore.end() || (instancesById.at(iterR->second).score(useQbE)>rejectThreshold && iterR!=instancesByScore.begin()))
             {
                 iterR--;
-                assert(instancesById.find(iterR->second) != instancesById.end());
-                if (instancesById.at(iterR->second).score(useQbE) < acceptThreshold)
+            }
+        
+            assert (updateMap.find(iterR->second)==updateMap.end());
+            assert(instancesById.find(iterR->second) != instancesById.end());
+
+            SpottingImage tmp(instancesById.at(iterR->second),maxWidth,contextPad,color,prevNgram);
+            ret->push_back(tmp);
+
+            assert(ret->at(ret->size()-1).id == (iterR->second));
+            
+            iterR = instancesByScore.erase(iterR);
+            if (iterR == instancesByScore.end() && iterR != instancesByScore.begin())
+                iterR--;
+        }
+
+        //check if done, that is we don't have spottings left between the thresholds
+        *done=0;
+        if (instancesByScore.size()<=1)
+        {
+#ifdef TEST_MODE
+            if (!allBatchesSent)
+                cout<<"["<<ngram<<"] all instances sent setting done"<<endl;
+#endif
+            *done=allBatchesSent?1:2;
+        }
+        else
+        {
+            if (instancesById.at(iterR->second).score(useQbE) > rejectThreshold)
+            {
+                if (iterR==instancesByScore.begin())
                 {
 #ifdef TEST_MODE
                     if (!allBatchesSent)
-                        cout<<"["<<ngram<<"] no instanes below accept threshold (or above reject)."<<endl;
+                        cout<<"["<<ngram<<"] no instanes above reject threshold (or below accept)."<<endl;
 #endif
                     *done=allBatchesSent?1:2;
                 }
-            }
-        }
-        else if (instancesById.at(iterR->second).score(useQbE) < acceptThreshold)
-        {
-            iterR++;
-            if (iterR==instancesByScore.end())
-            {
+                else
+                {
+                    iterR--;
+                    assert(instancesById.find(iterR->second) != instancesById.end());
+                    if (instancesById.at(iterR->second).score(useQbE) < acceptThreshold)
+                    {
 #ifdef TEST_MODE
-                if (!allBatchesSent)
-                    cout<<"["<<ngram<<"] no instanes below accept threshold."<<endl;
+                        if (!allBatchesSent)
+                            cout<<"["<<ngram<<"] no instanes below accept threshold (or above reject)."<<endl;
 #endif
-                *done=allBatchesSent?1:2;
+                        *done=allBatchesSent?1:2;
+                    }
+                }
             }
-            else
+            else if (instancesById.at(iterR->second).score(useQbE) < acceptThreshold)
             {
-                assert(instancesById.find(iterR->second) != instancesById.end());
-                if (instancesById.at(iterR->second).score(useQbE) > rejectThreshold)
+                iterR++;
+                if (iterR==instancesByScore.end())
                 {
 #ifdef TEST_MODE
-                if (!allBatchesSent)
-                    cout<<"["<<ngram<<"] no instanes above reject threshold (or below accept)2."<<endl;
+                    if (!allBatchesSent)
+                        cout<<"["<<ngram<<"] no instanes below accept threshold."<<endl;
 #endif
                     *done=allBatchesSent?1:2;
                 }
+                else
+                {
+                    assert(instancesById.find(iterR->second) != instancesById.end());
+                    if (instancesById.at(iterR->second).score(useQbE) > rejectThreshold)
+                    {
+#ifdef TEST_MODE
+                    if (!allBatchesSent)
+                        cout<<"["<<ngram<<"] no instanes above reject threshold (or below accept)2."<<endl;
+#endif
+                        *done=allBatchesSent?1:2;
+                    }
+                }
             }
-        }
 
-        
-        if (batchesSinceChange++ > CHECK_IF_BAD_SPOTTING_START)
-        {
-            if (numberClassifiedTrue/(numberClassifiedTrue+numberClassifiedFalse+0.0) < CHECK_IF_BAD_SPOTTING_THRESH)
+            
+            if (batchesSinceChange++ > CHECK_IF_BAD_SPOTTING_START)
             {
+                if (numberClassifiedTrue/(numberClassifiedTrue+numberClassifiedFalse+0.0) < CHECK_IF_BAD_SPOTTING_THRESH)
+                {
 #ifdef TEST_MODE
-                if (!allBatchesSent)
-                    cout<<"["<<ngram<<"] bad spotting thresh2: "<<numberClassifiedTrue/(numberClassifiedTrue+numberClassifiedFalse+0.0)<<endl;
+                    if (!allBatchesSent)
+                        cout<<"["<<ngram<<"] bad spotting thresh2: "<<numberClassifiedTrue/(numberClassifiedTrue+numberClassifiedFalse+0.0)<<endl;
 #endif
-                this->done=allBatchesSent?1:2;
+                    this->done=allBatchesSent?1:2;
+                }
             }
-        }
-        //note: was !done, but didnt seem right...
-        if (*done && runningClassificationTrueAverage() > TAIL_CONTINUE_THRESH)
-        {
-            *done=0;//Just keep taking from the top until we aren't getting a lot of trues. This allows a bad thresholding to still work
+            //note: was !done, but didnt seem right...
+            if (*done && runningClassificationTrueAverage() > TAIL_CONTINUE_THRESH)
+            {
+                *done=0;//Just keep taking from the top until we aren't getting a lot of trues. This allows a bad thresholding to still work
 #ifdef TEST_MODE
-            cout<<"["<<ngram<<"] continuing past thresh due to running classification avg: "<<runningClassificationTrueAverage()<<endl;
+                cout<<"["<<ngram<<"] continuing past thresh due to running classification avg: "<<runningClassificationTrueAverage()<<endl;
 #endif
-        }
-        else if (!*done && runningClassificationTrueAverage() < END_EARLY_THRESH && batchTracking.size() >= END_EARLY_COUNT)
-        {
-            *done=1;
+            }
+            else if (!*done && runningClassificationTrueAverage() < END_EARLY_THRESH && batchTracking.size() >= END_EARLY_COUNT)
+            {
+                *done=1;
 #ifdef TEST_MODE
-            cout<<"["<<ngram<<"] ending early due to running classification avg: "<<runningClassificationTrueAverage()<<endl;
+                cout<<"["<<ngram<<"] ending early due to running classification avg: "<<runningClassificationTrueAverage()<<endl;
 #endif
+            }
         }
     }
     
@@ -877,6 +912,24 @@ float SpottingResults::runningClassificationTrueAverage()
         ret += c?1:0;
     return ret/runningClassifications.size();
 }
+float SpottingResults::runningClassificationGoodTrueAverage()
+{
+    if (runningClassificationsGood.size()<RUNNING_CLASSIFICATIONS_TWO_WALK_COUNT)
+        return 1;
+    float ret=0;
+    for (bool c : runningClassificationsGood)
+        ret += c?1:0;
+    return ret/runningClassificationsGood.size();
+}
+float SpottingResults::runningClassificationBadTrueAverage()
+{
+    if (runningClassificationsBad.size()<RUNNING_CLASSIFICATIONS_TWO_WALK_COUNT)
+        return 1;
+    float ret=0;
+    for (bool c : runningClassificationsBad)
+        ret += c?1:0;
+    return ret/runningClassificationsBad.size();
+}
 
 void SpottingResults::updateRunningClassifications(const vector<unsigned long>& ids, const vector<int>& newClassifications)
 {
@@ -887,7 +940,15 @@ void SpottingResults::updateRunningClassifications(const vector<unsigned long>& 
         {
             bool c = newClassifications[i];
             if (c==0 || c==1)
+            {
                 runningClassifications.push_back((bool)c);
+                if (GlobalK::knowledge()->SR_TWO_WALK)
+                {
+                    if (instancesById.at(ids[i]).score(useQbE) < pullFromScore)
+                        runningClassificationsGood.push_back((bool)c);
+                    else
+                        runningClassificationsBad.push_back((bool)c);
+                }
         }
         else
         {
@@ -896,6 +957,13 @@ void SpottingResults::updateRunningClassifications(const vector<unsigned long>& 
     }
     while (runningClassifications.size()>RUNNING_CLASSIFICATIONS_COUNT)
         runningClassifications.pop_front();
+    if (GlobalK::knowledge()->SR_TWO_WALK)
+    {
+        while (runningClassificationsGood.size()>RUNNING_CLASSIFICATIONS_TWO_WALK_COUNT)
+            runningClassificationsGood.pop_front();
+        while (runningClassificationsBad.size()>RUNNING_CLASSIFICATIONS_TWO_WALK_COUNT)
+            runningClassificationsBad.pop_front();
+    }
 }
 
 void SpottingResults::resetRunningClassifications()
@@ -1320,17 +1388,17 @@ void SpottingResults::EM_fancy(bool init)
 
             //we initailize our split with Otsu, as we are assuming two distinct distributions.
             //make histogram
-            int histSize=100;
+            int histSize=50;
             vector<int> histogram(histSize);
             //int total = 0;//instancesById.size();
             for (auto p : instancesById)
             {
-                if (p.second.score(useQbE)==p.second.score(useQbE) && p.second.score(useQbE)!=MAX_FLOAT)
+                if (p.second.score(useQbE)==p.second.score(useQbE) && p.second.score(useQbE)!=MAX_FLOAT && p.second.score(useQbE)<OTSU_USE_THRESH)
                 {
                     //total++;
                     unsigned long id = p.first;
                     
-                    int bin = (histSize-1)*(instancesById.at(id).score(useQbE)-minScore())/(maxScore()-minScore());
+                    int bin = (histSize-1)*(instancesById.at(id).score(useQbE)-minScore())/(OTSU_USE_THRESH-minScore());
                     if (bin<0) bin=0;
                     if (bin>histogram.size()-1) bin=histogram.size()-1;
                     histogram[bin]++;
@@ -1339,7 +1407,7 @@ void SpottingResults::EM_fancy(bool init)
             
             
             double thresh = GlobalK::otsuThresh(histogram);
-            float trueFalseDivideCandidate = (thresh/histSize)*(maxScore()-minScore())+minScore();
+            float trueFalseDivideCandidate = (thresh/histSize)*(OTSU_USE_THRESH-minScore())+minScore();
             float divideDensity = PHI(trueFalseDivideCandidate,usedMean,usedStd)*usedValues.size();
             float PHI_MIN = PHI(minScore(),usedMean,usedStd);
 #ifdef TEST_MODE
@@ -1766,6 +1834,60 @@ void SpottingResults::EM_fancy(bool init)
     lastAcceptThreshold=acceptThreshold;
     lastRejectThreshold=rejectThreshold;
 }
+
+void SpottingResults::EM_two_walk(bool init)
+{
+    if (init)
+    {
+        int numSamples=30;
+        vector<int> bins(numSamples);
+        for (auto p : instancesById)
+        {
+            if (p.second.score(useQbE)==p.second.score(useQbE) && p.second.score(useQbE)!=MAX_FLOAT && p.second.score(useQbE)<TWO_WALK_EST_USE_THRESH)
+                bins[(int)((p.second.score(useQbE)-minScore())/(TWO_WALK_EST_USE_THRESH-minScore())]++;
+        }
+        Mat Y(numSamples,1,CV_32F);
+        Mat X(numSamples,3,CV_32F);
+        for (int i=0; i<numSamples; i++)
+        {
+            Y.at<float>(i,0)=bins[i];
+            int x=(i*(TWO_WALK_EST_USE_THRESH-minScore()))+minScore();
+            X.at<float>(i,0)=1;
+            X.at<float>(i,1)=x;
+            X.at<float>(i,2)=x*x;
+        }
+        Mat A;
+        solve(X,Y,A);
+        assert(A.type()==Y.type() && A.at<float>(2,0)>0); //parabola should be going up
+
+        float turnScore = -A.at<float>(1,0)/(2*A.at<float>(2,0));
+
+        if (turnScore < minScore()+TWO_WALK_PAD_MIN)
+        {
+            takeFromTail=true;
+            pullFromScore = turnScore;
+            if (turnScore>TWO_WALK_EST_USE_THRESH-TWO_WALK_PAD_MIN)
+            {
+                cout<<"ERROR, ["<<ngram<<"] bad parab estimation"<<endl;
+                pullFromScore=6;
+            }
+            acceptThreshold=1;
+        }
+        else
+        {
+            takeFromTail=false;
+            pullFromScore=minScore()-1;
+            acceptThreshold=0;
+        }
+        rejectThreshold=1;
+    }
+    else
+    {
+        if (takeFromTail)
+            acceptThreshold=runningClassificationGoodTrueAverage()<TWO_WALK_ACCEPT_THRESHOLD;
+        rejectThreshold=runningClassificationBadTrueAverage()>TWO_WALK_REJECT_THRESHOLD;
+    }
+}
     
 
 bool SpottingResults::EMThresholds(int swing)
@@ -1786,6 +1908,8 @@ else if (GlobalK::knowledge()->SR_OTSU_FIXED)
 //    EM_otsuAdapt(init);
 else if (GlobalK::knowledge()->SR_GAUSSIAN_DRAW)
     EM_takeGuass(init);
+else if (GlobalK::knowledge()->SR_TWO_WALK)
+    EM_two_walk();
 else
     EM_fancy(init);
 
