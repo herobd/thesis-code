@@ -44,10 +44,10 @@
 
 #define OTSU_USE_THRESH ((maxScore()-minScore())/3.0 + minScore())
 
-#define TWO_WALK_EST_USE_THRESH 15.0 //set for Bentham
-#define TWO_WALK_PAD_MIN (fabs(TWO_WALK_EST_USE_THRESH)*0.01)
-#define TWO_WALK_ACCEPT_THRESHOLD 0.92
-#define TWO_WALK_REJECT_THRESHOLD 0.2
+#define TWO_WALK_EST_USE_THRESH 13.0 //set for Bentham
+#define TWO_WALK_PAD_MIN fabs(TWO_WALK_EST_USE_THRESH*0.01)
+//#define TWO_WALK_ACCEPT_THRESHOLD 0.92
+//#define TWO_WALK_REJECT_THRESHOLD 0.35
 #define RUNNING_CLASSIFICATIONS_TWO_WALK_COUNT 15
 
 using namespace std;
@@ -193,6 +193,7 @@ public:
 #ifdef TEST_MODE
     int setDebugInfo(SpottingsBatch* b);
     void saveHistogram(float actualModelDif);
+    void saveTwoWalkHist();
 #endif
     void debugState() const;
     vector< tuple<float,float,int,float,float> > getBatchTracking()
@@ -350,6 +351,18 @@ private:
     int atn, rtn;
 
     string histFile;
+#ifdef GRAPH_SPOTTING_RESULTS
+    int graphCount;
+    vector<float> binScores;
+    float binSize;
+    int sumTrue,sumFalse;
+    string undoneGraphName;
+    cv::Mat undoneGraph;
+    string fullGraphName;
+    cv::Mat fullGraph;
+    multimap<float,unsigned long> fullInstancesByScore;
+    float cutoffGoodUsed, cutoffBadUsed, a1Used, a2Used, a3Used;
+#endif
 #endif
 
     //This acts as a pointer to where we last extracted a batch to speed up searching for the correct score area to extract a batch from
@@ -368,11 +381,12 @@ private:
     void EM_otsuFixed(bool init);
     void EM_takeGuass(bool init);
     void EM_fancy(bool init);
+    void EM_two_walk(bool init);
 
-    list<bool> runningClassifications;
+    list<bool> runningClassifications, runningClassificationsGood, runningClassificationsBad;
     set<unsigned long> dontAddToRunningClassifications;
     int badInARow;
-    float runningClassificationTrueAverage();
+    float runningClassificationTrueAverage(), runningClassificationGoodTrueAverage(), runningClassificationBadTrueAverage();
     void updateRunningClassifications(const vector<unsigned long>& ids, const vector<int>& newClassifications);
     void resetRunningClassifications();
 
@@ -390,17 +404,6 @@ private:
     //How much to pad (top and bottom) images sent to users
     int contextPad;
     int batchesSinceChange;
-#ifdef GRAPH_SPOTTING_RESULTS
-    int graphCount;
-    vector<float> binScores;
-    float binSize;
-    int sumTrue,sumFalse;
-    string undoneGraphName;
-    cv::Mat undoneGraph;
-    string fullGraphName;
-    cv::Mat fullGraph;
-    multimap<float,unsigned long> fullInstancesByScore;
-#endif
     
     /*bool tlComp (unsigned long lhs, unsigned long rhs) const
     {

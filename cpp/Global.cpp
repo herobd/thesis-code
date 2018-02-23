@@ -34,6 +34,9 @@ GlobalK::GlobalK() :
     SR_GAUSSIAN_DRAW=false;
     SR_TWO_WALK=false;
 
+    TWO_WALK_REJECT_THRESHOLD=0.35;
+    TWO_WALK_ACCEPT_THRESHOLD=0.92;
+
     MIN_SPOTTING_AP=-1;
     IDEAL_COMB=false;
 

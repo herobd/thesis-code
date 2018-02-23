@@ -599,6 +599,90 @@ void SpottingResults::saveHistogram(float actualModelDif)
     graphCount++;
     #endif
 }
+void SpottingResults::saveTwoWalkHist()
+{
+#ifdef GRAPH_SPOTTING_RESULTS
+        int numBuckets=100;
+        vector<int> bucketsT(numBuckets);
+        vector<int> bucketsF(numBuckets);
+        vector<int> bucketsA(numBuckets);
+        int count=0;
+        for (auto& p : instancesById)
+        {
+            float score = p.second.score(useQbE);
+            if (score!=score || score==MAX_FLOAT)
+                continue;
+            count++;
+            if (useQbE)
+            {
+                auto range = allInstancesByScoreQbE.equal_range(score);
+                assert(range.first != range.second);
+            }
+
+            int bucket = (numBuckets-1)*(score-minScore())/(maxScore()-minScore());
+            assert(bucket>=0 && bucket<numBuckets);
+            bool t=false;
+            if (p.second.gt==1)
+                t=true;
+            else if (p.second.gt!=0)
+            {
+                t = GlobalK::knowledge()->ngramAt(ngram, p.second.pageId, p.second.tlx, p.second.tly, p.second.brx, p.second.bry);
+                p.second.gt=t;
+            }
+
+            if (t)
+                bucketsT[bucket]++;
+            else
+                bucketsF[bucket]++;
+            bucketsA[bucket]++;
+        }
+        if (useQbE)
+            assert(numSpottingsQbEMax>=count);
+        ofstream file (histFile,ofstream::app);
+            file<<ngram<<" "<<(useQbE?"QbE ":"QbS ")<<numComb<<"   use(est) threshold: "<<TWO_WALK_EST_USE_THRESH<<"  para-min: "<<pullFromScore<<"   cutoffGood: "<<cutoffGoodUsed<<"   cutoffBad: "<<cutoffBadUsed<<"  [a]: "<<a1Used<<", "<<a2Used<<", "<<a3Used<<endl;
+            file<<"Score, ";
+            binScores.resize(numBuckets);
+            binSize = (maxScore()-minScore())/numBuckets;
+            for (int i=0; i<numBuckets; i++)
+            {
+                float score = minScore()+((i+0.5)*binSize);
+                file<<score<<", ";
+                binScores[i]=score;
+            }
+            file<<"\nTrue, ";
+            sumTrue=0;
+            for (int n : bucketsT)
+            {
+                sumTrue+=n;
+                file<<n<<", ";
+            }
+            file<<"\nFalse, ";
+            sumFalse=0;
+            for (int n : bucketsF)
+            {
+                sumFalse+=n;
+                file<<n<<", ";
+            }
+            file<<"\nAll, ";
+            for (int n : bucketsA)
+            {
+                file<<n<<", ";
+            }
+
+            
+            file<<"\nParab, ";
+            //float parabStep = (TWO_WALK_EST_USE_THRESH-minScore())/30.0; step is score
+            float histStep = (maxScore()-minScore())/numBuckets;
+            for (int bin=0; (bin*histStep)+minScore()<=TWO_WALK_EST_USE_THRESH; bin++)
+            {
+                float score = (bin*histStep)+minScore();
+                float parabY = a1Used + a2Used*score + a3Used*score*score;
+                file<<parabY<<", ";
+            }
+        file<<"\n"<<endl;
+        file.close();
+    #endif
+}
 #endif
 
 SpottingsBatch* SpottingResults::getBatch(int* done, unsigned int num, bool hard, unsigned int maxWidth, int color, string prevNgram, bool need) {
@@ -628,6 +712,20 @@ SpottingsBatch* SpottingResults::getBatch(int* done, unsigned int num, bool hard
 #endif
     if (GlobalK::knowledge()->SR_TWO_WALK)
     {
+        if (acceptThreshold==0 && rejectThreshold==0)//we're done...
+        {
+#ifdef TEST_MODE
+            cout<<"["<<ngram<<"] Asked for batch when thresholds already reached."<<endl;
+#endif
+            *done=allBatchesSent?1:2;
+            if (!allBatchesSent)
+            {
+                cout<<"["<<ngram<<"] ERROR, threshs passed but allBatchesSent not set."<<endl;
+                allBatchesSent=true;
+            }
+            delete ret;
+            return NULL;
+        }
         //this is very differen that the other methods
         auto iterScore = instancesByScore.begin();
         while (iterScore!=instancesByScore.end() && iterScore->first<pullFromScore)
@@ -651,6 +749,16 @@ SpottingsBatch* SpottingResults::getBatch(int* done, unsigned int num, bool hard
             {
 #ifdef TEST_MODE
                 cout<<"["<<ngram<<"] Ran out of instances"<<endl;
+                saveTwoWalkHist();
+#endif
+                *done=allBatchesSent?1:2;
+                break;
+            }
+            if ( !( (acceptThreshold>0 && iterScore!=instancesByScore.begin()) || rejectThreshold>0 ) )
+            {
+#ifdef TEST_MODE
+                cout<<"["<<ngram<<"] No instances in threshold area"<<endl;
+                saveTwoWalkHist();
 #endif
                 *done=allBatchesSent?1:2;
                 break;
@@ -949,6 +1057,7 @@ void SpottingResults::updateRunningClassifications(const vector<unsigned long>& 
                     else
                         runningClassificationsBad.push_back((bool)c);
                 }
+            }
         }
         else
         {
@@ -1084,7 +1193,7 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
         }
     }
 
-    if (batchesSinceChange > CHECK_IF_BAD_SPOTTING_START)
+    if (batchesSinceChange > CHECK_IF_BAD_SPOTTING_START && !GlobalK::knowledge()->SR_TWO_WALK)
     {
         if (numberClassifiedTrue/(numberClassifiedTrue+numberClassifiedFalse+0.0) < CHECK_IF_BAD_SPOTTING_THRESH)
         {
@@ -1128,6 +1237,8 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
         int numAutoRejected=0;
         int trueAutoRejected=0;
 #endif
+        if (GlobalK::knowledge()->SR_TWO_WALK) //hack
+            acceptThreshold=pullFromScore;
         tracer = instancesByScore.begin();
         while (tracer!=instancesByScore.end() && instancesById.at(tracer->second).score(useQbE) <= acceptThreshold)
         {
@@ -1167,6 +1278,8 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
 #endif
             tracer++;
         }
+        if (GlobalK::knowledge()->SR_TWO_WALK) //hack
+            acceptThreshold=0;
         //cout << "hit end "<<(tracer==instancesByScore.end())<<endl;
         numberRejected = distance(tracer,instancesByScore.end());
 #ifdef TEST_MODE
@@ -1179,7 +1292,10 @@ vector<Spotting>* SpottingResults::feedback(int* done, const vector<string>& ids
     {
         *done=-1;
 #ifdef TEST_MODE
-        cout<<"SpottingResults ["<<ngram<<"]: has more batches and will be re-enqueued"<<endl;
+        if (GlobalK::knowledge()->SR_TWO_WALK)
+            cout<<"SpottingResults ["<<ngram<<"]: has more batches and will be re-enqueued. good: "<<runningClassificationGoodTrueAverage()<<", bad: "<<runningClassificationBadTrueAverage()<<endl;
+        else
+            cout<<"SpottingResults ["<<ngram<<"]: has more batches and will be re-enqueued"<<endl;
 #endif
     }
     //debugState();
@@ -1844,25 +1960,37 @@ void SpottingResults::EM_two_walk(bool init)
         for (auto p : instancesById)
         {
             if (p.second.score(useQbE)==p.second.score(useQbE) && p.second.score(useQbE)!=MAX_FLOAT && p.second.score(useQbE)<TWO_WALK_EST_USE_THRESH)
-                bins[(int)((p.second.score(useQbE)-minScore())/(TWO_WALK_EST_USE_THRESH-minScore())]++;
+            {
+                int bin = (numSamples)*(p.second.score(useQbE)-minScore())/(TWO_WALK_EST_USE_THRESH-minScore());
+                //if (bin == numSamples) should never hit
+                //    bin--;
+                bins.at(bin)++;
+            }
         }
         Mat Y(numSamples,1,CV_32F);
         Mat X(numSamples,3,CV_32F);
         for (int i=0; i<numSamples; i++)
         {
             Y.at<float>(i,0)=bins[i];
-            int x=(i*(TWO_WALK_EST_USE_THRESH-minScore()))+minScore();
+            int x=(i*(TWO_WALK_EST_USE_THRESH-minScore())/numSamples)+minScore();
             X.at<float>(i,0)=1;
             X.at<float>(i,1)=x;
             X.at<float>(i,2)=x*x;
         }
         Mat A;
-        solve(X,Y,A);
-        assert(A.type()==Y.type() && A.at<float>(2,0)>0); //parabola should be going up
+        solve(X,Y,A,DECOMP_QR);
+        assert(A.type()==Y.type());
+        if (A.at<float>(2,0)<=0)
+            cout<<"ERRORR ["<<ngram<<"] parab upside down"<<endl;
+#ifdef GRAPH_SPOTTING_RESULTS
+        a1Used=A.at<float>(0,0);
+        a2Used=A.at<float>(1,0);
+        a3Used=A.at<float>(2,0);
+#endif
 
         float turnScore = -A.at<float>(1,0)/(2*A.at<float>(2,0));
 
-        if (turnScore < minScore()+TWO_WALK_PAD_MIN)
+        if (turnScore > minScore()/*+TWO_WALK_PAD_MIN*/ && A.at<float>(2,0)>0)
         {
             takeFromTail=true;
             pullFromScore = turnScore;
@@ -1878,14 +2006,38 @@ void SpottingResults::EM_two_walk(bool init)
             takeFromTail=false;
             pullFromScore=minScore()-1;
             acceptThreshold=0;
+#ifdef GRAPH_SPOTTING_RESULTS
+            cutoffGoodUsed=-1;
+#endif
         }
         rejectThreshold=1;
     }
     else
     {
+#ifdef GRAPH_SPOTTING_RESULTS
+        if (acceptThreshold>0 && !(runningClassificationGoodTrueAverage()<GlobalK::knowledge()->TWO_WALK_ACCEPT_THRESHOLD))
+        {
+            auto iter = instancesByScore.begin();
+            while(iter->first<pullFromScore)
+                iter++;
+            if (iter != instancesByScore.begin())
+                iter--;
+            cutoffGoodUsed=iter->first;
+        }
+        if (rejectThreshold>0 && !(runningClassificationBadTrueAverage()>GlobalK::knowledge()->TWO_WALK_REJECT_THRESHOLD))
+        {
+            auto iter = instancesByScore.begin();
+            while(iter->first<pullFromScore)
+                iter++;
+            if (iter == instancesByScore.end())
+                iter--;
+            cutoffBadUsed=iter->first;
+        }
+#endif
+        //We always recompute incase feedback has changed current stance
         if (takeFromTail)
-            acceptThreshold=runningClassificationGoodTrueAverage()<TWO_WALK_ACCEPT_THRESHOLD;
-        rejectThreshold=runningClassificationBadTrueAverage()>TWO_WALK_REJECT_THRESHOLD;
+            acceptThreshold=runningClassificationGoodTrueAverage()<GlobalK::knowledge()->TWO_WALK_ACCEPT_THRESHOLD;
+        rejectThreshold=runningClassificationBadTrueAverage()>GlobalK::knowledge()->TWO_WALK_REJECT_THRESHOLD;
     }
 }
     
@@ -1898,81 +2050,104 @@ bool SpottingResults::EMThresholds(int swing)
     assert(maxScore()!=-999999);
 
     bool init = acceptThreshold==-1 && rejectThreshold==-1;
-if (GlobalK::knowledge()->SR_THRESH_NONE)
-    EM_none();
-else if (GlobalK::knowledge()->SR_TAKE_FROM_TOP)
-    EM_top(init);
-else if (GlobalK::knowledge()->SR_OTSU_FIXED)
-    EM_otsuFixed(init);
-//else if (GlobalK::knowledge()->SR_OTSU_ADAPT)
-//    EM_otsuAdapt(init);
-else if (GlobalK::knowledge()->SR_GAUSSIAN_DRAW)
-    EM_takeGuass(init);
-else if (GlobalK::knowledge()->SR_TWO_WALK)
-    EM_two_walk();
-else
-    EM_fancy(init);
+    if (GlobalK::knowledge()->SR_THRESH_NONE)
+        EM_none();
+    else if (GlobalK::knowledge()->SR_TAKE_FROM_TOP)
+        EM_top(init);
+    else if (GlobalK::knowledge()->SR_OTSU_FIXED)
+        EM_otsuFixed(init);
+    //else if (GlobalK::knowledge()->SR_OTSU_ADAPT)
+    //    EM_otsuAdapt(init);
+    else if (GlobalK::knowledge()->SR_GAUSSIAN_DRAW)
+        EM_takeGuass(init);
+    else if (GlobalK::knowledge()->SR_TWO_WALK)
+        EM_two_walk(init);
+    else
+        EM_fancy(init);
 
-    //safe gaurd
-    if (pullFromScore>rejectThreshold)
-        pullFromScore=rejectThreshold;
-    else if (pullFromScore<acceptThreshold)
-        pullFromScore=acceptThreshold;
-
-    
-    if(acceptThreshold>rejectThreshold) {//This is the case where the distributions are so far apart they "don't overlap"
-        if (instancesById.size()/3 < classById.size()){//Be sure we aren't hitting this too early
-            float mid = rejectThreshold + (acceptThreshold-rejectThreshold)/2.0;
-            acceptThreshold = rejectThreshold = mid;//We finish here, by accepting and rejecting everything left.
-            cout<<"cross threshed, finisheing"<<endl;
-        } 
-        else {
-            acceptThreshold = trueMean;//This is an overcorrection, allowing a alater batch to fix us.
-            rejectThreshold = falseMean;
-            cout<<"cross threshed, correcting"<<endl;
-        }
-    }
-    
-    /*if (!init)
+    if (!GlobalK::knowledge()->SR_TWO_WALK)
     {
-        int ns=0;
-        float innerTrue;
-        float innerFalse;
-        do
+        //safe gaurd
+        if (pullFromScore>rejectThreshold)
+            pullFromScore=rejectThreshold;
+        else if (pullFromScore<acceptThreshold)
+            pullFromScore=acceptThreshold;
+
+
+        if(acceptThreshold>rejectThreshold) {//This is the case where the distributions are so far apart they "don't overlap"
+            if (instancesById.size()/3 < classById.size()){//Be sure we aren't hitting this too early
+                float mid = rejectThreshold + (acceptThreshold-rejectThreshold)/2.0;
+                acceptThreshold = rejectThreshold = mid;//We finish here, by accepting and rejecting everything left.
+                cout<<"cross threshed, finisheing"<<endl;
+            } 
+            else {
+                acceptThreshold = trueMean;//This is an overcorrection, allowing a alater batch to fix us.
+                rejectThreshold = falseMean;
+                cout<<"cross threshed, correcting"<<endl;
+            }
+        }
+
+        /*if (!init)
         {
-            innerTrue=trueMean+ns*sqrt(trueVariance);
-            innerFalse=falseMean-ns*sqrt(falseVariance);
-            ns++;
-        } while (innerTrue<innerFalse);
-        innerTrue=trueMean+(ns-1)*sqrt(trueVariance);
-        innerFalse=falseMean-(ns-1)*sqrt(falseVariance);
-        float newMidScore = innerTrue+ (innerFalse-innerTrue)/2.0;
-        pullFromScore = trueMean;//newMidScore;
-        //cout << "pullFromScore: "<<pullFromScore<<endl;
-    }*/
-    if (init) {
-        allBatchesSent=false;
-        numLeftInRange=instancesByScore.size();
+            int ns=0;
+            float innerTrue;
+            float innerFalse;
+            do
+            {
+                innerTrue=trueMean+ns*sqrt(trueVariance);
+                innerFalse=falseMean-ns*sqrt(falseVariance);
+                ns++;
+            } while (innerTrue<innerFalse);
+            innerTrue=trueMean+(ns-1)*sqrt(trueVariance);
+            innerFalse=falseMean-(ns-1)*sqrt(falseVariance);
+            float newMidScore = innerTrue+ (innerFalse-innerTrue)/2.0;
+            pullFromScore = trueMean;//newMidScore;
+            //cout << "pullFromScore: "<<pullFromScore<<endl;
+        }*/
+        if (init) {
+            allBatchesSent=false;
+            numLeftInRange=instancesByScore.size();
+        }
+        else
+        {
+            allBatchesSent=true;
+            auto iter = instancesByScore.begin();
+            while (iter!=instancesByScore.end() && instancesById.at(iter->second).score(useQbE) < rejectThreshold)
+            {
+                assert(instancesById.find(iter->second) != instancesById.end());
+                
+                if (instancesById.at(iter->second).score(useQbE) > acceptThreshold && instancesById.at(iter->second).score(useQbE) < rejectThreshold)
+                {
+                    allBatchesSent=false;
+                    break;
+                }
+                iter++;
+            }
+#ifdef TEST_MODE
+           if (allBatchesSent)
+              cout<<"["<<ngram<<"] EM none left between thresh"<<endl;
+#endif 
+        }
     }
     else
     {
-        allBatchesSent=true;
-        auto iter = instancesByScore.begin();
-        while (iter!=instancesByScore.end() && instancesById.at(iter->second).score(useQbE) < rejectThreshold)
+        if (acceptThreshold!=0 || rejectThreshold!=0)
         {
-            assert(instancesById.find(iter->second) != instancesById.end());
-            
-            if (instancesById.at(iter->second).score(useQbE) > acceptThreshold && instancesById.at(iter->second).score(useQbE) < rejectThreshold)
-            {
-                allBatchesSent=false;
-                break;
-            }
-            iter++;
+            numLeftInRange=100;//prevent soemthing bad
+            allBatchesSent=false;
         }
+        else
+        {
+            numLeftInRange=0;
 #ifdef TEST_MODE
-       if (allBatchesSent)
-          cout<<"["<<ngram<<"] EM none left between thresh"<<endl;
+            if (!allBatchesSent)
+            {
+                cout<<"["<<ngram<<"] EM, both threshes passed, good: "<<runningClassificationGoodTrueAverage()<<", bad: "<<runningClassificationBadTrueAverage()<<endl;
+                saveTwoWalkHist();
+            }
 #endif 
+            allBatchesSent=true;
+        }
     }
     //debugState();
     return allBatchesSent;

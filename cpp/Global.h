@@ -237,6 +237,8 @@ class GlobalK
         bool SR_GAUSSIAN_DRAW;
         bool SR_TWO_WALK;
 
+        float TWO_WALK_REJECT_THRESHOLD, TWO_WALK_ACCEPT_THRESHOLD;
+
         float MIN_SPOTTING_AP;
         bool IDEAL_COMB;
 

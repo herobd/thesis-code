@@ -459,9 +459,14 @@ int main(int argc, char** argv)
     {
         GlobalK::knowledge()->SR_FANCY_TWO=true;
     }
-    else if (SR_mode.compare("two_walk")==0)
+    else if (SR_mode.substr(0,8).compare("two_walk")==0)
     {
         GlobalK::knowledge()->SR_TWO_WALK=true;
+        if (SR_mode.length()>8)
+        {
+            GlobalK::knowledge()->TWO_WALK_REJECT_THRESHOLD=stoi(SR_mode.substr(9));
+            cout<<"TWO_WALK_REJECT_THRESHOLD set to "<<GlobalK::knowledge()->TWO_WALK_REJECT_THRESHOLD<<endl;
+        }
     }
     else if (SR_mode.substr(0,10).compare("phoc_trans")==0)
     {
