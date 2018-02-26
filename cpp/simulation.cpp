@@ -464,7 +464,7 @@ int main(int argc, char** argv)
         GlobalK::knowledge()->SR_TWO_WALK=true;
         if (SR_mode.length()>8)
         {
-            GlobalK::knowledge()->TWO_WALK_REJECT_THRESHOLD=stoi(SR_mode.substr(9));
+            GlobalK::knowledge()->TWO_WALK_REJECT_THRESHOLD=stof(SR_mode.substr(9));
             cout<<"TWO_WALK_REJECT_THRESHOLD set to "<<GlobalK::knowledge()->TWO_WALK_REJECT_THRESHOLD<<endl;
         }
     }

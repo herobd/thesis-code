@@ -761,6 +761,11 @@ SpottingsBatch* SpottingResults::getBatch(int* done, unsigned int num, bool hard
                 saveTwoWalkHist();
 #endif
                 *done=allBatchesSent?1:2;
+                if (ret->size()==0)
+                {
+                    delete ret;
+                    return NULL;
+                }
                 break;
             }
 
