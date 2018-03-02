@@ -78,6 +78,7 @@ class Simulator
 
     float transMilli_b;
     float transMilli_m;
+    float transMilli_0;
     float transMilli_notAvail;
     float transErrorProbAvailError;//specific type of error where user said it wasn't present when it was
     float transErrorProbAvailWord;//user picked wrong word

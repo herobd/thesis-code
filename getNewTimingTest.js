@@ -4,7 +4,8 @@ const readline = require('readline');
 
 
 //var datanames=['BENTHAMfancy','BENTHAMcluster_step','NAMESfancy','NAMEScluster_step'];
-var datanames=['BENTHAMphoc_trans'];//,'NAMESphoc_trans'];
+//var datanames=['BENTHAMphoc_trans'];//,'NAMESphoc_trans'];
+var datanames=['NAMESphoc_trans'];
 var lineDatanames=['BENTHAMline'];//,'NAMESline'];
 //var datanames=['NAMESphoc_trans'];
 //var lineDatanames=['NAMESline'];
@@ -203,6 +204,8 @@ function findParamsTransNew(err,transTimingInstances,dataname) {
     var allCSV='acc,time,numPoss,position,prev,avail,bad,error,user\n';
     var availCSV='acc,time,numPoss,position,prev,user';
     var notCSV='acc,time,numPoss,position,prev,user';
+    var first='acc,time,numPoss,position,prev,user';
+    var notfirst='acc,time,numPoss,position,prev,user';
     for (var inst of transTimingInstances)
     {
         position = inst.position==-1?-10:inst.position;
@@ -220,6 +223,10 @@ function findParamsTransNew(err,transTimingInstances,dataname) {
             availAcc+=inst.accuracy;
             availTime+=inst.time;
             availCSV+=inst.accuracy+','+inst.time+','+inst.numPoss+','+position+','+(inst.prev?1:0)+','+inst.user+'\n';
+            if (inst.position==0)
+                first+=inst.accuracy+','+inst.time+','+inst.numPoss+','+position+','+(inst.prev?1:0)+','+inst.user+'\n';
+            else
+                notfirst+=inst.accuracy+','+inst.time+','+inst.numPoss+','+position+','+(inst.prev?1:0)+','+inst.user+'\n';
         }
         else {
             notCount++;
@@ -271,6 +278,16 @@ function findParamsTransNew(err,transTimingInstances,dataname) {
             stream.once('open', function(fd) {
                 stream.write(notCSV);
                 stream.close();
+                stream = fs.createWriteStream("userNew/trans_first_"+dataname+".csv");
+                stream.once('open', function(fd) {
+                    stream.write(first);
+                    stream.close();
+                    stream = fs.createWriteStream("userNew/trans_notfirst_"+dataname+".csv");
+                    stream.once('open', function(fd) {
+                        stream.write(notfirst);
+                        stream.close();
+                    });
+                });
             });
         });
     });
@@ -576,8 +593,8 @@ var database=new Database('localhost:27017/cattss', datanames.concat(lineDatanam
     //db.getDoubleTransTimings('NAMESfancy','NAMEScluster_step',findParamsTrans);
     for (var i=0; i<lineDatanames.length; i++)
     {
-        console.log('--'+lineDatanames[i]+'--');
-        db.getManTimings(lineDatanames[i],findParamsManNew);
+        //console.log('--'+lineDatanames[i]+'--');
+        //db.getManTimings(lineDatanames[i],findParamsManNew);
     }
 });
 

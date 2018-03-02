@@ -73,6 +73,7 @@ Simulator::Simulator(string dataname, string mode, string segCSV) : cluster(mode
 
         transMilli_b=50;//position 0.07 (no -1)
         transMilli_m=0;
+        transMilli_0=1;
         transMilli_notAvail=50;
         transErrorProbAvailError=0;
         transErrorProbAvailWord=0;
@@ -116,8 +117,9 @@ Simulator::Simulator(string dataname, string mode, string segCSV) : cluster(mode
         }
 
 
-        transMilli_b=1354.996;
-        transMilli_m=1021.526;
+        transMilli_b=2857.76;//1354.996;
+        transMilli_m=252.42;//1021.526;
+        transMilli_0=1763.635;
         transMilli_notAvail=5490.7;
         transErrorProbAvailError=0.01415;
         transErrorProbAvailWord=0.01179;
@@ -165,8 +167,9 @@ Simulator::Simulator(string dataname, string mode, string segCSV) : cluster(mode
             spottingSkipProb_b=-4.952;
         }
 
-        transMilli_b=2543.413;
-        transMilli_m=345.995;
+        transMilli_b=2603;//2543.413;
+        transMilli_m=239.57;//345.995;
+        transMilli_0=1996;
         transMilli_notAvail=5526;
         transErrorProbAvailError=0.01739;
         transErrorProbAvailWord=0.03043;
@@ -413,6 +416,8 @@ string Simulator::transcription(int wordIndex, vector<SpottingPoint> spottings, 
             ret=poss[i];
             corIdx=i;
             milli=transMilli_b + transMilli_m*i;
+            if (i==0)
+                milli=transMilli_0;
         }
     }
     if (ret.length()==0)
